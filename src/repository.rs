@@ -1,4 +1,4 @@
-use std::{mem::take, str::FromStr};
+use std::{fmt::Debug, mem::take, str::FromStr};
 
 use anyhow::Result;
 use log::debug;
@@ -35,6 +35,10 @@ store_as_sql_text! {
     DateTime
     ItemType
 }
+
+trait Parameter: Debug + ToSql {}
+
+impl<T: Debug + ToSql> Parameter for T {}
 
 pub trait Repository {
     fn get_item(&self, id: i64) -> Result<Item>;
@@ -80,7 +84,7 @@ impl Repository for Connection {
     fn get_items(&self, filter: &ItemFilter) -> Result<ItemSearchResult> {
         debug!("get_items START");
 
-        let mut params: Vec<&dyn ToSql> = Vec::new();
+        let mut params: Vec<&dyn Parameter> = Vec::new();
 
         let mut sql = "
             SELECT id, submit_date, system, type, total_items FROM (
@@ -98,8 +102,6 @@ impl Repository for Connection {
 
             for term in &terms {
                 params.push(term);
-                debug!("param {}: {}", params.len(), term);
-
                 sql.push_str(" AND body LIKE '%' || ? || '%'");
             }
 
@@ -108,29 +110,21 @@ impl Repository for Connection {
 
         if let Some(system) = &filter.system {
             params.push(system);
-            debug!("param {}: {}", params.len(), system);
-
             sql.push_str(" AND system = ?");
         }
 
         if let Some(r#type) = &filter.r#type {
             params.push(r#type);
-            debug!("param {}: {}", params.len(), r#type);
-
             sql.push_str(" AND type = ?");
         }
 
         if let Some(from) = &filter.from {
             params.push(from);
-            debug!("param {}: {}", params.len(), from);
-
             sql.push_str(" AND submit_date >= ?");
         }
 
         if let Some(to) = &filter.to {
             params.push(to);
-            debug!("param {}: {}", params.len(), to);
-
             sql.push_str(" AND submit_date <= ?");
         }
 
@@ -140,7 +134,6 @@ impl Repository for Connection {
 
         if filter.next_item_id > 0 {
             params.push(&filter.next_item_id);
-            debug!("param {}: {}", params.len(), filter.next_item_id);
 
             sql.push_str(" WHERE id ");
             sql.push_str(if asc { ">=" } else { "<=" });
@@ -148,13 +141,12 @@ impl Repository for Connection {
         }
 
         params.push(&filter.batch_size);
-        debug!("param {}: {}", params.len(), filter.batch_size);
 
         sql.push_str(" ORDER BY id ");
         sql.push_str(if asc { "ASC" } else { "DESC" });
         sql.push_str(" LIMIT ? + 1");
 
-        debug!("sql: {sql}");
+        debug!("sql: {sql}, params: {params:?}");
 
         let mut stmt = self.prepare(&sql)?;
         let mut rows = stmt.query(params_from_iter(params.iter()))?;
@@ -179,6 +171,7 @@ impl Repository for Connection {
 
         let mut stmt = self
             .prepare("SELECT DISTINCT system FROM item WHERE system IS NOT NULL ORDER BY system")?;
+
         let mut rows = stmt.query([])?;
 
         while let Some(row) = rows.next()? {
