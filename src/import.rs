@@ -52,7 +52,7 @@ pub fn import_csv(input: &Path, output: &Path, generate_ids: bool) -> Result<()>
         item.update_metadata();
 
         tx.insert_item_no_tx(&item)
-            .with_context(|| format!("when inserting item {}", id))?;
+            .with_context(|| format!("when inserting item {id}"))?;
 
         count += 1;
 

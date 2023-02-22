@@ -2,6 +2,7 @@ use std::{mem::take, str::FromStr};
 
 use anyhow::Result;
 use log::debug;
+
 use rusqlite::{
     params, params_from_iter,
     types::{FromSql, FromSqlError, FromSqlResult, ToSqlOutput, Value, ValueRef},
@@ -93,9 +94,9 @@ impl Repository for Connection {
         if let Some(query) = &filter.query {
             parse_query(query, &mut terms);
 
-            sql.push_str("AND id IN (SELECT item_id FROM item_body WHERE 1 = 1");
+            sql.push_str(" AND EXISTS (SELECT 1 FROM item_body WHERE item_id = id");
 
-            for term in terms.iter() {
+            for term in &terms {
                 params.push(term);
                 debug!("param {}: {}", params.len(), term);
 
@@ -109,28 +110,28 @@ impl Repository for Connection {
             params.push(system);
             debug!("param {}: {}", params.len(), system);
 
-            sql.push_str("AND system = ?");
+            sql.push_str(" AND system = ?");
         }
 
         if let Some(r#type) = &filter.r#type {
             params.push(r#type);
             debug!("param {}: {}", params.len(), r#type);
 
-            sql.push_str("AND type = ?");
+            sql.push_str(" AND type = ?");
         }
 
         if let Some(from) = &filter.from {
             params.push(from);
             debug!("param {}: {}", params.len(), from);
 
-            sql.push_str("AND submit_date >= ?");
+            sql.push_str(" AND submit_date >= ?");
         }
 
         if let Some(to) = &filter.to {
             params.push(to);
             debug!("param {}: {}", params.len(), to);
 
-            sql.push_str("AND submit_date <= ?");
+            sql.push_str(" AND submit_date <= ?");
         }
 
         sql.push_str(") ");
@@ -141,7 +142,7 @@ impl Repository for Connection {
             params.push(&filter.next_item_id);
             debug!("param {}: {}", params.len(), filter.next_item_id);
 
-            sql.push_str("WHERE id ");
+            sql.push_str(" WHERE id ");
             sql.push_str(if asc { ">=" } else { "<=" });
             sql.push_str("? ");
         }
@@ -149,7 +150,7 @@ impl Repository for Connection {
         params.push(&filter.batch_size);
         debug!("param {}: {}", params.len(), filter.batch_size);
 
-        sql.push_str("ORDER BY id ");
+        sql.push_str(" ORDER BY id ");
         sql.push_str(if asc { "ASC" } else { "DESC" });
         sql.push_str(" LIMIT ? + 1");
 

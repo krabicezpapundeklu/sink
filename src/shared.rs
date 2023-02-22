@@ -8,6 +8,7 @@ use anyhow::{bail, Error};
 use chrono::{NaiveDateTime, Utc};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{from_slice, Value};
+
 use xml::{
     attribute::OwnedAttribute,
     reader::XmlEvent::{Characters, EndElement, StartElement},
@@ -21,7 +22,7 @@ macro_rules! item_types {
         }
 
         impl Display for ItemType {
-            fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+            fn fmt(&self, f: &mut Formatter) -> fmt::Result {
                 let name = match &self {
                     $(Self::$id => $name),+
                 };
@@ -146,7 +147,8 @@ pub struct Item {
 impl Item {
     fn map_xml_path_to_item_type(path: &str, attributes: &[OwnedAttribute]) -> Option<ItemType> {
         let r#type = match path {
-            "/Envelope/Body/Create__CompIntfc__Z_USAS_UPDT_STATUS" => ItemType::StatusUpdated,
+            "/Envelope/Body/Create__CompIntfc__Z_USAS_UPDT_STATUS"
+            | "/Envelope/Body/updateStatusRequest" => ItemType::StatusUpdated,
             "/Envelope/Body/createdApplication" => ItemType::ApplicationCreated,
             "/Envelope/Body/createdCertificate" => ItemType::CertificateCreated,
             "/Envelope/Body/createdVacancy" => ItemType::VacancyCreated,
@@ -155,7 +157,6 @@ impl Item {
             "/Envelope/Body/updatedApplication" => ItemType::ApplicationUpdated,
             "/Envelope/Body/updatedCertificate" => ItemType::CertificateUpdated,
             "/Envelope/Body/updatedVacancy" => ItemType::VacancyUpdated,
-            "/Envelope/Body/updateStatusRequest" => ItemType::StatusUpdated,
             "/Folder" => {
                 if let Some(type_attr) = attributes
                     .iter()
@@ -205,7 +206,7 @@ impl Item {
                     match e {
                         Characters(data) => {
                             if self.system.is_none() && path.ends_with("/mgsSystem") {
-                                self.system = Some(data)
+                                self.system = Some(data);
                             }
                         }
                         EndElement { .. } => {
