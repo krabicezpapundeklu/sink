@@ -4,7 +4,9 @@ use std::{
 };
 
 use actix_web::{
+    dev::Service,
     get,
+    http::header::{HeaderValue, CACHE_CONTROL},
     middleware::{Compress, Logger, NormalizePath, TrailingSlash},
     post,
     web::{Bytes, Data, Json, Path, Query},
@@ -102,6 +104,23 @@ pub async fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> 
             .wrap(Compress::default())
             .wrap(Logger::default())
             .wrap(NormalizePath::new(TrailingSlash::Trim))
+            .wrap_fn(|request, service| {
+                let is_immutable = request.path().starts_with("/_app/immutable/");
+                let response = service.call(request);
+
+                async move {
+                    let mut response = response.await?;
+
+                    if is_immutable {
+                        response.headers_mut().insert(
+                            CACHE_CONTROL,
+                            HeaderValue::from_static("public, max-age=31536000, immutable"),
+                        );
+                    }
+
+                    Ok(response)
+                }
+            })
     })
     .bind((host, port))?
     .run()

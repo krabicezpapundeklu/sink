@@ -1,4 +1,4 @@
 .vscode
 /target
 
-sink.db
+sink.db*
