@@ -24,25 +24,25 @@ export interface ItemType {
 	key: string;
 }
 
-const dateToString = (
+function dateToString(
 	year: number,
 	month: number,
 	day: number,
 	hours: number,
 	minutes: number,
 	seconds: number
-): string => {
+): string {
 	return (
 		`${year}-${pad(month + 1)}-${pad(day)} ${pad(hours)}:${pad(minutes)}` +
 		(seconds === 0 ? '' : `:${pad(seconds)}`)
 	);
-};
+}
 
-export const formatJson = (json: string): string => {
+export function formatJson(json: string): string {
 	return JSON.stringify(JSON.parse(json), null, 1);
-};
+}
 
-export const formatXml = (xml: string): string => {
+export function formatXml(xml: string): string {
 	let formatted = '';
 	let indent = '';
 
@@ -59,9 +59,9 @@ export const formatXml = (xml: string): string => {
 	});
 
 	return formatted.substring(1, formatted.length - 3);
-};
+}
 
-export const itemTypeToName = (key: string): string => {
+export function itemTypeToName(key: string): string {
 	for (const type of ITEM_TYPES) {
 		if (type.key === key) {
 			return type.name;
@@ -69,9 +69,9 @@ export const itemTypeToName = (key: string): string => {
 	}
 
 	return '';
-};
+}
 
-export const localDateToString = (date: Date): string => {
+export function localDateToString(date: Date): string {
 	return dateToString(
 		date.getFullYear(),
 		date.getMonth(),
@@ -80,13 +80,13 @@ export const localDateToString = (date: Date): string => {
 		date.getMinutes(),
 		date.getSeconds()
 	);
-};
+}
 
-const pad = (value: number): string => {
+function pad(value: number): string {
 	return (value > 9 ? '' : '0') + value;
-};
+}
 
-export const utcDateStringToLocalString = (value: string | null): string => {
+export function utcDateStringToLocalString(value: string | null): string {
 	if (!value) {
 		return '';
 	}
@@ -101,9 +101,9 @@ export const utcDateStringToLocalString = (value: string | null): string => {
 	const date = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds));
 
 	return localDateToString(date);
-};
+}
 
-export const utcDateToString = (date: Date): string => {
+export function utcDateToString(date: Date): string {
 	return dateToString(
 		date.getUTCFullYear(),
 		date.getUTCMonth(),
@@ -112,4 +112,4 @@ export const utcDateToString = (date: Date): string => {
 		date.getUTCMinutes(),
 		date.getSeconds()
 	);
-};
+}

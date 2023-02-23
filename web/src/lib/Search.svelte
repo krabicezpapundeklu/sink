@@ -1,11 +1,6 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
-	import {
-		ITEM_TYPES,
-		localDateToString,
-		MILLISECONDS_IN_DAY,
-		MILLISECONDS_IN_HOUR
-	} from './utils';
+	import { createEventDispatcher, onMount } from 'svelte';
+	import { ITEM_TYPES, localDateToString, MILLISECONDS_IN_HOUR } from './utils';
 	import Dropdown from 'bootstrap/js/dist/dropdown.js';
 
 	export let query: string;
@@ -16,8 +11,8 @@
 
 	export let systems: string[] = [];
 
-	let queryInput: HTMLElement;
-	let filterDropDown: HTMLElement;
+	let filterButton: HTMLElement;
+	let filterDropDown: Dropdown;
 
 	const dispatch = createEventDispatcher();
 
@@ -31,9 +26,7 @@
 	};
 
 	const search = (e: SubmitEvent) => {
-		queryInput.focus();
-		filterDropDown.classList.remove('show');
-
+		filterDropDown.hide();
 		dispatch('search', new FormData(e.target as HTMLFormElement));
 	};
 
@@ -45,24 +38,39 @@
 		fromDate.setSeconds(0);
 
 		from = localDateToString(fromDate);
-		to = localDateToString(new Date(fromDate.getTime() + MILLISECONDS_IN_DAY));
+		to = '';
 	};
+
+	onMount(() => {
+		filterDropDown = new Dropdown(filterButton);
+
+		filterButton.addEventListener('hide.bs.dropdown', () => {
+			filterButton.focus();
+		});
+	});
 </script>
 
-<form class="dropdown" on:submit|preventDefault={search}>
+<form class="dropdown input-group m-1" on:submit|preventDefault={search}>
+	<label class="visually-hidden" for="query">Query</label>
 	<input
 		autocomplete="off"
-		class="border-0 form-control"
-		data-bs-auto-close="outside"
-		data-bs-toggle="dropdown"
+		class="border-0 form-control rounded-start"
 		id="query"
 		name="query"
 		placeholder="Search"
 		type="search"
 		value={query}
-		bind:this={queryInput}
 	/>
-	<div class="dropdown-menu mt-1 p-2 shadow w-100" bind:this={filterDropDown}>
+	<button
+		class="btn btn-primary filter rounded-end"
+		data-bs-auto-close="outside"
+		data-bs-toggle="dropdown"
+		type="button"
+		bind:this={filterButton}
+	>
+		Filter
+	</button>
+	<div class="dropdown-menu mt-1 p-2 shadow w-100">
 		<div class="row">
 			<div class="col">
 				<label class="form-label" for="system">System</label>

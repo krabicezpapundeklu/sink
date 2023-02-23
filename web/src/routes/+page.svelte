@@ -157,9 +157,9 @@
 							>
 								<div class="d-flex justify-content-between">
 									<span>{item.id.toLocaleString()}</span>
-									<span
-										>{new Date(utcDateStringToLocalString(item.submitDate)).toLocaleString()}</span
-									>
+									<span>
+										{new Date(utcDateStringToLocalString(item.submitDate)).toLocaleString()}
+									</span>
 								</div>
 								<div>
 									{#if item.system}

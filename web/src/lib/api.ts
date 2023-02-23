@@ -1,6 +1,6 @@
 import type { Item, ItemSearchResult } from '$lib/model';
 
-const get = async (url: string): Promise<any> => {
+async function get<T>(url: string): Promise<T> {
 	const response = await fetch(url);
 
 	if (response.ok) {
@@ -12,16 +12,16 @@ const get = async (url: string): Promise<any> => {
 	alert(`HTTP ${response.status} ${response.statusText}\n${text}`);
 
 	return Promise.reject();
-};
+}
 
-export const getItem = async (id: number): Promise<Item> => {
+export async function getItem(id: number): Promise<Item> {
 	return get(`/api/item/${id}`);
-};
+}
 
-export const getItems = async (
+export async function getItems(
 	params: URLSearchParams,
 	batchSize: number,
 	nextItemId: number
-): Promise<ItemSearchResult> => {
+): Promise<ItemSearchResult> {
 	return get(`/api/items?${params}&batchSize=${batchSize}&nextItemId=${nextItemId}`);
-};
+}
