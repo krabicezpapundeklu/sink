@@ -1,15 +1,26 @@
-use std::path::PathBuf;
+use std::{
+    env::current_exe,
+    ffi::{c_char, OsString},
+    os::unix::prelude::OsStrExt,
+    path::PathBuf,
+    process::exit,
+};
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use env_logger::Env;
 use import::import_csv;
+use libc::c_int;
 use server::start_server;
 
 mod import;
 mod repository;
 mod server;
 mod shared;
+
+extern "C" {
+    fn shell_main(argc: c_int, argv: *const *const c_char) -> c_int;
+}
 
 #[derive(Parser)]
 #[command(disable_help_flag = true, version)]
@@ -33,6 +44,11 @@ enum Command {
         /// Generate new IDs for items
         #[arg(long, short)]
         generate_ids: bool,
+    },
+    /// Enter SQL shell
+    Shell {
+        /// Arguments passed directly to the shell
+        args: Vec<OsString>,
     },
     /// Start HTTP server listening for new items
     StartServer {
@@ -61,6 +77,19 @@ fn main() -> Result<()> {
             output,
             generate_ids,
         } => import_csv(input, output, *generate_ids).context("cannot import items from CSV"),
+        Command::Shell { args } => unsafe {
+            let mut native_args: Vec<*const c_char> = Vec::new();
+
+            native_args.push(current_exe()?.as_os_str().as_bytes().as_ptr() as *const c_char);
+
+            for arg in args {
+                native_args.push(arg.as_bytes().as_ptr() as *const c_char);
+            }
+
+            let result = shell_main(native_args.len() as c_int, native_args.as_ptr());
+
+            exit(result);
+        },
         Command::StartServer { host, port, db } => {
             start_server(host, *port, db).context("error running server")
         }
