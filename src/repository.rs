@@ -18,7 +18,7 @@ macro_rules! store_as_sql_text {
         $(
             impl FromSql for $type {
                 fn column_result(value: ValueRef) -> FromSqlResult<Self> {
-                    <$type>::from_str(value.as_str()?).map_err(|e| FromSqlError::Other(e.into()))
+                    Self::from_str(value.as_str()?).map_err(|e| FromSqlError::Other(e.into()))
                 }
             }
 

@@ -2,6 +2,7 @@
 	import { afterNavigate, goto } from '$app/navigation';
 	import { getItems } from '$lib/api';
 	import { itemTypeToName, utcDateStringToLocalString, utcDateToString } from '$lib/utils';
+	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 
 	import type { AfterNavigate } from '@sveltejs/kit';
@@ -11,6 +12,9 @@
 	import Search from '$lib/Search.svelte';
 
 	const BATCH_SIZE = 100;
+
+	let itemListElement: HTMLElement;
+	let loadMoreElement: HTMLElement;
 
 	let query: string;
 	let system: string;
@@ -115,6 +119,21 @@
 			nextItemId = 0;
 		}
 	});
+
+	onMount(() => {
+		const loadMoreObserver = new IntersectionObserver(
+			(entries: IntersectionObserverEntry[]) => {
+				if (nextItemId > 0 && entries[0].isIntersecting) {
+					loadMore();
+				}
+			},
+			{
+				root: itemListElement
+			}
+		);
+
+		loadMoreObserver.observe(loadMoreElement);
+	});
 </script>
 
 <svelte:head>
@@ -145,9 +164,9 @@
 					</select>
 				</div>
 			</div>
-			{#if items.length > 0}
-				<div class="overflow-auto p-2">
-					<div class="list-group list-group-flush">
+			<div class="overflow-auto p-2">
+				{#if items.length > 0}
+					<div class="list-group list-group-flush" bind:this={itemListElement}>
 						{#each items as item}
 							<a
 								class="list-group-item list-group-item-action"
@@ -172,25 +191,16 @@
 							</a>
 						{/each}
 					</div>
-					{#if nextItemId}
-						<div class="m-2 text-center">
-							{#if loading}
-								<div class="spinner-border text-muted" role="status" />
-							{:else}
-								<button class="btn btn-link" on:click={loadMore}>Load More</button>
-							{/if}
-						</div>
-					{/if}
-				</div>
-			{:else}
-				<div class="align-self-center m-auto text-center text-muted">
-					{#if loading}
+				{:else if !loading}
+					<div class="text-center text-muted">We didn't find anything to show here.</div>
+				{/if}
+				{#if loading}
+					<div class="m-2 text-center">
 						<div class="spinner-border text-muted" role="status" />
-					{:else}
-						We didn't find anything to show here.
-					{/if}
-				</div>
-			{/if}
+					</div>
+				{/if}
+				<div bind:this={loadMoreElement} />
+			</div>
 		</div>
 		<div class="flex-fill overflow-auto p-2">
 			{#if activeItemId}
