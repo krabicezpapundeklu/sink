@@ -20,8 +20,11 @@ export async function getItem(id: number): Promise<Item> {
 
 export async function getItems(
 	params: URLSearchParams,
-	batchSize: number,
-	nextItemId: number
+	firsItemId: number,
+	lastItemId: number,
+	batchSize: number
 ): Promise<ItemSearchResult> {
-	return get(`/api/items?${params}&batchSize=${batchSize}&nextItemId=${nextItemId}`);
+	return get(
+		`/api/items?${params}&firstItemId=${firsItemId}&lastItemId=${lastItemId}&batchSize=${batchSize}`
+	);
 }

@@ -30,22 +30,23 @@
 	let totalItems = 0;
 
 	let activeItemId: number;
-	let nextItemId = 0;
+	let hasMoreItems = false;
 
 	const loadMore = async () => {
 		loading = true;
-		const result = await getItems($page.url.searchParams, BATCH_SIZE, nextItemId);
+
+		const firstItemId = asc ? items[items.length - 1].id + 1 : 0;
+		const lastItemId = asc ? Number.MAX_SAFE_INTEGER : items[items.length - 1].id - 1;
+
+		const result = await getItems($page.url.searchParams, firstItemId, lastItemId, BATCH_SIZE);
+
 		loading = false;
 
 		items.push(...result.items.slice(0, BATCH_SIZE));
 		items = items;
 		systems = result.systems;
 
-		if (result.items.length > BATCH_SIZE) {
-			nextItemId = result.items[BATCH_SIZE].id;
-		} else {
-			nextItemId = 0;
-		}
+		hasMoreItems = result.items.length > BATCH_SIZE;
 	};
 
 	const refresh = (params: URLSearchParams) => {
@@ -68,10 +69,13 @@
 			}
 		}
 
+		if (asc) {
+			params.set('asc', 'true');
+		}
+
 		items = [];
 		totalItems = 0;
-
-		nextItemId = 0;
+		hasMoreItems = false;
 
 		refresh(params);
 	};
@@ -85,7 +89,7 @@
 			params.set('asc', 'true');
 		}
 
-		nextItemId = 0;
+		hasMoreItems = false;
 
 		refresh(params);
 	};
@@ -106,24 +110,20 @@
 
 		loading = true;
 		items = [];
-		const result = await getItems(params, BATCH_SIZE, nextItemId);
+		const result = await getItems(params, 0, Number.MAX_SAFE_INTEGER, BATCH_SIZE);
+
 		loading = false;
 
 		items = result.items.slice(0, BATCH_SIZE);
 		systems = result.systems;
 		totalItems = result.totalItems;
-
-		if (result.items.length > BATCH_SIZE) {
-			nextItemId = result.items[BATCH_SIZE].id;
-		} else {
-			nextItemId = 0;
-		}
+		hasMoreItems = result.items.length > BATCH_SIZE;
 	});
 
 	onMount(() => {
 		const loadMoreObserver = new IntersectionObserver(
 			(entries: IntersectionObserverEntry[]) => {
-				if (nextItemId > 0 && entries[0].isIntersecting) {
+				if (hasMoreItems && entries[0].isIntersecting) {
 					loadMore();
 				}
 			},
@@ -134,6 +134,27 @@
 
 		loadMoreObserver.observe(loadMoreElement);
 	});
+
+	setInterval(async () => {
+		if (loading) {
+			return;
+		}
+
+		const firstItemId =
+			items.length === 0 ? 1 : asc ? items[items.length - 1].id + 1 : items[0].id + 1;
+
+		const lastItemId = Number.MAX_SAFE_INTEGER;
+		const result = await getItems($page.url.searchParams, firstItemId, lastItemId, 10000);
+
+		if (asc) {
+			items = items.concat(result.items);
+		} else {
+			items = result.items.concat(items);
+		}
+
+		systems = result.systems;
+		totalItems += result.items.length;
+	}, 60000);
 </script>
 
 <svelte:head>
@@ -167,7 +188,7 @@
 			<div class="overflow-auto p-2">
 				{#if items.length > 0}
 					<div class="list-group list-group-flush" bind:this={itemListElement}>
-						{#each items as item}
+						{#each items as item, index (item.id)}
 							<a
 								class="list-group-item list-group-item-action"
 								class:active={item.id === activeItemId}

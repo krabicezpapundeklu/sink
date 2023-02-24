@@ -128,23 +128,27 @@ impl Repository for Connection {
             sql.push_str(" AND submit_date <= ?");
         }
 
-        sql.push_str(") ");
+        sql.push_str(") WHERE 1 = 1");
+
+        if let Some(first_item_id) = &filter.first_item_id {
+            params.push(first_item_id);
+            sql.push_str(" AND id >= ?");
+        }
+
+        if let Some(last_item_id) = &filter.last_item_id {
+            params.push(last_item_id);
+            sql.push_str(" AND id <= ?");
+        }
 
         let asc = filter.asc.unwrap_or(false);
 
-        if filter.next_item_id > 0 {
-            params.push(&filter.next_item_id);
-
-            sql.push_str(" WHERE id ");
-            sql.push_str(if asc { ">=" } else { "<=" });
-            sql.push_str("? ");
-        }
-
-        params.push(&filter.batch_size);
-
         sql.push_str(" ORDER BY id ");
         sql.push_str(if asc { "ASC" } else { "DESC" });
-        sql.push_str(" LIMIT ? + 1");
+
+        if let Some(batch_size) = &filter.batch_size {
+            params.push(batch_size);
+            sql.push_str(" LIMIT ? + 1");
+        }
 
         debug!("sql: {sql}, params: {params:?}");
 

@@ -239,14 +239,15 @@ impl Item {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ItemFilter {
-    pub batch_size: u32,
-    pub next_item_id: i64,
     pub query: Option<String>,
     pub system: Option<String>,
     pub r#type: Option<ItemType>,
     pub from: Option<DateTime>,
     pub to: Option<DateTime>,
     pub asc: Option<bool>,
+    pub first_item_id: Option<i64>,
+    pub last_item_id: Option<i64>,
+    pub batch_size: Option<u32>,
 }
 
 #[derive(Serialize)]
