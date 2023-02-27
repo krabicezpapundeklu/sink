@@ -136,7 +136,7 @@
 	});
 
 	setInterval(async () => {
-		if (loading) {
+		if (loading || (asc && hasMoreItems)) {
 			return;
 		}
 
