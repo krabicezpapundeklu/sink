@@ -1,6 +1,6 @@
 use std::{
     env::current_exe,
-    ffi::{c_char, OsString},
+    ffi::{c_char, CString, OsString},
     os::unix::prelude::OsStrExt,
     path::PathBuf,
     process::exit,
@@ -78,15 +78,16 @@ fn main() -> Result<()> {
             generate_ids,
         } => import_csv(input, output, *generate_ids).context("cannot import items from CSV"),
         Command::Shell { args } => unsafe {
-            let mut native_args: Vec<*const c_char> = Vec::new();
+            let mut c_strings = Vec::new();
 
-            native_args.push(current_exe()?.as_os_str().as_bytes().as_ptr() as *const c_char);
+            c_strings.push(CString::new(current_exe()?.as_os_str().as_bytes())?);
 
             for arg in args {
-                native_args.push(arg.as_bytes().as_ptr() as *const c_char);
+                c_strings.push(CString::new(arg.as_bytes())?);
             }
 
-            let result = shell_main(native_args.len() as c_int, native_args.as_ptr());
+            let c_chars: Vec<*const c_char> = c_strings.iter().map(|cs| cs.as_ptr()).collect();
+            let result = shell_main(c_chars.len() as c_int, c_chars.as_ptr());
 
             exit(result);
         },
