@@ -1,7 +1,14 @@
 <script lang="ts">
 	import { afterNavigate, goto } from '$app/navigation';
 	import { getItems } from '$lib/api';
-	import { itemTypeToName, utcDateStringToLocalString, utcDateToString } from '$lib/utils';
+
+	import {
+		itemTypeToName,
+		MILLISECONDS_IN_MINUTE,
+		utcDateStringToLocalString,
+		utcDateToString
+	} from '$lib/utils';
+
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 
@@ -40,13 +47,17 @@
 
 		const result = await getItems($page.url.searchParams, firstItemId, lastItemId, BATCH_SIZE);
 
-		loading = false;
-
 		items.push(...result.items.slice(0, BATCH_SIZE));
 		items = items;
 		systems = result.systems;
 
+		if (asc) {
+			totalItems = result.totalItems;
+		}
+
 		hasMoreItems = result.items.length > BATCH_SIZE;
+
+		loading = false;
 	};
 
 	const refresh = (params: URLSearchParams) => {
@@ -110,14 +121,15 @@
 
 		loading = true;
 		items = [];
-		const result = await getItems(params, 0, Number.MAX_SAFE_INTEGER, BATCH_SIZE);
 
-		loading = false;
+		const result = await getItems(params, 0, Number.MAX_SAFE_INTEGER, BATCH_SIZE);
 
 		items = result.items.slice(0, BATCH_SIZE);
 		systems = result.systems;
 		totalItems = result.totalItems;
 		hasMoreItems = result.items.length > BATCH_SIZE;
+
+		loading = false;
 	});
 
 	onMount(() => {
@@ -144,7 +156,7 @@
 			items.length === 0 ? 1 : asc ? items[items.length - 1].id + 1 : items[0].id + 1;
 
 		const lastItemId = Number.MAX_SAFE_INTEGER;
-		const result = await getItems($page.url.searchParams, firstItemId, lastItemId, 10000);
+		const result = await getItems($page.url.searchParams, firstItemId, lastItemId);
 
 		if (asc) {
 			items = items.concat(result.items);
@@ -154,7 +166,7 @@
 
 		systems = result.systems;
 		totalItems += result.items.length;
-	}, 60000);
+	}, MILLISECONDS_IN_MINUTE);
 </script>
 
 <svelte:head>

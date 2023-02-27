@@ -22,9 +22,13 @@ export async function getItems(
 	params: URLSearchParams,
 	firsItemId: number,
 	lastItemId: number,
-	batchSize: number
+	batchSize?: number
 ): Promise<ItemSearchResult> {
-	return get(
-		`/api/items?${params}&firstItemId=${firsItemId}&lastItemId=${lastItemId}&batchSize=${batchSize}`
-	);
+	let url = `/api/items?${params}&firstItemId=${firsItemId}&lastItemId=${lastItemId}`;
+
+	if (batchSize) {
+		url += `&batchSize=${batchSize}`;
+	}
+
+	return get(url);
 }
