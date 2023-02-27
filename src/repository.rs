@@ -235,40 +235,34 @@ impl Repository for Connection {
 }
 
 fn parse_query(query: &str, terms: &mut Vec<String>) {
-    enum State {
-        Initial,
-        InQuotes,
-        Quote,
-    }
-
     let mut term = String::new();
-    let mut state = State::Initial;
+
+    let mut escaping = false;
+    let mut in_quotes = false;
 
     for c in query.chars() {
         if c == '"' {
-            match state {
-                State::Initial => {
-                    state = State::Quote;
-                    continue;
-                }
-                State::InQuotes => {
-                    state = State::Initial;
-                    continue;
-                }
-                State::Quote => {
-                    state = State::Initial;
-                }
+            if escaping {
+                escaping = false;
+                term.push('"');
+            } else {
+                escaping = true;
             }
-        } else if c.is_whitespace() {
-            if let State::Initial = state {
-                if !term.is_empty() {
-                    terms.push(take(&mut term));
-                }
 
-                continue;
+            continue;
+        }
+
+        if escaping {
+            escaping = false;
+            in_quotes = !in_quotes;
+        }
+
+        if !in_quotes && c.is_whitespace() {
+            if !term.is_empty() {
+                terms.push(take(&mut term));
             }
-        } else if let State::Quote = state {
-            state = State::InQuotes;
+
+            continue;
         }
 
         term.push(c);
