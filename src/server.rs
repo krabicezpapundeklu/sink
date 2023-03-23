@@ -3,6 +3,7 @@ use std::{
     path,
 };
 
+use actix_cors::Cors;
 use actix_web::{
     dev::Service,
     get,
@@ -102,6 +103,7 @@ pub async fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> 
             .service(submit_item)
             .service(ResourceFiles::new("/", generate()).resolve_not_found_to_root())
             .wrap(Compress::default())
+            .wrap(Cors::permissive())
             .wrap(Logger::default())
             .wrap(NormalizePath::new(TrailingSlash::Trim))
             .wrap_fn(|request, service| {

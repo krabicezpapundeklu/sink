@@ -1,7 +1,11 @@
+import { env } from '$env/dynamic/public';
+
 import hljs from 'highlight.js/lib/core';
 import json from 'highlight.js/lib/languages/json';
 import plaintext from 'highlight.js/lib/languages/plaintext';
 import xml from 'highlight.js/lib/languages/xml';
+
+import type { ItemSearchResult, ItemType, ItemWithHighlighting } from './model';
 
 export const BATCH_SIZE = 100;
 export const MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
@@ -26,10 +30,9 @@ export const ITEM_TYPES: ItemType[] = [
 	{ name: 'SOAP Vacancy Updated', key: 'vacancy_updated' }
 ];
 
-export interface ItemType {
-	name: string;
-	key: string;
-}
+hljs.registerLanguage('json', json);
+hljs.registerLanguage('plaintext', plaintext);
+hljs.registerLanguage('xml', xml);
 
 function dateToString(
 	year: number,
@@ -78,13 +81,12 @@ export function itemTypeToName(key: string): string {
 	return '';
 }
 
-export async function loadItem(fetch: any, itemId: number) {
-	const response = await fetch(`/api/item/${itemId}`);
+export async function loadItem(
+	fetch: (input: RequestInfo) => Promise<Response>,
+	itemId: number
+): Promise<ItemWithHighlighting> {
+	const response = await fetch(`${env.PUBLIC_API_SERVER || ''}/api/item/${itemId}`);
 	const item = await response.json();
-
-	hljs.registerLanguage('json', json);
-	hljs.registerLanguage('plaintext', plaintext);
-	hljs.registerLanguage('xml', xml);
 
 	let language = 'plaintext';
 	let formattedBody = item.body;
@@ -103,18 +105,24 @@ export async function loadItem(fetch: any, itemId: number) {
 		}
 	}
 
-	const bodyPreview = hljs.highlight(formattedBody, { language }).value;
-	const originalBody = hljs.highlight(item.body, { language }).value;
+	const higlightedBody = hljs.highlight(item.body, { language }).value;
+	const highlightedBodyPreview = hljs.highlight(formattedBody, { language }).value;
 
 	return {
-		item,
-		bodyPreview,
-		originalBody
+		...item,
+		higlightedBody,
+		highlightedBodyPreview
 	};
 }
 
-export async function loadItems(fetch: any, params: URLSearchParams, firstItemId: number, lastItemId: number, batchSize?: number) {
-	let url = `/api/items?${params}&firstItemId=${firstItemId}&lastItemId=${lastItemId}`;
+export async function loadItems(
+	fetch: (input: RequestInfo) => Promise<Response>,
+	params: URLSearchParams,
+	firstItemId: number,
+	lastItemId: number,
+	batchSize?: number
+): Promise<ItemSearchResult> {
+	let url = `${env.PUBLIC_API_SERVER || ''}/api/items?${params}&firstItemId=${firstItemId}&lastItemId=${lastItemId}`;
 
 	if (batchSize) {
 		url += `&batchSize=${batchSize}`;

@@ -9,13 +9,12 @@
 		MILLISECONDS_IN_MINUTE,
 		utcDateStringToLocalString,
 		utcDateToString
-	} from '$lib/utils';
+	} from '$lib/shared';
 
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 
-	import type { AfterNavigate } from '@sveltejs/kit';
-	import type { ItemSummary } from '$lib/model';
+	import type { ItemSummary, ItemWithHighlighting } from '$lib/model';
 	import type { PageData } from './$types';
 
 	import Item from '$lib/Item.svelte';
@@ -39,7 +38,7 @@
 	let systems: string[] = [];
 	let totalItems = 0;
 
-	let activeItem: any;
+	let activeItem: ItemWithHighlighting;
 
 	let hasMoreItems = false;
 
@@ -49,7 +48,13 @@
 		const firstItemId = asc ? items[items.length - 1].id + 1 : 0;
 		const lastItemId = asc ? Number.MAX_SAFE_INTEGER : items[items.length - 1].id - 1;
 
-		const result = await loadItems(fetch, $page.url.searchParams, firstItemId, lastItemId, BATCH_SIZE);
+		const result = await loadItems(
+			fetch,
+			$page.url.searchParams,
+			firstItemId,
+			lastItemId,
+			BATCH_SIZE
+		);
 
 		items.push(...result.items.slice(0, BATCH_SIZE));
 		items = items;
@@ -97,7 +102,7 @@
 	};
 
 	const selectItem = async (itemId: number) => {
-		if (!activeItem || activeItem.item.id !== itemId) {
+		if (!activeItem || activeItem.id !== itemId) {
 			activeItem = await loadItem(fetch, itemId);
 		}
 	};
@@ -126,8 +131,6 @@
 		from = utcDateStringToLocalString(params.get('from'));
 		to = utcDateStringToLocalString(params.get('to'));
 		asc = (params.get('asc') || 'false') === 'true';
-
-		items = [];
 
 		items = data.items.slice(0, BATCH_SIZE);
 		systems = data.systems;
@@ -208,7 +211,7 @@
 						{#each items as item, index (item.id)}
 							<a
 								class="list-group-item list-group-item-action"
-								class:active={activeItem && activeItem.item.id === item.id}
+								class:active={activeItem && activeItem.id === item.id}
 								data-sveltekit-preload-data="off"
 								href="/item/{item.id}"
 								on:click|preventDefault={() => selectItem(item.id)}
@@ -243,7 +246,7 @@
 		</div>
 		<div class="flex-fill overflow-auto p-2">
 			{#if activeItem}
-				<Item {...activeItem} />
+				<Item item={activeItem} />
 			{/if}
 		</div>
 	</div>

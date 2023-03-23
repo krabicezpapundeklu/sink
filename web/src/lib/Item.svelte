@@ -1,10 +1,8 @@
 <script lang="ts">
-	import { itemTypeToName, utcDateStringToLocalString } from '$lib/utils';
-	import type { Item } from '$lib/model';
+	import { itemTypeToName, utcDateStringToLocalString } from '$lib/shared';
+	import type { ItemWithHighlighting } from '$lib/model';
 
-	export let item: Item;
-	export let bodyPreview: string;
-	export let originalBody: string;
+	export let item: ItemWithHighlighting;
 
 	let activeTab = 0;
 </script>
@@ -70,7 +68,9 @@
 		</table>
 	{:else}
 		<div class="border border-top-0 p-2">
-			<pre class="mb-0"><code>{@html activeTab === 0 ? bodyPreview : originalBody}</code></pre>
+			<pre class="mb-0"><code
+					>{@html activeTab === 0 ? item.highlightedBodyPreview : item.higlightedBody}</code
+				></pre>
 		</div>
 	{/if}
 </div>

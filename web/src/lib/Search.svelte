@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
-	import { ITEM_TYPES, localDateToString, MILLISECONDS_IN_HOUR } from '$lib/utils';
+	import { ITEM_TYPES, localDateToString, MILLISECONDS_IN_HOUR } from '$lib/shared';
 
 	export let query: string;
 	export let system: string;
@@ -11,7 +11,7 @@
 	export let systems: string[] = [];
 
 	let filterButton: HTMLElement;
-	let filterDropDown: any;
+	let filterDropDown: { hide: () => void };
 
 	const dispatch = createEventDispatcher();
 

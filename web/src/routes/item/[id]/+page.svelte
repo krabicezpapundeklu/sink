@@ -6,9 +6,9 @@
 </script>
 
 <svelte:head>
-	<title>Sink - #{data.item.id.toLocaleString()}</title>
+	<title>Sink - #{data.id.toLocaleString()}</title>
 </svelte:head>
 
 <div class="container p-2">
-	<Item {...data} />
+	<Item item={data} />
 </div>

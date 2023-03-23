@@ -24,3 +24,13 @@ export interface ItemSummary {
 	system?: string;
 	type?: string;
 }
+
+export interface ItemType {
+	name: string;
+	key: string;
+}
+
+export interface ItemWithHighlighting extends Item {
+	higlightedBody: string;
+	highlightedBodyPreview: string;
+}
