@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { afterNavigate, goto } from '$app/navigation';
-	import { getItems } from '$lib/api';
 
 	import {
+		BATCH_SIZE,
 		itemTypeToName,
+		loadItem,
+		loadItems,
 		MILLISECONDS_IN_MINUTE,
 		utcDateStringToLocalString,
 		utcDateToString
@@ -14,11 +16,12 @@
 
 	import type { AfterNavigate } from '@sveltejs/kit';
 	import type { ItemSummary } from '$lib/model';
+	import type { PageData } from './$types';
 
 	import Item from '$lib/Item.svelte';
 	import Search from '$lib/Search.svelte';
 
-	const BATCH_SIZE = 100;
+	export let data: PageData;
 
 	let itemListElement: HTMLElement;
 	let loadMoreElement: HTMLElement;
@@ -36,7 +39,8 @@
 	let systems: string[] = [];
 	let totalItems = 0;
 
-	let activeItemId: number;
+	let activeItem: any;
+
 	let hasMoreItems = false;
 
 	const loadMore = async () => {
@@ -45,7 +49,7 @@
 		const firstItemId = asc ? items[items.length - 1].id + 1 : 0;
 		const lastItemId = asc ? Number.MAX_SAFE_INTEGER : items[items.length - 1].id - 1;
 
-		const result = await getItems($page.url.searchParams, firstItemId, lastItemId, BATCH_SIZE);
+		const result = await loadItems(fetch, $page.url.searchParams, firstItemId, lastItemId, BATCH_SIZE);
 
 		items.push(...result.items.slice(0, BATCH_SIZE));
 		items = items;
@@ -61,7 +65,8 @@
 	};
 
 	const refresh = (params: URLSearchParams) => {
-		goto(`?${params}`, { keepFocus: true });
+		loading = true;
+		goto(`?${params}`, { keepFocus: true, invalidateAll: true });
 	};
 
 	const search = (e: CustomEvent) => {
@@ -91,6 +96,12 @@
 		refresh(params);
 	};
 
+	const selectItem = async (itemId: number) => {
+		if (!activeItem || activeItem.item.id !== itemId) {
+			activeItem = await loadItem(fetch, itemId);
+		}
+	};
+
 	const toggleSortBy = () => {
 		const params = $page.url.searchParams;
 
@@ -100,16 +111,13 @@
 			params.set('asc', 'true');
 		}
 
+		items = [];
 		hasMoreItems = false;
 
 		refresh(params);
 	};
 
-	afterNavigate(async (e: AfterNavigate) => {
-		if (e.type === 'enter') {
-			return;
-		}
-
+	afterNavigate(async () => {
 		const params = $page.url.searchParams;
 
 		query = params.get('query') || '';
@@ -119,15 +127,12 @@
 		to = utcDateStringToLocalString(params.get('to'));
 		asc = (params.get('asc') || 'false') === 'true';
 
-		loading = true;
 		items = [];
 
-		const result = await getItems(params, 0, Number.MAX_SAFE_INTEGER, BATCH_SIZE);
-
-		items = result.items.slice(0, BATCH_SIZE);
-		systems = result.systems;
-		totalItems = result.totalItems;
-		hasMoreItems = result.items.length > BATCH_SIZE;
+		items = data.items.slice(0, BATCH_SIZE);
+		systems = data.systems;
+		totalItems = data.totalItems;
+		hasMoreItems = data.items.length > BATCH_SIZE;
 
 		loading = false;
 	});
@@ -145,28 +150,28 @@
 		);
 
 		loadMoreObserver.observe(loadMoreElement);
+
+		setInterval(async () => {
+			if (loading || (asc && hasMoreItems)) {
+				return;
+			}
+
+			const firstItemId =
+				items.length === 0 ? 1 : asc ? items[items.length - 1].id + 1 : items[0].id + 1;
+
+			const lastItemId = Number.MAX_SAFE_INTEGER;
+			const result = await loadItems(fetch, $page.url.searchParams, firstItemId, lastItemId);
+
+			if (asc) {
+				items = items.concat(result.items);
+			} else {
+				items = result.items.concat(items);
+			}
+
+			systems = result.systems;
+			totalItems += result.items.length;
+		}, MILLISECONDS_IN_MINUTE);
 	});
-
-	setInterval(async () => {
-		if (loading || (asc && hasMoreItems)) {
-			return;
-		}
-
-		const firstItemId =
-			items.length === 0 ? 1 : asc ? items[items.length - 1].id + 1 : items[0].id + 1;
-
-		const lastItemId = Number.MAX_SAFE_INTEGER;
-		const result = await getItems($page.url.searchParams, firstItemId, lastItemId);
-
-		if (asc) {
-			items = items.concat(result.items);
-		} else {
-			items = result.items.concat(items);
-		}
-
-		systems = result.systems;
-		totalItems += result.items.length;
-	}, MILLISECONDS_IN_MINUTE);
 </script>
 
 <svelte:head>
@@ -203,9 +208,10 @@
 						{#each items as item, index (item.id)}
 							<a
 								class="list-group-item list-group-item-action"
-								class:active={item.id === activeItemId}
+								class:active={activeItem && activeItem.item.id === item.id}
+								data-sveltekit-preload-data="off"
 								href="/item/{item.id}"
-								on:click|preventDefault={() => (activeItemId = item.id)}
+								on:click|preventDefault={() => selectItem(item.id)}
 							>
 								<div class="d-flex justify-content-between">
 									<span>{item.id.toLocaleString()}</span>
@@ -236,8 +242,8 @@
 			</div>
 		</div>
 		<div class="flex-fill overflow-auto p-2">
-			{#if activeItemId}
-				<Item id={activeItemId} />
+			{#if activeItem}
+				<Item {...activeItem} />
 			{/if}
 		</div>
 	</div>

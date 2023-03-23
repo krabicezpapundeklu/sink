@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
-	import { ITEM_TYPES, localDateToString, MILLISECONDS_IN_HOUR } from './utils';
-	import Dropdown from 'bootstrap/js/dist/dropdown.js';
+	import { ITEM_TYPES, localDateToString, MILLISECONDS_IN_HOUR } from '$lib/utils';
 
 	export let query: string;
 	export let system: string;
@@ -12,7 +11,7 @@
 	export let systems: string[] = [];
 
 	let filterButton: HTMLElement;
-	let filterDropDown: Dropdown;
+	let filterDropDown: any;
 
 	const dispatch = createEventDispatcher();
 
@@ -41,7 +40,9 @@
 		to = '';
 	};
 
-	onMount(() => {
+	onMount(async () => {
+		const Dropdown = (await import('bootstrap/js/dist/dropdown.js')).default;
+
 		filterDropDown = new Dropdown(filterButton);
 
 		filterButton.addEventListener('hide.bs.dropdown', () => {

@@ -1,3 +1,9 @@
+import hljs from 'highlight.js/lib/core';
+import json from 'highlight.js/lib/languages/json';
+import plaintext from 'highlight.js/lib/languages/plaintext';
+import xml from 'highlight.js/lib/languages/xml';
+
+export const BATCH_SIZE = 100;
 export const MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
 export const MILLISECONDS_IN_HOUR = 60 * 60 * 1000;
 export const MILLISECONDS_IN_MINUTE = 60 * 1000;
@@ -70,6 +76,54 @@ export function itemTypeToName(key: string): string {
 	}
 
 	return '';
+}
+
+export async function loadItem(fetch: any, itemId: number) {
+	const response = await fetch(`/api/item/${itemId}`);
+	const item = await response.json();
+
+	hljs.registerLanguage('json', json);
+	hljs.registerLanguage('plaintext', plaintext);
+	hljs.registerLanguage('xml', xml);
+
+	let language = 'plaintext';
+	let formattedBody = item.body;
+
+	for (const header of item.headers) {
+		if (header.name === 'content-type') {
+			if (header.value.indexOf('json') !== -1) {
+				language = 'json';
+				formattedBody = formatJson(item.body);
+			} else if (header.value.indexOf('xml') !== -1) {
+				language = 'xml';
+				formattedBody = formatXml(item.body);
+			}
+
+			break;
+		}
+	}
+
+	const bodyPreview = hljs.highlight(formattedBody, { language }).value;
+	const originalBody = hljs.highlight(item.body, { language }).value;
+
+	return {
+		item,
+		bodyPreview,
+		originalBody
+	};
+}
+
+export async function loadItems(fetch: any, params: URLSearchParams, firstItemId: number, lastItemId: number, batchSize?: number) {
+	let url = `/api/items?${params}&firstItemId=${firstItemId}&lastItemId=${lastItemId}`;
+
+	if (batchSize) {
+		url += `&batchSize=${batchSize}`;
+	}
+
+	const response = await fetch(url);
+	const items = await response.json();
+
+	return items;
 }
 
 export function localDateToString(date: Date): string {

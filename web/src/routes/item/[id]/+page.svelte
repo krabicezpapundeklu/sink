@@ -1,15 +1,14 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-
 	import Item from '$lib/Item.svelte';
+	import type { PageData } from './$types';
 
-	let id = +$page.params.id;
+	export let data: PageData;
 </script>
 
 <svelte:head>
-	<title>Sink - #{id.toLocaleString()}</title>
+	<title>Sink - #{data.item.id.toLocaleString()}</title>
 </svelte:head>
 
 <div class="container p-2">
-	<Item {id} />
+	<Item {...data} />
 </div>
