@@ -122,7 +122,9 @@ export async function loadItems(
 	lastItemId: number,
 	batchSize?: number
 ): Promise<ItemSearchResult> {
-	let url = `${env.PUBLIC_API_SERVER || ''}/api/items?${params}&firstItemId=${firstItemId}&lastItemId=${lastItemId}`;
+	let url = `${
+		env.PUBLIC_API_SERVER || ''
+	}/api/items?${params}&firstItemId=${firstItemId}&lastItemId=${lastItemId}`;
 
 	if (batchSize) {
 		url += `&batchSize=${batchSize}`;
