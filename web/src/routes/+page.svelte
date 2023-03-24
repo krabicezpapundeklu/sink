@@ -3,6 +3,7 @@
 
 	import {
 		BATCH_SIZE,
+		highlightItem,
 		itemTypeToName,
 		loadItem,
 		loadItems,
@@ -103,7 +104,7 @@
 
 	const selectItem = async (itemId: number) => {
 		if (!activeItem || activeItem.id !== itemId) {
-			activeItem = await loadItem(fetch, itemId);
+			activeItem = highlightItem(await loadItem(fetch, itemId));
 		}
 	};
 

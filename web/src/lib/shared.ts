@@ -5,7 +5,7 @@ import json from 'highlight.js/lib/languages/json';
 import plaintext from 'highlight.js/lib/languages/plaintext';
 import xml from 'highlight.js/lib/languages/xml';
 
-import type { ItemSearchResult, ItemType, ItemWithHighlighting } from './model';
+import type { Item, ItemSearchResult, ItemType, ItemWithHighlighting } from './model';
 
 export const BATCH_SIZE = 100;
 export const MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
@@ -48,11 +48,11 @@ function dateToString(
 	);
 }
 
-export function formatJson(json: string): string {
+function formatJson(json: string): string {
 	return JSON.stringify(JSON.parse(json), null, 1);
 }
 
-export function formatXml(xml: string): string {
+function formatXml(xml: string): string {
 	let formatted = '';
 	let indent = '';
 
@@ -71,23 +71,7 @@ export function formatXml(xml: string): string {
 	return formatted.substring(1, formatted.length - 3);
 }
 
-export function itemTypeToName(key: string): string {
-	for (const type of ITEM_TYPES) {
-		if (type.key === key) {
-			return type.name;
-		}
-	}
-
-	return '';
-}
-
-export async function loadItem(
-	fetch: (input: RequestInfo) => Promise<Response>,
-	itemId: number
-): Promise<ItemWithHighlighting> {
-	const response = await fetch(`${env.PUBLIC_API_SERVER || ''}/api/item/${itemId}`);
-	const item = await response.json();
-
+export function highlightItem(item: Item): ItemWithHighlighting {
 	let language = 'plaintext';
 	let formattedBody = item.body;
 
@@ -113,6 +97,26 @@ export async function loadItem(
 		higlightedBody,
 		highlightedBodyPreview
 	};
+}
+
+export function itemTypeToName(key: string): string {
+	for (const type of ITEM_TYPES) {
+		if (type.key === key) {
+			return type.name;
+		}
+	}
+
+	return '';
+}
+
+export async function loadItem(
+	fetch: (input: RequestInfo) => Promise<Response>,
+	itemId: number
+): Promise<Item> {
+	const response = await fetch(`${env.PUBLIC_API_SERVER || ''}/api/item/${itemId}`);
+	const item = await response.json();
+
+	return item;
 }
 
 export async function loadItems(

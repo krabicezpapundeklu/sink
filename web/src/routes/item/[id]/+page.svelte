@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { highlightItem } from '$lib/shared';
 	import Item from '$lib/Item.svelte';
 	import type { PageData } from './$types';
 
@@ -10,5 +11,5 @@
 </svelte:head>
 
 <div class="container p-2">
-	<Item item={data} />
+	<Item item={highlightItem(data)} />
 </div>
