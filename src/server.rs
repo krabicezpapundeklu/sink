@@ -4,6 +4,7 @@ use std::{
 };
 
 use actix_cors::Cors;
+
 use actix_web::{
     dev::Service,
     get,
@@ -17,6 +18,7 @@ use actix_web::{
 use actix_web_static_files::ResourceFiles;
 use anyhow::{anyhow, Context, Error, Result};
 use deadpool_sqlite::{Config, InteractError, Pool, Runtime};
+use rquickjs::{Context as JsContext, Runtime as JsRuntime};
 use rusqlite::Connection;
 
 use crate::{
@@ -86,6 +88,14 @@ fn map_to_anyhow_error(error: InteractError) -> Error {
 
 #[actix_web::main]
 pub async fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> {
+    let runtime = JsRuntime::new()?;
+    let context = JsContext::full(&runtime)?;
+
+    context.with(|ctx| {
+        ctx.compile("server", include_str!("../web/build/server/main.js"))
+            .unwrap();
+    });
+
     let pool = Config::new(db).create_pool(Runtime::Tokio1)?;
 
     pool.get()

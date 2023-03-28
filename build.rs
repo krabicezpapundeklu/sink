@@ -21,7 +21,7 @@ fn main() -> Result<()> {
     NpmBuild::new("web")
         .install()?
         .run("build")?
-        .target("web/build")
+        .target("web/build/client")
         .to_resource_dir()
         .build()
 }
