@@ -10,6 +10,7 @@ fn main() -> Result<()> {
         .file("./sqlite-shell/shell.c")
         .compile("sqlite-shell");
 
+    println!("cargo:rerun-if-changed=web/adapter");
     println!("cargo:rerun-if-changed=web/src");
     println!("cargo:rerun-if-changed=web/static");
     println!("cargo:rerun-if-changed=web/package.json");
