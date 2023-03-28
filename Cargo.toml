@@ -31,3 +31,4 @@ static-files = "0.2.3"
 codegen-units = 1
 lto = true
 opt-level = 'z'
+strip = true
