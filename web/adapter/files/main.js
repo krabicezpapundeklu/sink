@@ -12,12 +12,6 @@ import {
 	set_public_env
 } from './index.js';
 
-let routes = {};
-
-for (const route of manifest._.routes) {
-	routes[route.id] = route;
-}
-
 export async function render_route(path, data) {
 	let page;
 
