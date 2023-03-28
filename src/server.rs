@@ -18,7 +18,7 @@ use actix_web::{
 use actix_web_static_files::ResourceFiles;
 use anyhow::{anyhow, Context, Error, Result};
 use deadpool_sqlite::{Config, InteractError, Pool, Runtime};
-use rquickjs::{Context as JsContext, Runtime as JsRuntime};
+use rquickjs::{Context as JsContext, EvalOptions, Runtime as JsRuntime};
 use rusqlite::Connection;
 
 use crate::{
@@ -92,8 +92,43 @@ pub async fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> 
     let context = JsContext::full(&runtime)?;
 
     context.with(|ctx| {
+        let globals = ctx.globals();
+
+        globals.set("result", "").unwrap();
+
         ctx.compile("server", include_str!("../web/build/server/main.js"))
             .unwrap();
+
+        ctx.eval_with_options::<(), &str>(r#"
+            import { render_route, set_public_env } from 'server';
+
+            set_public_env({ PUBLIC_API_SERVER: 'http://localhost:8080' });
+
+            result = render_route('/item/814455', [
+                null,
+                {
+                    url: '/api/item/814455',
+                    data: {
+                        id: 814455,
+                        submitDate: '2023-02-14 12:44:51',
+                        system: 'qa415-va',
+                        type: 'event_notification',
+                        headers: [
+                            { name: 'accept', value: '*/*' },
+                            { name: 'connection', value: 'Keep-Alive' },
+                            { name: 'content-length', value: '73' },
+                            { name: 'content-type', value: 'application/json' },
+                            { name: 'host', value: '10.0.1.141:8080' },
+                            { name: 'mgs-system-id', value: 'qa415-va' },
+                            { name: 'mgssystem', value: 'qa415-va' }
+                        ],
+                        body: '{"entityEventId":19,"entityId":1719603,"eventDate":"2023-02-14T07:44:47"}'
+                    }
+                }
+            ]);
+        "#, EvalOptions{
+            global: false, strict: true, backtrace_barrier: false
+        }).unwrap();
     });
 
     let pool = Config::new(db).create_pool(Runtime::Tokio1)?;
