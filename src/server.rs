@@ -20,6 +20,7 @@ use anyhow::{anyhow, Context, Error, Result};
 use deadpool_sqlite::{Config, InteractError, Pool, Runtime};
 use rquickjs::{Context as JsContext, Function, Promise, Runtime as JsRuntime, Tokio};
 use rusqlite::Connection;
+use serde::Serialize;
 
 use crate::{
     repository::Repository,
@@ -30,6 +31,26 @@ include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
 type Response<T> = Result<T, ServerError>;
 
+struct RouteData {
+    serialized: String,
+}
+
+impl RouteData {
+    fn new<T: Serialize>(path: &str, data: &T) -> Result<Self> {
+        let path = serde_json::to_string_pretty(path)?;
+        let data = serde_json::to_string_pretty(data)?;
+
+        Ok(RouteData {
+            serialized: format!("{{url: {path}, data: {data}}}"),
+        })
+    }
+
+    fn null() -> Self {
+        RouteData {
+            serialized: "null".to_string(),
+        }
+    }
+}
 #[derive(Debug)]
 struct ServerError(Error);
 
@@ -67,27 +88,6 @@ where
         .map_err(|err| ServerError(err.into()))
 }
 
-async fn eval(source: &str) -> Result<String> {
-    let runtime = JsRuntime::new()?;
-    let context = JsContext::full(&runtime)?;
-
-    runtime.spawn_executor(Tokio);
-
-    let result: Promise<String> = context.with(|ctx| {
-        let module = ctx.compile("server", include_str!("../web/build/server/main.js"))?;
-        let render_route: Function = module.get("render_route")?;
-
-        ctx.globals().set("render_route", render_route)?;
-        ctx.eval(source)
-    })?;
-
-    let result = result.await?;
-
-    runtime.idle().await;
-
-    Ok(result)
-}
-
 #[get("/")]
 async fn get_index_html(
     pool: Data<Pool>,
@@ -100,18 +100,7 @@ async fn get_index_html(
     filter.batch_size.get_or_insert(100);
 
     let items = call_db(&pool, move |db| db.get_items(&filter)).await?;
-    let items = serde_json::to_string_pretty(&items).unwrap();
-
-    let result = eval(&format!(
-        r#"
-        render_route('/', [
-            null,
-            {{
-                url: '/api/items?firstItemId=0&lastItemId=9007199254740991&batchSize=100&{query_string}',
-                data: {items}
-            }}
-        ])
-    "#)).await?;
+    let result = render_route("/", &[RouteData::null(), RouteData::new(&format!("/api/items?firstItemId=0&lastItemId=9007199254740991&batchSize=100&{query_string}"), &items)?]).await?;
 
     Ok(HttpResponse::Ok()
         .insert_header(ContentType::html())
@@ -128,19 +117,14 @@ async fn get_item(pool: Data<Pool>, path: Path<i64>) -> Response<impl Responder>
 async fn get_item_html(pool: Data<Pool>, path: Path<i64>) -> Response<impl Responder> {
     let id = path.into_inner();
     let item = call_db(&pool, move |db| db.get_item(id)).await?;
-    let item = serde_json::to_string_pretty(&item).unwrap();
 
-    let result = eval(&format!(
-        r#"
-            render_route('/item/{id}', [
-                null,
-                {{
-                    url: '/api/item/{id}',
-                    data: {item}
-                }}
-            ])
-        "#
-    ))
+    let result = render_route(
+        &format!("/item/{id}"),
+        &[
+            RouteData::null(),
+            RouteData::new(&format!("/api/item/{id}"), &item)?,
+        ],
+    )
     .await?;
 
     Ok(HttpResponse::Ok()
@@ -160,6 +144,40 @@ fn map_to_anyhow_error(error: InteractError) -> Error {
         InteractError::Panic(_) => "panic",
         InteractError::Aborted => "aborted",
     })
+}
+
+async fn render_route(path: &str, data: &[RouteData]) -> Result<String> {
+    let runtime = JsRuntime::new()?;
+    let context = JsContext::full(&runtime)?;
+
+    let mut serialized_data = String::new();
+
+    for data in data {
+        if !serialized_data.is_empty() {
+            serialized_data.push_str(", ");
+        }
+
+        serialized_data.push_str(&data.serialized);
+    }
+
+    let path = serde_json::to_string_pretty(path)?;
+    let source = format!("render_route({path}, [{serialized_data}])");
+
+    runtime.spawn_executor(Tokio);
+
+    let result: Promise<String> = context.with(|ctx| {
+        let module = ctx.compile("server", include_str!("../web/build/server/main.js"))?;
+        let render_route: Function = module.get("render_route")?;
+
+        ctx.globals().set("render_route", render_route)?;
+        ctx.eval(source)
+    })?;
+
+    let result = result.await?;
+
+    runtime.idle().await;
+
+    Ok(result)
 }
 
 #[actix_web::main]
