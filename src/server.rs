@@ -67,6 +67,27 @@ where
         .map_err(|err| ServerError(err.into()))
 }
 
+async fn eval(source: &str) -> Result<String> {
+    let runtime = JsRuntime::new()?;
+    let context = JsContext::full(&runtime)?;
+
+    runtime.spawn_executor(Tokio);
+
+    let result: Promise<String> = context.with(|ctx| {
+        let module = ctx.compile("server", include_str!("../web/build/server/main.js"))?;
+        let render_route: Function = module.get("render_route")?;
+
+        ctx.globals().set("render_route", render_route)?;
+        ctx.eval(source)
+    })?;
+
+    let result = result.await?;
+
+    runtime.idle().await;
+
+    Ok(result)
+}
+
 #[get("/")]
 async fn get_index_html(
     pool: Data<Pool>,
@@ -81,37 +102,16 @@ async fn get_index_html(
     let items = call_db(&pool, move |db| db.get_items(&filter)).await?;
     let items = serde_json::to_string_pretty(&items).unwrap();
 
-    let runtime = JsRuntime::new().unwrap();
-    let context = JsContext::full(&runtime).unwrap();
-
-    runtime.spawn_executor(Tokio);
-
-    let result: Promise<String> = context.with(|ctx| {
-        let module = ctx
-            .compile("server", include_str!("../web/build/server/main.js"))
-            .unwrap();
-
-        let render_route: Function = module.get("render_route").unwrap();
-
-        ctx.globals().set("render_route", render_route).unwrap();
-
-        ctx.eval(format!(
-            r#"
-            render_route('/', [
-                null,
-                {{
-                    url: '/api/items?firstItemId=0&lastItemId=9007199254740991&batchSize=100&{query_string}',
-                    data: {items}
-                }}
-            ])
-        "#
-        ))
-        .unwrap()
-    });
-
-    let result = result.await.unwrap();
-
-    runtime.idle().await;
+    let result = eval(&format!(
+        r#"
+        render_route('/', [
+            null,
+            {{
+                url: '/api/items?firstItemId=0&lastItemId=9007199254740991&batchSize=100&{query_string}',
+                data: {items}
+            }}
+        ])
+    "#)).await?;
 
     Ok(HttpResponse::Ok()
         .insert_header(ContentType::html())
@@ -130,22 +130,8 @@ async fn get_item_html(pool: Data<Pool>, path: Path<i64>) -> Response<impl Respo
     let item = call_db(&pool, move |db| db.get_item(id)).await?;
     let item = serde_json::to_string_pretty(&item).unwrap();
 
-    let runtime = JsRuntime::new().unwrap();
-    let context = JsContext::full(&runtime).unwrap();
-
-    runtime.spawn_executor(Tokio);
-
-    let result: Promise<String> = context.with(|ctx| {
-        let module = ctx
-            .compile("server", include_str!("../web/build/server/main.js"))
-            .unwrap();
-
-        let render_route: Function = module.get("render_route").unwrap();
-
-        ctx.globals().set("render_route", render_route).unwrap();
-
-        ctx.eval(format!(
-            r#"
+    let result = eval(&format!(
+        r#"
             render_route('/item/{id}', [
                 null,
                 {{
@@ -154,13 +140,8 @@ async fn get_item_html(pool: Data<Pool>, path: Path<i64>) -> Response<impl Respo
                 }}
             ])
         "#
-        ))
-        .unwrap()
-    });
-
-    let result = result.await.unwrap();
-
-    runtime.idle().await;
+    ))
+    .await?;
 
     Ok(HttpResponse::Ok()
         .insert_header(ContentType::html())
