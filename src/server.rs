@@ -68,11 +68,14 @@ where
 }
 
 #[get("/")]
-async fn get_index_html(pool: Data<Pool>, filter: Query<ItemFilter>) -> Response<impl Responder> {
+async fn get_index_html(
+    pool: Data<Pool>,
+    request: HttpRequest,
+    filter: Query<ItemFilter>,
+) -> Response<impl Responder> {
+    let query_string = request.query_string();
     let mut filter = filter.clone();
 
-    filter.first_item_id.get_or_insert(0);
-    filter.last_item_id.get_or_insert(9007199254740991);
     filter.batch_size.get_or_insert(100);
 
     let items = call_db(&pool, move |db| db.get_items(&filter)).await?;
@@ -97,7 +100,7 @@ async fn get_index_html(pool: Data<Pool>, filter: Query<ItemFilter>) -> Response
             render_route('/', [
                 null,
                 {{
-                    url: '/api/items',
+                    url: '/api/items?firstItemId=0&lastItemId=9007199254740991&batchSize=100&{query_string}',
                     data: {items}
                 }}
             ])

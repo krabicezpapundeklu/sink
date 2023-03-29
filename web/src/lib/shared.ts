@@ -128,11 +128,13 @@ export async function loadItems(
 ): Promise<ItemSearchResult> {
 	let url = `${
 		env.PUBLIC_API_SERVER || ''
-	}/api/items?${params}&firstItemId=${firstItemId}&lastItemId=${lastItemId}`;
+	}/api/items?firstItemId=${firstItemId}&lastItemId=${lastItemId}`;
 
 	if (batchSize) {
 		url += `&batchSize=${batchSize}`;
 	}
+
+	url += `&${params}`;
 
 	const response = await fetch(url);
 	const items = await response.json();
