@@ -4,20 +4,23 @@ use std::{
 };
 
 use actix_cors::Cors;
+
 use actix_web::{
     dev::Service,
     get,
-    http::header::{HeaderValue, CACHE_CONTROL},
+    http::header::{ContentType, HeaderValue, CACHE_CONTROL},
     middleware::{Compress, Logger, NormalizePath, TrailingSlash},
     post,
     web::{Bytes, Data, Json, Path, Query},
-    App, HttpRequest, HttpServer, Responder, ResponseError,
+    App, HttpRequest, HttpResponse, HttpServer, Responder, ResponseError,
 };
 
 use actix_web_static_files::ResourceFiles;
 use anyhow::{anyhow, Context, Error, Result};
 use deadpool_sqlite::{Config, InteractError, Pool, Runtime};
+use rquickjs::{Context as JsContext, Function, Promise, Runtime as JsRuntime, Tokio};
 use rusqlite::Connection;
+use serde::Serialize;
 
 use crate::{
     repository::Repository,
@@ -28,6 +31,26 @@ include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
 type Response<T> = Result<T, ServerError>;
 
+struct RouteData {
+    serialized: String,
+}
+
+impl RouteData {
+    fn new<T: Serialize>(path: &str, data: &T) -> Result<Self> {
+        let path = serde_json::to_string_pretty(path)?;
+        let data = serde_json::to_string_pretty(data)?;
+
+        Ok(RouteData {
+            serialized: format!("{{url: {path}, data: {data}}}"),
+        })
+    }
+
+    fn null() -> Self {
+        RouteData {
+            serialized: "null".to_string(),
+        }
+    }
+}
 #[derive(Debug)]
 struct ServerError(Error);
 
@@ -51,7 +74,7 @@ impl From<InteractError> for ServerError {
 
 impl ResponseError for ServerError {}
 
-async fn call_db<F, T, E>(pool: &Data<Pool>, f: F) -> Response<Json<T>>
+async fn call_db<F, T, E>(pool: &Data<Pool>, f: F) -> Response<T>
 where
     F: FnOnce(&mut Connection) -> Result<T, E> + Send + 'static,
     T: Send + 'static,
@@ -62,19 +85,58 @@ where
         .map_err(Error::new)?
         .interact(f)
         .await?
-        .map(Json)
         .map_err(|err| ServerError(err.into()))
+}
+
+#[get("/")]
+async fn get_index_html(
+    pool: Data<Pool>,
+    request: HttpRequest,
+    filter: Query<ItemFilter>,
+) -> Response<impl Responder> {
+    let query_string = request.query_string();
+    let mut filter = filter.clone();
+
+    filter.batch_size.get_or_insert(100);
+
+    let items = call_db(&pool, move |db| db.get_items(&filter)).await?;
+    let result = render_route("/", &[RouteData::null(), RouteData::new(&format!("/api/items?firstItemId=0&lastItemId=9007199254740991&batchSize=100&{query_string}"), &items)?]).await?;
+
+    Ok(HttpResponse::Ok()
+        .insert_header(ContentType::html())
+        .body(result))
 }
 
 #[get("/api/item/{id}")]
 async fn get_item(pool: Data<Pool>, path: Path<i64>) -> Response<impl Responder> {
     let id = path.into_inner();
-    call_db(&pool, move |db| db.get_item(id)).await
+    call_db(&pool, move |db| db.get_item(id)).await.map(Json)
+}
+
+#[get("/item/{id}")]
+async fn get_item_html(pool: Data<Pool>, path: Path<i64>) -> Response<impl Responder> {
+    let id = path.into_inner();
+    let item = call_db(&pool, move |db| db.get_item(id)).await?;
+
+    let result = render_route(
+        &format!("/item/{id}"),
+        &[
+            RouteData::null(),
+            RouteData::new(&format!("/api/item/{id}"), &item)?,
+        ],
+    )
+    .await?;
+
+    Ok(HttpResponse::Ok()
+        .insert_header(ContentType::html())
+        .body(result))
 }
 
 #[get("/api/items")]
 async fn get_items(pool: Data<Pool>, filter: Query<ItemFilter>) -> Response<impl Responder> {
-    call_db(&pool, move |db| db.get_items(&filter)).await
+    call_db(&pool, move |db| db.get_items(&filter))
+        .await
+        .map(Json)
 }
 
 fn map_to_anyhow_error(error: InteractError) -> Error {
@@ -82,6 +144,40 @@ fn map_to_anyhow_error(error: InteractError) -> Error {
         InteractError::Panic(_) => "panic",
         InteractError::Aborted => "aborted",
     })
+}
+
+async fn render_route(path: &str, data: &[RouteData]) -> Result<String> {
+    let runtime = JsRuntime::new()?;
+    let context = JsContext::full(&runtime)?;
+
+    let mut serialized_data = String::new();
+
+    for data in data {
+        if !serialized_data.is_empty() {
+            serialized_data.push_str(", ");
+        }
+
+        serialized_data.push_str(&data.serialized);
+    }
+
+    let path = serde_json::to_string_pretty(path)?;
+    let source = format!("render_route({path}, [{serialized_data}])");
+
+    runtime.spawn_executor(Tokio);
+
+    let result: Promise<String> = context.with(|ctx| {
+        let module = ctx.compile("server", include_str!("../web/build/server/main.js"))?;
+        let render_route: Function = module.get("render_route")?;
+
+        ctx.globals().set("render_route", render_route)?;
+        ctx.eval(source)
+    })?;
+
+    let result = result.await?;
+
+    runtime.idle().await;
+
+    Ok(result)
 }
 
 #[actix_web::main]
@@ -98,7 +194,9 @@ pub async fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> 
     HttpServer::new(move || {
         App::new()
             .app_data(Data::new(pool.clone()))
+            .service(get_index_html)
             .service(get_item)
+            .service(get_item_html)
             .service(get_items)
             .service(submit_item)
             .service(ResourceFiles::new("/", generate()).resolve_not_found_to_root())
@@ -159,4 +257,5 @@ async fn submit_item(
         db.insert_item(&item)
     })
     .await
+    .map(Json)
 }
