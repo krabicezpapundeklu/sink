@@ -8,17 +8,17 @@ use actix_cors::Cors;
 use actix_web::{
     dev::Service,
     get,
-    http::header::{HeaderValue, CACHE_CONTROL},
+    http::header::{ContentType, HeaderValue, CACHE_CONTROL},
     middleware::{Compress, Logger, NormalizePath, TrailingSlash},
     post,
     web::{Bytes, Data, Json, Path, Query},
-    App, HttpRequest, HttpServer, Responder, ResponseError,
+    App, HttpRequest, HttpResponse, HttpServer, Responder, ResponseError,
 };
 
 use actix_web_static_files::ResourceFiles;
 use anyhow::{anyhow, Context, Error, Result};
 use deadpool_sqlite::{Config, InteractError, Pool, Runtime};
-use rquickjs::{Context as JsContext, EvalOptions, Runtime as JsRuntime};
+use rquickjs::{Context as JsContext, Function, Promise, Runtime as JsRuntime, Tokio};
 use rusqlite::Connection;
 
 use crate::{
@@ -53,7 +53,7 @@ impl From<InteractError> for ServerError {
 
 impl ResponseError for ServerError {}
 
-async fn call_db<F, T, E>(pool: &Data<Pool>, f: F) -> Response<Json<T>>
+async fn call_db<F, T, E>(pool: &Data<Pool>, f: F) -> Response<T>
 where
     F: FnOnce(&mut Connection) -> Result<T, E> + Send + 'static,
     T: Send + 'static,
@@ -64,19 +64,111 @@ where
         .map_err(Error::new)?
         .interact(f)
         .await?
-        .map(Json)
         .map_err(|err| ServerError(err.into()))
+}
+
+#[get("/")]
+async fn get_index_html(pool: Data<Pool>, filter: Query<ItemFilter>) -> Response<impl Responder> {
+    let mut filter = filter.clone();
+
+    filter.first_item_id.get_or_insert(0);
+    filter.last_item_id.get_or_insert(9007199254740991);
+    filter.batch_size.get_or_insert(100);
+
+    let items = call_db(&pool, move |db| db.get_items(&filter)).await?;
+    let items = serde_json::to_string_pretty(&items).unwrap();
+
+    let runtime = JsRuntime::new().unwrap();
+    let context = JsContext::full(&runtime).unwrap();
+
+    runtime.spawn_executor(Tokio);
+
+    let result: Promise<String> = context.with(|ctx| {
+        let module = ctx
+            .compile("server", include_str!("../web/build/server/main.js"))
+            .unwrap();
+
+        let render_route: Function = module.get("render_route").unwrap();
+
+        ctx.globals().set("render_route", render_route).unwrap();
+
+        ctx.eval(format!(
+            r#"
+            render_route('/', [
+                null,
+                {{
+                    url: '/api/items',
+                    data: {items}
+                }}
+            ])
+        "#
+        ))
+        .unwrap()
+    });
+
+    let result = result.await.unwrap();
+
+    runtime.idle().await;
+
+    Ok(HttpResponse::Ok()
+        .insert_header(ContentType::html())
+        .body(result))
 }
 
 #[get("/api/item/{id}")]
 async fn get_item(pool: Data<Pool>, path: Path<i64>) -> Response<impl Responder> {
     let id = path.into_inner();
-    call_db(&pool, move |db| db.get_item(id)).await
+    call_db(&pool, move |db| db.get_item(id)).await.map(Json)
+}
+
+#[get("/item/{id}")]
+async fn get_item_html(pool: Data<Pool>, path: Path<i64>) -> Response<impl Responder> {
+    let id = path.into_inner();
+    let item = call_db(&pool, move |db| db.get_item(id)).await?;
+    let item = serde_json::to_string_pretty(&item).unwrap();
+
+    let runtime = JsRuntime::new().unwrap();
+    let context = JsContext::full(&runtime).unwrap();
+
+    runtime.spawn_executor(Tokio);
+
+    let result: Promise<String> = context.with(|ctx| {
+        let module = ctx
+            .compile("server", include_str!("../web/build/server/main.js"))
+            .unwrap();
+
+        let render_route: Function = module.get("render_route").unwrap();
+
+        ctx.globals().set("render_route", render_route).unwrap();
+
+        ctx.eval(format!(
+            r#"
+            render_route('/item/{id}', [
+                null,
+                {{
+                    url: '/api/item/{id}',
+                    data: {item}
+                }}
+            ])
+        "#
+        ))
+        .unwrap()
+    });
+
+    let result = result.await.unwrap();
+
+    runtime.idle().await;
+
+    Ok(HttpResponse::Ok()
+        .insert_header(ContentType::html())
+        .body(result))
 }
 
 #[get("/api/items")]
 async fn get_items(pool: Data<Pool>, filter: Query<ItemFilter>) -> Response<impl Responder> {
-    call_db(&pool, move |db| db.get_items(&filter)).await
+    call_db(&pool, move |db| db.get_items(&filter))
+        .await
+        .map(Json)
 }
 
 fn map_to_anyhow_error(error: InteractError) -> Error {
@@ -88,49 +180,6 @@ fn map_to_anyhow_error(error: InteractError) -> Error {
 
 #[actix_web::main]
 pub async fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> {
-    let runtime = JsRuntime::new()?;
-    let context = JsContext::full(&runtime)?;
-
-    context.with(|ctx| {
-        let globals = ctx.globals();
-
-        globals.set("result", "").unwrap();
-
-        ctx.compile("server", include_str!("../web/build/server/main.js"))
-            .unwrap();
-
-        ctx.eval_with_options::<(), &str>(r#"
-            import { render_route, set_public_env } from 'server';
-
-            set_public_env({ PUBLIC_API_SERVER: 'http://localhost:8080' });
-
-            result = render_route('/item/814455', [
-                null,
-                {
-                    url: '/api/item/814455',
-                    data: {
-                        id: 814455,
-                        submitDate: '2023-02-14 12:44:51',
-                        system: 'qa415-va',
-                        type: 'event_notification',
-                        headers: [
-                            { name: 'accept', value: '*/*' },
-                            { name: 'connection', value: 'Keep-Alive' },
-                            { name: 'content-length', value: '73' },
-                            { name: 'content-type', value: 'application/json' },
-                            { name: 'host', value: '10.0.1.141:8080' },
-                            { name: 'mgs-system-id', value: 'qa415-va' },
-                            { name: 'mgssystem', value: 'qa415-va' }
-                        ],
-                        body: '{"entityEventId":19,"entityId":1719603,"eventDate":"2023-02-14T07:44:47"}'
-                    }
-                }
-            ]);
-        "#, EvalOptions{
-            global: false, strict: true, backtrace_barrier: false
-        }).unwrap();
-    });
-
     let pool = Config::new(db).create_pool(Runtime::Tokio1)?;
 
     pool.get()
@@ -143,7 +192,9 @@ pub async fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> 
     HttpServer::new(move || {
         App::new()
             .app_data(Data::new(pool.clone()))
+            .service(get_index_html)
             .service(get_item)
+            .service(get_item_html)
             .service(get_items)
             .service(submit_item)
             .service(ResourceFiles::new("/", generate()).resolve_not_found_to_root())
@@ -204,4 +255,5 @@ async fn submit_item(
         db.insert_item(&item)
     })
     .await
+    .map(Json)
 }
