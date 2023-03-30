@@ -45,13 +45,13 @@ impl RouteData {
         let path = serde_json::to_string_pretty(path)?;
         let data = serde_json::to_string_pretty(data)?;
 
-        Ok(RouteData {
+        Ok(Self {
             serialized: format!("{{url: {path}, data: {data}}}"),
         })
     }
 
     fn null() -> Self {
-        RouteData {
+        Self {
             serialized: "null".to_string(),
         }
     }

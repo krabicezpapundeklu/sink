@@ -98,7 +98,7 @@ pub struct DateTime(NaiveDateTime);
 
 impl DateTime {
     pub fn now() -> Self {
-        DateTime(Utc::now().naive_utc())
+        Self(Utc::now().naive_utc())
     }
 }
 
