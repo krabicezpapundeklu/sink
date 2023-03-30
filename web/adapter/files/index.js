@@ -28,5 +28,5 @@ render_route('/item/814455', [
 		console.log(response);
 	})
 	.catch((e) => {
-		console.log(e);
+		console.log(e + ' ' + e.stack);
 	});

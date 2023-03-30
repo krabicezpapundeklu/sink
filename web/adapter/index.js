@@ -41,7 +41,7 @@ export default function (opts = {}) {
 
 			appendFileSync(
 				`${tmp}/index.js`,
-				'export { compact, default_transform, default_filter, default_preload, get_option, options, render_response, set_public_env };'
+				'export { compact, default_filter, default_preload, default_transform, get_option, options, render_response, set_public_env };'
 			);
 
 			writeFileSync(
@@ -51,7 +51,7 @@ export default function (opts = {}) {
 			);
 
 			copyFileSync(`${files}/main.js`, `${tmp}/main.js`);
-			copyFileSync(`${files}/shims.js`, `${tmp}/shims.js`);
+			copyFileSync(`${files}/polyfills.js`, `${tmp}/polyfills.js`);
 
 			const bundle = await rollup({
 				input: {

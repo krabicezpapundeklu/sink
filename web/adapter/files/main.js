@@ -1,11 +1,11 @@
-import './shims.js';
+import './polyfills';
 import { manifest } from './manifest.js';
 
 import {
 	compact,
-	default_transform,
 	default_filter,
 	default_preload,
+	default_transform,
 	get_option,
 	options,
 	render_response,
@@ -88,7 +88,7 @@ export async function render_route(path, data) {
 		fetched
 	});
 
-	return response.body;
+	return await response.text();
 }
 
 export { set_public_env };

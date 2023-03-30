@@ -27,9 +27,12 @@
 		"sass": "^1.60.0",
 		"svelte": "^3.57.0",
 		"svelte-check": "^3.1.4",
+		"text-encoding-utf-8": "^1.0.2",
 		"tslib": "^2.5.0",
 		"typescript": "^5.0.2",
-		"vite": "^4.2.1"
+		"vite": "^4.2.1",
+		"web-streams-polyfill": "^3.2.1",
+		"whatwg-fetch": "^3.6.2"
 	},
 	"type": "module",
 	"dependencies": {
