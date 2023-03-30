@@ -18,7 +18,9 @@ use actix_web::{
 use actix_web_static_files::ResourceFiles;
 use anyhow::{anyhow, Context, Error, Result};
 use deadpool_sqlite::{Config, InteractError, Pool, Runtime};
-use rquickjs::{Context as JsContext, Function, Promise, Runtime as JsRuntime, Tokio};
+
+use rquickjs::{embed, Context as JsContext, Function, Promise, Runtime as JsRuntime, Tokio};
+
 use rusqlite::Connection;
 use serde::Serialize;
 
@@ -26,6 +28,9 @@ use crate::{
     repository::Repository,
     shared::{DateTime, Item, ItemFilter, ItemHeader},
 };
+
+#[embed(name = "main", path = "./web/build/server")]
+mod server_module {}
 
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
@@ -100,7 +105,11 @@ async fn get_index_html(
     filter.batch_size.get_or_insert(100);
 
     let items = call_db(&pool, move |db| db.get_items(&filter)).await?;
-    let result = render_route("/", &[RouteData::null(), RouteData::new(&format!("/api/items?firstItemId=0&lastItemId=9007199254740991&batchSize=100&{query_string}"), &items)?]).await?;
+
+    let result = render_route("/", &[
+            RouteData::null(),
+            RouteData::new(&format!("/api/items?firstItemId=0&lastItemId=9007199254740991&batchSize=100&{query_string}"), &items)?
+    ]).await?;
 
     Ok(HttpResponse::Ok()
         .insert_header(ContentType::html())
@@ -150,6 +159,8 @@ async fn render_route(path: &str, data: &[RouteData]) -> Result<String> {
     let runtime = JsRuntime::new()?;
     let context = JsContext::full(&runtime)?;
 
+    runtime.set_loader(SERVER_MODULE, SERVER_MODULE);
+
     let mut serialized_data = String::new();
 
     for data in data {
@@ -166,7 +177,11 @@ async fn render_route(path: &str, data: &[RouteData]) -> Result<String> {
     runtime.spawn_executor(Tokio);
 
     let result: Promise<String> = context.with(|ctx| {
-        let module = ctx.compile("server", include_str!("../web/build/server/main.js"))?;
+        let module = ctx.compile(
+            "server",
+            "import { render_route } from 'main'; export { render_route};",
+        )?;
+
         let render_route: Function = module.get("render_route")?;
 
         ctx.globals().set("render_route", render_route)?;
