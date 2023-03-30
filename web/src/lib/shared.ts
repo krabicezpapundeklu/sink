@@ -49,7 +49,11 @@ function dateToString(
 }
 
 function formatJson(json: string): string {
-	return JSON.stringify(JSON.parse(json), null, 1);
+	try {
+		return JSON.stringify(JSON.parse(json), null, 1);
+	} catch (e) {
+		return json;
+	}
 }
 
 function formatXml(xml: string): string {
