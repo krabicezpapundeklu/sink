@@ -17,7 +17,7 @@ use xml::{
 
 macro_rules! item_types {
     ($($id:ident = $name:literal)+) => {
-        #[derive(Clone, Debug)]
+        #[derive(Debug)]
         pub enum ItemType {
             $($id),+
         }
@@ -93,7 +93,7 @@ item_types! {
     VacancyUpdated = "vacancy_updated"
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct DateTime(NaiveDateTime);
 
 impl DateTime {
@@ -236,7 +236,7 @@ impl Item {
     }
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ItemFilter {
     pub query: Option<String>,

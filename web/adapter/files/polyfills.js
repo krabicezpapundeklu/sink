@@ -1,3 +1,4 @@
+import 'core-js/actual/url';
 import 'web-streams-polyfill/es2018';
 import 'whatwg-fetch';
 import { TextEncoder } from 'text-encoding-utf-8';
@@ -12,3 +13,11 @@ module.crypto = {
 };
 
 module.TextEncoder = TextEncoder;
+
+Array.prototype.at = function (index) {
+	if (index < 0) {
+		return this[this.length + index];
+	}
+
+	return this[index];
+};

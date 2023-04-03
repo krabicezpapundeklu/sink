@@ -1,4 +1,4 @@
-import { appendFileSync, copyFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { nodeResolve } from '@rollup/plugin-node-resolve';
 import { rollup } from 'rollup';
@@ -39,11 +39,6 @@ export default function (opts = {}) {
 
 			builder.writeServer(tmp);
 
-			appendFileSync(
-				`${tmp}/index.js`,
-				'export { compact, default_filter, default_preload, default_transform, get_option, options, render_response, set_public_env };'
-			);
-
 			writeFileSync(
 				`${tmp}/manifest.js`,
 				`export const manifest = ${builder.generateManifest({ relativePath: './' })};\n\n` +
@@ -72,8 +67,6 @@ export default function (opts = {}) {
 				format: 'esm',
 				inlineDynamicImports: true
 			});
-
-			copyFileSync(`${files}/index.js`, `${out}/index.js`);
 		}
 	};
 }

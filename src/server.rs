@@ -3,14 +3,12 @@ use std::{
     path,
 };
 
-use actix_cors::Cors;
-
 use actix_web::{
     dev::Service,
     get,
     http::header::{ContentType, HeaderValue, CACHE_CONTROL},
     middleware::{Compress, Logger, NormalizePath, TrailingSlash},
-    post,
+    post, routes,
     web::{Bytes, Data, Json, Path, Query},
     App, HttpRequest, HttpResponse, HttpServer, Responder, ResponseError,
 };
@@ -19,10 +17,14 @@ use actix_web_static_files::ResourceFiles;
 use anyhow::{anyhow, Context, Error, Result};
 use deadpool_sqlite::{Config, InteractError, Pool, Runtime};
 
-use rquickjs::{embed, Context as JsContext, Function, Promise, Runtime as JsRuntime, Tokio};
+use once_cell::sync::OnceCell;
+
+use rquickjs::{
+    bind, embed, Context as JsContext, Ctx, Function, IntoJs, Object, Promise, Result as JsResult,
+    Runtime as JsRuntime, Tokio, Value as JsValue,
+};
 
 use rusqlite::Connection;
-use serde::Serialize;
 
 use crate::{
     repository::Repository,
@@ -32,30 +34,76 @@ use crate::{
 #[embed(name = "main", path = "./web/build/server")]
 mod server_module {}
 
-include!(concat!(env!("OUT_DIR"), "/generated.rs"));
+#[bind(object)]
+#[quickjs(bare)]
+mod server_runtime {
+    use actix_web::web::Query;
+    use anyhow::{anyhow, bail, Result};
+    use serde_json::to_string;
 
-type Response<T> = Result<T, ServerError>;
+    use super::{call_db, FetchDataResult, POOL};
+    use crate::repository::Repository;
+    use crate::shared::ItemFilter;
 
-struct RouteData {
-    serialized: String,
-}
+    #[quickjs(rename = "fetchData")]
+    pub async fn fetch_data<'a>(path: String, search: String) -> FetchDataResult {
+        async fn get_data(path: String, search: String) -> Result<String> {
+            let pool = POOL.get().ok_or_else(|| anyhow!("cannot get pool"))?;
 
-impl RouteData {
-    fn new<T: Serialize>(path: &str, data: &T) -> Result<Self> {
-        let path = serde_json::to_string_pretty(path)?;
-        let data = serde_json::to_string_pretty(data)?;
+            if let Some(id) = path.strip_prefix("/api/item/") {
+                let id: i64 = id.parse()?;
 
-        Ok(Self {
-            serialized: format!("{{url: {path}, data: {data}}}"),
-        })
-    }
+                let item = call_db(pool, move |db| db.get_item(id))
+                    .await
+                    .map_err(|e| e.0)?;
 
-    fn null() -> Self {
-        Self {
-            serialized: "null".to_string(),
+                to_string(&item).map_err(Into::into)
+            } else if path == "/api/items" {
+                let filter = Query::<ItemFilter>::from_query(&search)?.0;
+
+                let items = call_db(pool, move |db| db.get_items(&filter))
+                    .await
+                    .map_err(|e| e.0)?;
+
+                to_string(&items).map_err(Into::into)
+            } else {
+                bail!("wrong path {path}")
+            }
+        }
+
+        let result = get_data(path, search).await;
+
+        match result {
+            Ok(data) => FetchDataResult::Data(data),
+            Err(error) => FetchDataResult::Error(error.to_string()),
         }
     }
 }
+
+include!(concat!(env!("OUT_DIR"), "/generated.rs"));
+
+static POOL: OnceCell<Pool> = OnceCell::new();
+
+pub enum FetchDataResult {
+    Data(String),
+    Error(String),
+}
+
+impl<'js> IntoJs<'js> for FetchDataResult {
+    fn into_js(self, ctx: Ctx<'js>) -> JsResult<JsValue<'js>> {
+        let obj = Object::new(ctx)?;
+
+        match self {
+            FetchDataResult::Data(data) => obj.set("data", data),
+            FetchDataResult::Error(error) => obj.set("error", error),
+        }?;
+
+        Ok(JsValue::from_object(obj))
+    }
+}
+
+type Response<T> = Result<T, ServerError>;
+
 #[derive(Debug)]
 struct ServerError(Error);
 
@@ -79,7 +127,7 @@ impl From<InteractError> for ServerError {
 
 impl ResponseError for ServerError {}
 
-async fn call_db<F, T, E>(pool: &Data<Pool>, f: F) -> Response<T>
+async fn call_db<F, T, E>(pool: &Pool, f: F) -> Response<T>
 where
     F: FnOnce(&mut Connection) -> Result<T, E> + Send + 'static,
     T: Send + 'static,
@@ -93,23 +141,18 @@ where
         .map_err(|err| ServerError(err.into()))
 }
 
+#[routes]
 #[get("/")]
-async fn get_index_html(
-    pool: Data<Pool>,
-    request: HttpRequest,
-    filter: Query<ItemFilter>,
-) -> Response<impl Responder> {
-    let query_string = request.query_string();
-    let mut filter = filter.clone();
+#[get("/item/{id}")]
+async fn get_html(request: HttpRequest) -> Response<impl Responder> {
+    let url = format!(
+        "{}://{}{}",
+        request.connection_info().scheme(),
+        request.connection_info().host(),
+        request.uri()
+    );
 
-    filter.batch_size.get_or_insert(100);
-
-    let items = call_db(&pool, move |db| db.get_items(&filter)).await?;
-
-    let result = render_route("/", &[
-            RouteData::null(),
-            RouteData::new(&format!("/api/items?firstItemId=0&lastItemId=9007199254740991&batchSize=100&{query_string}"), &items)?
-    ]).await?;
+    let result = render(&url).await?;
 
     Ok(HttpResponse::Ok()
         .insert_header(ContentType::html())
@@ -120,25 +163,6 @@ async fn get_index_html(
 async fn get_item(pool: Data<Pool>, path: Path<i64>) -> Response<impl Responder> {
     let id = path.into_inner();
     call_db(&pool, move |db| db.get_item(id)).await.map(Json)
-}
-
-#[get("/item/{id}")]
-async fn get_item_html(pool: Data<Pool>, path: Path<i64>) -> Response<impl Responder> {
-    let id = path.into_inner();
-    let item = call_db(&pool, move |db| db.get_item(id)).await?;
-
-    let result = render_route(
-        &format!("/item/{id}"),
-        &[
-            RouteData::null(),
-            RouteData::new(&format!("/api/item/{id}"), &item)?,
-        ],
-    )
-    .await?;
-
-    Ok(HttpResponse::Ok()
-        .insert_header(ContentType::html())
-        .body(result))
 }
 
 #[get("/api/items")]
@@ -155,37 +179,24 @@ fn map_to_anyhow_error(error: InteractError) -> Error {
     })
 }
 
-async fn render_route(path: &str, data: &[RouteData]) -> Result<String> {
+async fn render(path: &str) -> Result<String> {
     let runtime = JsRuntime::new()?;
     let context = JsContext::full(&runtime)?;
 
     runtime.set_loader(SERVER_MODULE, SERVER_MODULE);
-
-    let mut serialized_data = String::new();
-
-    for data in data {
-        if !serialized_data.is_empty() {
-            serialized_data.push_str(", ");
-        }
-
-        serialized_data.push_str(&data.serialized);
-    }
-
-    let path = serde_json::to_string_pretty(path)?;
-    let source = format!("render_route({path}, [{serialized_data}])");
-
     runtime.spawn_executor(Tokio);
 
     let result: Promise<String> = context.with(|ctx| {
+        ctx.globals().init_def::<ServerRuntime>()?;
+
         let module = ctx.compile(
             "server",
-            "import { render_route } from 'main'; export { render_route};",
+            "import { render } from 'main'; export { render };",
         )?;
 
-        let render_route: Function = module.get("render_route")?;
+        let render: Function = module.get("render")?;
 
-        ctx.globals().set("render_route", render_route)?;
-        ctx.eval(source)
+        render.call((path,))
     })?;
 
     let result = result.await?;
@@ -206,17 +217,18 @@ pub async fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> 
         .map_err(map_to_anyhow_error)?
         .with_context(|| format!("cannot prepare database schema in {}", db.display()))?;
 
+    POOL.set(pool.clone())
+        .map_err(|_| anyhow!("cannot set pool"))?;
+
     HttpServer::new(move || {
         App::new()
             .app_data(Data::new(pool.clone()))
-            .service(get_index_html)
+            .service(get_html)
             .service(get_item)
-            .service(get_item_html)
             .service(get_items)
             .service(submit_item)
             .service(ResourceFiles::new("/", generate()).resolve_not_found_to_root())
             .wrap(Compress::default())
-            .wrap(Cors::permissive())
             .wrap(Logger::default())
             .wrap(NormalizePath::new(TrailingSlash::Trim))
             .wrap_fn(|request, service| {
