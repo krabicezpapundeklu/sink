@@ -9,11 +9,9 @@ use std::{
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use env_logger::Env;
-use import::import_csv;
 use libc::c_int;
 use server::start_server;
 
-mod import;
 mod repository;
 mod server;
 mod shared;
@@ -31,20 +29,6 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Import items from CSV file
-    ImportCsv {
-        /// CSV file with items to import
-        #[arg(long, short)]
-        input: PathBuf,
-
-        /// Database file where items will be written to
-        #[arg(default_value = "sink.db", long, short)]
-        output: PathBuf,
-
-        /// Generate new IDs for items
-        #[arg(long, short)]
-        generate_ids: bool,
-    },
     /// Enter SQL shell
     Shell {
         /// Arguments passed directly to the shell
@@ -72,11 +56,6 @@ fn main() -> Result<()> {
     env_logger::init_from_env(Env::default().default_filter_or("info"));
 
     match &args.command {
-        Command::ImportCsv {
-            input,
-            output,
-            generate_ids,
-        } => import_csv(input, output, *generate_ids).context("cannot import items from CSV"),
         Command::Shell { args } => unsafe {
             let mut c_strings = Vec::new();
 
