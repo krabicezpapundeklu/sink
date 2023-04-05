@@ -1,11 +1,18 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { itemTypeToName, utcDateStringToLocalString } from '$lib/shared';
+	import { onMount } from 'svelte';
 	import type { ItemWithHighlighting } from '$lib/model';
+
+	const tabs = ['#body-preview', '#original-body', '#headers'];
 
 	export let item: ItemWithHighlighting;
 
 	let activeTab = 0;
+
+	onMount(() => {
+		activeTab = Math.max(0, tabs.indexOf(location.hash));
+	});
 </script>
 
 <div>
@@ -24,29 +31,26 @@
 </div>
 <ul class="mt-3 nav nav-tabs">
 	<li class="nav-item">
-		<!-- svelte-ignore a11y-invalid-attribute -->
 		<a
 			class="nav-link"
 			class:active={activeTab === 0}
-			href="javascript:void(0)"
+			href="{tabs[0]}"
 			on:click={() => (activeTab = 0)}>Body Preview</a
 		>
 	</li>
 	<li class="nav-item">
-		<!-- svelte-ignore a11y-invalid-attribute -->
 		<a
 			class="nav-link"
 			class:active={activeTab === 1}
-			href="javascript:void(0)"
+			href="{tabs[1]}"
 			on:click={() => (activeTab = 1)}>Original Body</a
 		>
 	</li>
 	<li class="nav-item">
-		<!-- svelte-ignore a11y-invalid-attribute -->
 		<a
 			class="nav-link"
 			class:active={activeTab === 2}
-			href="javascript:void(0)"
+			href="{tabs[2]}"
 			on:click={() => (activeTab = 2)}>Headers</a
 		>
 	</li>

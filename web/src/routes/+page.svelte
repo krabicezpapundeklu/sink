@@ -72,7 +72,7 @@
 
 	const refresh = (params: URLSearchParams) => {
 		loading = true;
-		goto(`?${params}`, { keepFocus: true, invalidateAll: true });
+		goto(`?${params}${location.hash}`, { keepFocus: true, invalidateAll: true });
 	};
 
 	const search = (e: CustomEvent) => {
