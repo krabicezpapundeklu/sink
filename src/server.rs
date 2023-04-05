@@ -41,29 +41,35 @@ mod server_runtime {
     use anyhow::{anyhow, bail, Result};
     use serde_json::to_string;
 
-    use super::{call_db, FetchDataResult, POOL};
+    use super::{FetchDataResult, POOL};
     use crate::repository::Repository;
+    use crate::server::map_to_anyhow_error;
     use crate::shared::ItemFilter;
 
     #[quickjs(rename = "fetchData")]
-    pub async fn fetch_data<'a>(path: String, search: String) -> FetchDataResult {
+    pub async fn fetch_data(path: String, search: String) -> FetchDataResult {
         async fn get_data(path: String, search: String) -> Result<String> {
-            let pool = POOL.get().ok_or_else(|| anyhow!("cannot get pool"))?;
+            let db = {
+                let pool = POOL.get().ok_or_else(|| anyhow!("cannot get pool"))?;
+                pool.get().await?
+            };
 
             if let Some(id) = path.strip_prefix("/api/item/") {
                 let id: i64 = id.parse()?;
 
-                let item = call_db(pool, move |db| db.get_item(id))
+                let item = db
+                    .interact(move |db| db.get_item(id))
                     .await
-                    .map_err(|e| e.0)?;
+                    .map_err(map_to_anyhow_error)??;
 
                 to_string(&item).map_err(Into::into)
             } else if path == "/api/items" {
                 let filter = Query::<ItemFilter>::from_query(&search)?.0;
 
-                let items = call_db(pool, move |db| db.get_items(&filter))
+                let items = db
+                    .interact(move |db| db.get_items(&filter))
                     .await
-                    .map_err(|e| e.0)?;
+                    .map_err(map_to_anyhow_error)??;
 
                 to_string(&items).map_err(Into::into)
             } else {
@@ -94,8 +100,8 @@ impl<'js> IntoJs<'js> for FetchDataResult {
         let obj = Object::new(ctx)?;
 
         match self {
-            FetchDataResult::Data(data) => obj.set("data", data),
-            FetchDataResult::Error(error) => obj.set("error", error),
+            Self::Data(data) => obj.set("data", data),
+            Self::Error(error) => obj.set("error", error),
         }?;
 
         Ok(JsValue::from_object(obj))

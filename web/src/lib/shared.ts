@@ -1,5 +1,3 @@
-import { env } from '$env/dynamic/public';
-
 import hljs from 'highlight.js/lib/core';
 import json from 'highlight.js/lib/languages/json';
 import plaintext from 'highlight.js/lib/languages/plaintext';
@@ -117,7 +115,7 @@ export async function loadItem(
 	fetch: (input: RequestInfo) => Promise<Response>,
 	itemId: number
 ): Promise<Item> {
-	const response = await fetch(`${env.PUBLIC_API_SERVER || ''}/api/item/${itemId}`);
+	const response = await fetch(`/api/item/${itemId}`);
 	const item = await response.json();
 
 	return item;
@@ -130,9 +128,7 @@ export async function loadItems(
 	lastItemId: number,
 	batchSize?: number
 ): Promise<ItemSearchResult> {
-	let url = `${
-		env.PUBLIC_API_SERVER || ''
-	}/api/items?firstItemId=${firstItemId}&lastItemId=${lastItemId}`;
+	let url = `/api/items?firstItemId=${firstItemId}&lastItemId=${lastItemId}`;
 
 	if (batchSize) {
 		url += `&batchSize=${batchSize}`;
