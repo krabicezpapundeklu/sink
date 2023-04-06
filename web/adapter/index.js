@@ -69,6 +69,8 @@ export default function (opts = {}) {
 				inlineDynamicImports: true
 			});
 
+			copyFileSync(`${files}/index.js`, `${out}/index.js`);
+
 			const purgeCSSResult = await new PurgeCSS().purge({
 				content: [`${out}/client/**/*.js`],
 				css: [`${out}/client/**/*.css`],

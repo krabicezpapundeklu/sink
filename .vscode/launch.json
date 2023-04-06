@@ -11,6 +11,15 @@
                 ]
             },
             "args": ["start-server"]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch Node",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/web/build/index.js"
         }
     ]
 }
