@@ -1,6 +1,7 @@
 import { copyFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { nodeResolve } from '@rollup/plugin-node-resolve';
+import { PurgeCSS } from 'purgecss';
 import { rollup } from 'rollup';
 import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
@@ -67,6 +68,16 @@ export default function (opts = {}) {
 				format: 'esm',
 				inlineDynamicImports: true
 			});
+
+			const purgeCSSResult = await new PurgeCSS().purge({
+				content: [`${out}/client/**/*.js`],
+				css: [`${out}/client/**/*.css`],
+				safelist: [/popper$/, /^hljs/]
+			});
+
+			for (const purge of purgeCSSResult) {
+				writeFileSync(purge.file, purge.css);
+			}
 		}
 	};
 }

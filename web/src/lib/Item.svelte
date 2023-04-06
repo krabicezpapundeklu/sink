@@ -34,7 +34,7 @@
 		<a
 			class="nav-link"
 			class:active={activeTab === 0}
-			href="{tabs[0]}"
+			href={tabs[0]}
 			on:click={() => (activeTab = 0)}>Body Preview</a
 		>
 	</li>
@@ -42,7 +42,7 @@
 		<a
 			class="nav-link"
 			class:active={activeTab === 1}
-			href="{tabs[1]}"
+			href={tabs[1]}
 			on:click={() => (activeTab = 1)}>Original Body</a
 		>
 	</li>
@@ -50,7 +50,7 @@
 		<a
 			class="nav-link"
 			class:active={activeTab === 2}
-			href="{tabs[2]}"
+			href={tabs[2]}
 			on:click={() => (activeTab = 2)}>Headers</a
 		>
 	</li>
