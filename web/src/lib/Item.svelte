@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
 	import { itemTypeToName, utcDateStringToLocalString } from '$lib/shared';
 	import { onMount } from 'svelte';
 	import type { ItemWithHighlighting } from '$lib/model';
@@ -16,10 +15,8 @@
 </script>
 
 <div>
-	{#if browser}
-		<span class="fs-3 me-3">{item.id.toLocaleString()}</span>
-		<span>{new Date(utcDateStringToLocalString(item.submitDate)).toLocaleString()}</span>
-	{/if}
+	<span class="fs-3 me-3">#{item.id}</span>
+	<span>{utcDateStringToLocalString(item.submitDate)}</span>
 	<div>
 		{#if item.system}
 			<span class="badge bg-secondary">{item.system}</span>

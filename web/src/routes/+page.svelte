@@ -191,7 +191,7 @@
 	<div class="d-flex flex-fill overflow-hidden">
 		<div class="border-end d-flex flex-column" style="min-width: 25em">
 			<div class="align-items-center border-bottom d-flex justify-content-between p-2">
-				<div>{totalItems.toLocaleString()} Items</div>
+				<div>{totalItems} Items</div>
 				<div class="d-flex">
 					<label class="form-label m-auto me-2 text-nowrap" for="asc">Sort By</label>
 					<select
@@ -218,9 +218,9 @@
 								on:click|preventDefault={() => selectItem(item.id)}
 							>
 								<div class="d-flex justify-content-between">
-									<span>{item.id.toLocaleString()}</span>
+									<span>#{item.id}</span>
 									<span>
-										{new Date(utcDateStringToLocalString(item.submitDate)).toLocaleString()}
+										{utcDateStringToLocalString(item.submitDate)}
 									</span>
 								</div>
 								<div>
