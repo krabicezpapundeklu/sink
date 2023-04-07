@@ -15,9 +15,6 @@ export const handleFetch = (async ({ fetch, request }) => {
 			new Response(result.data, {
 				status: 200,
 				statusText: 'OK',
-				headers: {
-					'access-control-allow-origin': '*'
-				}
 			})
 		);
 	} else {
