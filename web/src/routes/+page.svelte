@@ -15,7 +15,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 
-	import type { ItemSummary, ItemWithHighlighting } from '$lib/model';
+	import type { ItemWithHighlighting } from '$lib/model';
 	import type { PageData } from './$types';
 
 	import Item from '$lib/Item.svelte';
@@ -35,13 +35,12 @@
 
 	let loading = false;
 
-	let items: ItemSummary[] = [];
-	let systems: string[] = [];
-	let totalItems = 0;
+	let items = data.items.slice(0, BATCH_SIZE);
+	let systems = data.systems;
+	let totalItems = data.totalItems;
+	let hasMoreItems = data.items.length > BATCH_SIZE;
 
 	let activeItem: ItemWithHighlighting;
-
-	let hasMoreItems = false;
 
 	const loadMore = async () => {
 		loading = true;
@@ -144,7 +143,7 @@
 	onMount(() => {
 		const loadMoreObserver = new IntersectionObserver(
 			(entries: IntersectionObserverEntry[]) => {
-				if (hasMoreItems && entries[0].isIntersecting) {
+				if (hasMoreItems && !loading && entries[0].isIntersecting) {
 					loadMore();
 				}
 			},
@@ -206,9 +205,9 @@
 					</select>
 				</div>
 			</div>
-			<div class="overflow-auto p-2">
+			<div class="overflow-auto p-2" bind:this={itemListElement}>
 				{#if items.length > 0}
-					<div class="list-group list-group-flush" bind:this={itemListElement}>
+					<div class="list-group list-group-flush">
 						{#each items as item, index (item.id)}
 							<a
 								class="list-group-item list-group-item-action"

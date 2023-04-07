@@ -14,7 +14,7 @@ export const handleFetch = (async ({ fetch, request }) => {
 		return Promise.resolve(
 			new Response(result.data, {
 				status: 200,
-				statusText: 'OK',
+				statusText: 'OK'
 			})
 		);
 	} else {
