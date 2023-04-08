@@ -148,7 +148,7 @@ where
 async fn fetch_data(path: String, search: String) -> FetchDataResult {
     async fn get_data(path: String, search: String) -> Result<String> {
         let db = {
-            let db_pool = DB_POOL.get().ok_or_else(|| anyhow!("cannot get pdb ool"))?;
+            let db_pool = DB_POOL.get().ok_or_else(|| anyhow!("cannot get db pool"))?;
             db_pool.get().await?
         };
 
