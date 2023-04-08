@@ -220,9 +220,13 @@ async fn render(js: &Js, request: &HttpRequest) -> Result<String> {
         request.uri()
     );
 
+    let tz = request.cookie("tz").map(|tz| tz.value().to_string());
+
     let result: Promise<String> = js.run(|ctx| {
         let globals = ctx.globals();
         let render: Function = globals.get("render")?;
+
+        globals.set("TIME_ZONE", tz)?;
 
         render.call((path,))
     })?;

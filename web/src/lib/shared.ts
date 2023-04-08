@@ -1,9 +1,13 @@
+import { browser } from '$app/environment';
+
 import hljs from 'highlight.js/lib/core';
 import json from 'highlight.js/lib/languages/json';
 import plaintext from 'highlight.js/lib/languages/plaintext';
 import xml from 'highlight.js/lib/languages/xml';
 
 import type { Item, ItemSearchResult, ItemType, ItemWithHighlighting } from './model';
+
+declare const TIME_ZONE: string | null | undefined;
 
 export const BATCH_SIZE = 100;
 export const MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
@@ -58,6 +62,40 @@ function formatJson(json: string): string {
 
 export function formatNumber(value: number): string {
 	return NUMBER_FORMAT.format(value);
+}
+
+export function formatSubmitDate(value: string, detail = false): string {
+	const options: Intl.DateTimeFormatOptions = {};
+
+	if (!browser) {
+		if (typeof TIME_ZONE !== 'undefined' && TIME_ZONE) {
+			options.timeZone = TIME_ZONE;
+		} else {
+			return '';
+		}
+	}
+
+	const isoDate = value.substring(0, 10) + 'T' + value.substring(11) + '.000Z';
+	const submitDate = new Date(isoDate);
+
+	if (detail) {
+		options.dateStyle = 'full';
+		options.timeStyle = 'medium';
+	} else {
+		const now = new Date();
+
+		options.timeStyle = 'short';
+
+		if (
+			now.getDate() !== submitDate.getDate() ||
+			now.getMonth() !== submitDate.getMonth() ||
+			now.getFullYear() !== submitDate.getFullYear()
+		) {
+			options.dateStyle = 'short';
+		}
+	}
+
+	return new Intl.DateTimeFormat('en-us', options).format(submitDate);
 }
 
 function formatXml(xml: string): string {
@@ -168,6 +206,12 @@ export function utcDateStringToLocalString(value: string | null): string {
 		return '';
 	}
 
+	const date = new Date(utcDateStringToMs(value));
+
+	return localDateToString(date);
+}
+
+function utcDateStringToMs(value: string): number {
 	const year = +value.substring(0, 4);
 	const month = +value.substring(5, 7);
 	const day = +value.substring(8, 10);
@@ -175,9 +219,7 @@ export function utcDateStringToLocalString(value: string | null): string {
 	const minutes = +value.substring(14, 16);
 	const seconds = value.length === 19 ? +value.substring(17, 19) : 0;
 
-	const date = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds));
-
-	return localDateToString(date);
+	return Date.UTC(year, month - 1, day, hours, minutes, seconds);
 }
 
 export function utcDateToString(date: Date): string {

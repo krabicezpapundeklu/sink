@@ -4,6 +4,7 @@
 	import {
 		BATCH_SIZE,
 		formatNumber,
+		formatSubmitDate,
 		highlightItem,
 		itemTypeToName,
 		loadItem,
@@ -219,9 +220,7 @@
 							>
 								<div class="d-flex justify-content-between">
 									<span>#{formatNumber(item.id)}</span>
-									<span>
-										{utcDateStringToLocalString(item.submitDate)}
-									</span>
+									<span>{formatSubmitDate(item.submitDate)}</span>
 								</div>
 								<div>
 									{#if item.system}
