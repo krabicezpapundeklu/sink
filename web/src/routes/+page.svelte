@@ -17,7 +17,6 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 
-	import type { ItemWithHighlighting } from '$lib/model';
 	import type { PageData } from './$types';
 
 	import Item from '$lib/Item.svelte';
@@ -41,8 +40,18 @@
 	let systems = data.systems;
 	let totalItems = data.totalItems;
 	let hasMoreItems = data.items.length > BATCH_SIZE;
+	let activeItem = data.firstItem;
 
-	let activeItem: ItemWithHighlighting;
+	const fillFromParams = () => {
+		const params = $page.url.searchParams;
+
+		query = params.get('query') || '';
+		system = params.get('system') || '';
+		type = params.get('type') || '';
+		from = utcDateStringToLocalString(params.get('from'));
+		to = utcDateStringToLocalString(params.get('to'));
+		asc = (params.get('asc') || 'false') === 'true';
+	};
 
 	const loadMore = async () => {
 		loading = true;
@@ -124,20 +133,16 @@
 		refresh(params);
 	};
 
-	afterNavigate(async () => {
-		const params = $page.url.searchParams;
+	fillFromParams();
 
-		query = params.get('query') || '';
-		system = params.get('system') || '';
-		type = params.get('type') || '';
-		from = utcDateStringToLocalString(params.get('from'));
-		to = utcDateStringToLocalString(params.get('to'));
-		asc = (params.get('asc') || 'false') === 'true';
+	afterNavigate(async () => {
+		fillFromParams();
 
 		items = data.items.slice(0, BATCH_SIZE);
 		systems = data.systems;
 		totalItems = data.totalItems;
 		hasMoreItems = data.items.length > BATCH_SIZE;
+		activeItem = data.firstItem;
 
 		loading = false;
 	});
