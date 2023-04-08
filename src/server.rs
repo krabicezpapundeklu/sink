@@ -108,6 +108,53 @@ impl<'js> IntoJs<'js> for FetchDataResult {
     }
 }
 
+struct Js {
+    runtime: JsRuntime,
+    context: JsContext,
+}
+
+impl Js {
+    async fn idle(&self) {
+        self.runtime.idle().await;
+    }
+
+    fn new() -> Result<Self> {
+        let runtime = JsRuntime::new()?;
+        let context = JsContext::full(&runtime)?;
+
+        runtime.set_loader(SERVER_MODULE, SERVER_MODULE);
+        runtime.spawn_executor(Tokio);
+
+        context.with(|ctx| {
+            let globals = ctx.globals();
+
+            globals.init_def::<ServerRuntime>()?;
+
+            let module = ctx.compile(
+                "server",
+                "import { render } from 'main'; export { render };",
+            )?;
+
+            let render: Function = module.get("render")?;
+
+            globals.set("render", render)
+        })?;
+
+        Ok(Self { runtime, context })
+    }
+
+    fn run<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(Ctx) -> R,
+    {
+        self.context.with(f)
+    }
+
+    fn run_gc(&self) {
+        self.runtime.run_gc();
+    }
+}
+
 type Response<T> = Result<T, ServerError>;
 
 #[derive(Debug)]
@@ -150,15 +197,8 @@ where
 #[routes]
 #[get("/")]
 #[get("/item/{id}")]
-async fn get_html(request: HttpRequest) -> Response<impl Responder> {
-    let url = format!(
-        "{}://{}{}",
-        request.connection_info().scheme(),
-        request.connection_info().host(),
-        request.uri()
-    );
-
-    let result = render(&url).await?;
+async fn get_html(js: Data<Js>, request: HttpRequest) -> Response<impl Responder> {
+    let result = render(&js, &request).await?;
 
     Ok(HttpResponse::Ok()
         .insert_header(ContentType::html())
@@ -185,29 +225,25 @@ fn map_to_anyhow_error(error: InteractError) -> Error {
     })
 }
 
-async fn render(path: &str) -> Result<String> {
-    let runtime = JsRuntime::new()?;
-    let context = JsContext::full(&runtime)?;
+async fn render(js: &Js, request: &HttpRequest) -> Result<String> {
+    let path = format!(
+        "{}://{}{}",
+        request.connection_info().scheme(),
+        request.connection_info().host(),
+        request.uri()
+    );
 
-    runtime.set_loader(SERVER_MODULE, SERVER_MODULE);
-    runtime.spawn_executor(Tokio);
-
-    let result: Promise<String> = context.with(|ctx| {
-        ctx.globals().init_def::<ServerRuntime>()?;
-
-        let module = ctx.compile(
-            "server",
-            "import { render } from 'main'; export { render };",
-        )?;
-
-        let render: Function = module.get("render")?;
+    let result: Promise<String> = js.run(|ctx| {
+        let globals = ctx.globals();
+        let render: Function = globals.get("render")?;
 
         render.call((path,))
     })?;
 
     let result = result.await?;
 
-    runtime.idle().await;
+    js.idle().await;
+    js.run_gc();
 
     Ok(result)
 }
@@ -227,8 +263,11 @@ pub async fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> 
         .map_err(|_| anyhow!("cannot set pool"))?;
 
     HttpServer::new(move || {
+        let js = Js::new().expect("cannot init js");
+
         App::new()
             .app_data(Data::new(pool.clone()))
+            .app_data(Data::new(js))
             .service(get_html)
             .service(get_item)
             .service(get_items)
