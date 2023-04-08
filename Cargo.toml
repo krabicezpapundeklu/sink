@@ -9,6 +9,7 @@ actix-web-static-files = "4.0.1"
 anyhow = "1.0.70"
 chrono = "0.4.24"
 clap = { version = "4.2.1", features = ["derive"] }
+deadpool = "0.9.5"
 deadpool-sqlite = "0.5.0"
 env_logger = "0.10.0"
 libc = "0.2.141"

@@ -15,8 +15,8 @@ use actix_web::{
 
 use actix_web_static_files::ResourceFiles;
 use anyhow::{anyhow, bail, Context, Error, Result};
+use deadpool::unmanaged::Pool as UnmanagedPool;
 use deadpool_sqlite::{Config, InteractError, Pool, Runtime};
-
 use once_cell::sync::OnceCell;
 
 use rquickjs::{
@@ -37,7 +37,7 @@ mod server_module {}
 
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
-static POOL: OnceCell<Pool> = OnceCell::new();
+static DB_POOL: OnceCell<Pool> = OnceCell::new();
 
 pub enum FetchDataResult {
     Data(String),
@@ -104,6 +104,7 @@ impl Js {
     }
 }
 
+type JsPool = UnmanagedPool<Js>;
 type Response<T> = Result<T, ServerError>;
 
 #[derive(Debug)]
@@ -129,13 +130,14 @@ impl From<InteractError> for ServerError {
 
 impl ResponseError for ServerError {}
 
-async fn call_db<F, T, E>(pool: &Pool, f: F) -> Response<T>
+async fn call_db<F, T, E>(db_pool: &Pool, f: F) -> Response<T>
 where
     F: FnOnce(&mut Connection) -> Result<T, E> + Send + 'static,
     T: Send + 'static,
     E: Send + Into<Error> + 'static,
 {
-    pool.get()
+    db_pool
+        .get()
         .await
         .map_err(Error::new)?
         .interact(f)
@@ -146,8 +148,8 @@ where
 async fn fetch_data(path: String, search: String) -> FetchDataResult {
     async fn get_data(path: String, search: String) -> Result<String> {
         let db = {
-            let pool = POOL.get().ok_or_else(|| anyhow!("cannot get pool"))?;
-            pool.get().await?
+            let db_pool = DB_POOL.get().ok_or_else(|| anyhow!("cannot get pdb ool"))?;
+            db_pool.get().await?
         };
 
         if let Some(id) = path.strip_prefix("/api/item/") {
@@ -184,7 +186,8 @@ async fn fetch_data(path: String, search: String) -> FetchDataResult {
 #[routes]
 #[get("/")]
 #[get("/item/{id}")]
-async fn get_html(js: Data<Js>, request: HttpRequest) -> Response<impl Responder> {
+async fn get_html(js_pool: Data<JsPool>, request: HttpRequest) -> Response<impl Responder> {
+    let js = js_pool.get().await.map_err(Error::new)?;
     let result = render(&js, &request).await?;
 
     Ok(HttpResponse::Ok()
@@ -193,14 +196,14 @@ async fn get_html(js: Data<Js>, request: HttpRequest) -> Response<impl Responder
 }
 
 #[get("/api/item/{id}")]
-async fn get_item(pool: Data<Pool>, path: Path<i64>) -> Response<impl Responder> {
+async fn get_item(db_pool: Data<Pool>, path: Path<i64>) -> Response<impl Responder> {
     let id = path.into_inner();
-    call_db(&pool, move |db| db.get_item(id)).await.map(Json)
+    call_db(&db_pool, move |db| db.get_item(id)).await.map(Json)
 }
 
 #[get("/api/items")]
-async fn get_items(pool: Data<Pool>, filter: Query<ItemFilter>) -> Response<impl Responder> {
-    call_db(&pool, move |db| db.get_items(&filter))
+async fn get_items(db_pool: Data<Pool>, filter: Query<ItemFilter>) -> Response<impl Responder> {
+    call_db(&db_pool, move |db| db.get_items(&filter))
         .await
         .map(Json)
 }
@@ -241,24 +244,32 @@ async fn render(js: &Js, request: &HttpRequest) -> Result<String> {
 
 #[actix_web::main]
 pub async fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> {
-    let pool = Config::new(db).create_pool(Runtime::Tokio1)?;
+    let db_pool = Config::new(db).create_pool(Runtime::Tokio1)?;
 
-    pool.get()
+    db_pool
+        .get()
         .await?
         .interact(|db| db.prepare_schema())
         .await
         .map_err(map_to_anyhow_error)?
         .with_context(|| format!("cannot prepare database schema in {}", db.display()))?;
 
-    POOL.set(pool.clone())
-        .map_err(|_| anyhow!("cannot set pool"))?;
+    DB_POOL
+        .set(db_pool.clone())
+        .map_err(|_| anyhow!("cannot set db pool"))?;
 
     HttpServer::new(move || {
-        let js = Js::new().expect("cannot init js");
+        let mut js = Vec::new();
+
+        for _ in 0..4 {
+            js.push(Js::new().expect("cannot init js"));
+        }
+
+        let js_pool = UnmanagedPool::from(js);
 
         App::new()
-            .app_data(Data::new(pool.clone()))
-            .app_data(Data::new(js))
+            .app_data(Data::new(db_pool.clone()))
+            .app_data(Data::new(js_pool))
             .service(get_html)
             .service(get_item)
             .service(get_items)
@@ -293,7 +304,7 @@ pub async fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> 
 
 #[post("/item")]
 async fn submit_item(
-    pool: Data<Pool>,
+    db_pool: Data<Pool>,
     request: HttpRequest,
     body: Bytes,
 ) -> Response<impl Responder> {
@@ -315,7 +326,7 @@ async fn submit_item(
         body: body.to_vec(),
     };
 
-    call_db(&pool, move |db| {
+    call_db(&db_pool, move |db| {
         item.update_metadata();
         db.insert_item(&item)
     })
