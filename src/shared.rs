@@ -126,14 +126,6 @@ impl FromStr for DateTime {
 }
 
 #[derive(Serialize)]
-pub struct ItemHeader {
-    pub name: String,
-
-    #[serde(serialize_with = "bytes_as_string")]
-    pub value: Vec<u8>,
-}
-
-#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Item {
     pub id: Option<i64>,
@@ -248,6 +240,14 @@ pub struct ItemFilter {
     pub first_item_id: Option<i64>,
     pub last_item_id: Option<i64>,
     pub batch_size: Option<u32>,
+}
+
+#[derive(Serialize)]
+pub struct ItemHeader {
+    pub name: String,
+
+    #[serde(serialize_with = "bytes_as_string")]
+    pub value: Vec<u8>,
 }
 
 #[derive(Serialize)]

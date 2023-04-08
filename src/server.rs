@@ -14,17 +14,18 @@ use actix_web::{
 };
 
 use actix_web_static_files::ResourceFiles;
-use anyhow::{anyhow, Context, Error, Result};
+use anyhow::{anyhow, bail, Context, Error, Result};
 use deadpool_sqlite::{Config, InteractError, Pool, Runtime};
 
 use once_cell::sync::OnceCell;
 
 use rquickjs::{
-    bind, embed, Context as JsContext, Ctx, Function, IntoJs, Object, Promise, Result as JsResult,
-    Runtime as JsRuntime, Tokio, Value as JsValue,
+    embed, Async, Context as JsContext, Ctx, Func, Function, IntoJs, Object, Promise,
+    Result as JsResult, Runtime as JsRuntime, Tokio, Value as JsValue,
 };
 
 use rusqlite::Connection;
+use serde_json::to_string;
 
 use crate::{
     repository::Repository,
@@ -33,58 +34,6 @@ use crate::{
 
 #[embed(name = "main", path = "./web/build/server")]
 mod server_module {}
-
-#[bind(object)]
-#[quickjs(bare)]
-mod server_runtime {
-    use actix_web::web::Query;
-    use anyhow::{anyhow, bail, Result};
-    use serde_json::to_string;
-
-    use super::{FetchDataResult, POOL};
-    use crate::repository::Repository;
-    use crate::server::map_to_anyhow_error;
-    use crate::shared::ItemFilter;
-
-    #[quickjs(rename = "fetchData")]
-    pub async fn fetch_data(path: String, search: String) -> FetchDataResult {
-        async fn get_data(path: String, search: String) -> Result<String> {
-            let db = {
-                let pool = POOL.get().ok_or_else(|| anyhow!("cannot get pool"))?;
-                pool.get().await?
-            };
-
-            if let Some(id) = path.strip_prefix("/api/item/") {
-                let id: i64 = id.parse()?;
-
-                let item = db
-                    .interact(move |db| db.get_item(id))
-                    .await
-                    .map_err(map_to_anyhow_error)??;
-
-                to_string(&item).map_err(Into::into)
-            } else if path == "/api/items" {
-                let filter = Query::<ItemFilter>::from_query(&search)?.0;
-
-                let items = db
-                    .interact(move |db| db.get_items(&filter))
-                    .await
-                    .map_err(map_to_anyhow_error)??;
-
-                to_string(&items).map_err(Into::into)
-            } else {
-                bail!("wrong path {path}")
-            }
-        }
-
-        let result = get_data(path, search).await;
-
-        match result {
-            Ok(data) => FetchDataResult::Data(data),
-            Err(error) => FetchDataResult::Error(error.to_string()),
-        }
-    }
-}
 
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
@@ -128,15 +77,15 @@ impl Js {
         context.with(|ctx| {
             let globals = ctx.globals();
 
-            globals.init_def::<ServerRuntime>()?;
-
             let module = ctx.compile(
                 "server",
                 "import { render } from 'main'; export { render };",
             )?;
 
+            let fetch_data = Func::from(Async(fetch_data));
             let render: Function = module.get("render")?;
 
+            globals.set("fetchData", fetch_data)?;
             globals.set("render", render)
         })?;
 
@@ -192,6 +141,44 @@ where
         .interact(f)
         .await?
         .map_err(|err| ServerError(err.into()))
+}
+
+async fn fetch_data(path: String, search: String) -> FetchDataResult {
+    async fn get_data(path: String, search: String) -> Result<String> {
+        let db = {
+            let pool = POOL.get().ok_or_else(|| anyhow!("cannot get pool"))?;
+            pool.get().await?
+        };
+
+        if let Some(id) = path.strip_prefix("/api/item/") {
+            let id: i64 = id.parse()?;
+
+            let item = db
+                .interact(move |db| db.get_item(id))
+                .await
+                .map_err(map_to_anyhow_error)??;
+
+            to_string(&item).map_err(Into::into)
+        } else if path == "/api/items" {
+            let filter = Query::<ItemFilter>::from_query(&search)?.0;
+
+            let items = db
+                .interact(move |db| db.get_items(&filter))
+                .await
+                .map_err(map_to_anyhow_error)??;
+
+            to_string(&items).map_err(Into::into)
+        } else {
+            bail!("wrong path {path}")
+        }
+    }
+
+    let result = get_data(path, search).await;
+
+    match result {
+        Ok(data) => FetchDataResult::Data(data),
+        Err(error) => FetchDataResult::Error(error.to_string()),
+    }
 }
 
 #[routes]

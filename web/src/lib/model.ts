@@ -1,8 +1,4 @@
-export interface Item {
-	id: number;
-	submitDate: string;
-	system?: string;
-	type?: string;
+export interface Item extends ItemSummary {
 	headers: ItemHeader[];
 	body: string;
 }
@@ -21,8 +17,8 @@ export interface ItemSearchResult {
 export interface ItemSummary {
 	id: number;
 	submitDate: string;
-	system?: string;
-	type?: string;
+	system: string | null;
+	type: string | null;
 }
 
 export interface ItemType {
