@@ -12,6 +12,10 @@
 		"format": "prettier --plugin-search-dir . --write ."
 	},
 	"devDependencies": {
+		"@formatjs/intl-getcanonicallocales": "^2.1.0",
+		"@formatjs/intl-locale": "^3.1.1",
+		"@formatjs/intl-numberformat": "^8.3.5",
+		"@formatjs/intl-pluralrules": "^5.1.10",
 		"@rollup/plugin-commonjs": "^24.0.1",
 		"@rollup/plugin-json": "^6.0.0",
 		"@rollup/plugin-node-resolve": "^15.0.2",

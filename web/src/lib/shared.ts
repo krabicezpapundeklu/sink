@@ -10,6 +10,8 @@ export const MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
 export const MILLISECONDS_IN_HOUR = 60 * 60 * 1000;
 export const MILLISECONDS_IN_MINUTE = 60 * 1000;
 
+const NUMBER_FORMAT = new Intl.NumberFormat('en-US');
+
 export const ITEM_TYPES: ItemType[] = [
 	{ name: 'Event Notification', key: 'event_notification' },
 	{ name: 'Event Payload', key: 'event_payload' },
@@ -52,6 +54,10 @@ function formatJson(json: string): string {
 	} catch (e) {
 		return json;
 	}
+}
+
+export function formatNumber(value: number): string {
+	return NUMBER_FORMAT.format(value);
 }
 
 function formatXml(xml: string): string {

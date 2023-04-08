@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { highlightItem } from '$lib/shared';
+	import { formatNumber, highlightItem } from '$lib/shared';
 	import Item from '$lib/Item.svelte';
 	import type { PageData } from './$types';
 
@@ -7,7 +7,7 @@
 </script>
 
 <svelte:head>
-	<title>Sink - #{data.id}</title>
+	<title>Sink - #{formatNumber(data.id)}</title>
 </svelte:head>
 
 <div class="container p-2">

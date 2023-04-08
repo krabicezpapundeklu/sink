@@ -3,6 +3,7 @@
 
 	import {
 		BATCH_SIZE,
+		formatNumber,
 		highlightItem,
 		itemTypeToName,
 		loadItem,
@@ -190,7 +191,7 @@
 	<div class="d-flex flex-fill overflow-hidden">
 		<div class="border-end d-flex flex-column" style="min-width: 25em">
 			<div class="align-items-center border-bottom d-flex justify-content-between p-2">
-				<div>{totalItems} Items</div>
+				<div>{formatNumber(totalItems)} Items</div>
 				<div class="d-flex">
 					<label class="form-label m-auto me-2 text-nowrap" for="asc">Sort By</label>
 					<select
@@ -217,7 +218,7 @@
 								on:click|preventDefault={() => selectItem(item.id)}
 							>
 								<div class="d-flex justify-content-between">
-									<span>#{item.id}</span>
+									<span>#{formatNumber(item.id)}</span>
 									<span>
 										{utcDateStringToLocalString(item.submitDate)}
 									</span>

@@ -1,7 +1,3 @@
-import 'core-js/actual/url';
-import 'web-streams-polyfill/es2018';
-import 'whatwg-fetch';
-
 // eslint-disable-next-line no-undef
 const module = globalThis;
 
@@ -10,6 +6,8 @@ module.crypto = {
 		/* body not needed */
 	}
 };
+
+module.Intl = {};
 
 module.TextEncoder = function () {
 	this.encode = (str) => {

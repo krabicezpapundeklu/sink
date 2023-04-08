@@ -47,7 +47,8 @@ export default function (opts = {}) {
 			);
 
 			copyFileSync(`${files}/main.js`, `${tmp}/main.js`);
-			copyFileSync(`${files}/polyfills.js`, `${tmp}/polyfills.js`);
+			copyFileSync(`${files}/polyfills-0.js`, `${tmp}/polyfills-0.js`);
+			copyFileSync(`${files}/polyfills-1.js`, `${tmp}/polyfills-1.js`);
 
 			const bundle = await rollup({
 				input: {

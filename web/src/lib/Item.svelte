@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { itemTypeToName, utcDateStringToLocalString } from '$lib/shared';
+	import { formatNumber, itemTypeToName, utcDateStringToLocalString } from '$lib/shared';
 	import { onMount } from 'svelte';
 	import type { ItemWithHighlighting } from '$lib/model';
 
@@ -15,7 +15,7 @@
 </script>
 
 <div>
-	<span class="fs-3 me-3">#{item.id}</span>
+	<span class="fs-3 me-3">#{formatNumber(item.id)}</span>
 	<span>{utcDateStringToLocalString(item.submitDate)}</span>
 	<div>
 		{#if item.system}

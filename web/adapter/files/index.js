@@ -4,7 +4,7 @@ import { render } from './server/main.js';
 globalThis.fetchData = function (path, search) {
 	return Promise.resolve({
 		data: JSON.stringify({
-			id: 4,
+			id: 1000000,
 			submitDate: '2023-03-23 17:16:55',
 			system: 'test',
 			type: null,
