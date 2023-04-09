@@ -43,9 +43,9 @@ impl<T: Debug + ToSql> Parameter for T {}
 pub trait Repository {
     fn get_item(&self, id: i64) -> Result<Item>;
     fn get_items(&self, filter: &ItemFilter) -> Result<ItemSearchResult>;
+    fn get_last_item_id(&self) -> Result<Option<i64>>;
 
     fn insert_item(&mut self, item: &Item) -> Result<i64>;
-    fn insert_item_no_tx(&self, item: &Item) -> Result<i64>;
 
     fn prepare_schema(&self) -> Result<()>;
 }
@@ -189,32 +189,34 @@ impl Repository for Connection {
 
     fn insert_item(&mut self, item: &Item) -> Result<i64> {
         let tx = self.transaction()?;
-        let id = tx.insert_item_no_tx(item)?;
-        tx.commit()?;
-        Ok(id)
-    }
 
-    fn insert_item_no_tx(&self, item: &Item) -> Result<i64> {
-        self.execute(
+        tx.execute(
             "INSERT INTO item (id, submit_date, system, type) VALUES (?, ?, ?, ?)",
             params![item.id, item.submit_date, item.system, item.r#type],
         )?;
 
-        let id = self.last_insert_rowid();
+        let id = tx.last_insert_rowid();
 
         for header in &item.headers {
-            self.execute(
+            tx.execute(
                 "INSERT INTO item_header (item_id, name, value) VALUES (?, ?, ?)",
                 params![id, header.name, header.value],
             )?;
         }
 
-        self.execute(
+        tx.execute(
             "INSERT INTO item_body (item_id, body) VALUES (?, ?)",
             params![id, item.body],
         )?;
 
+        tx.commit()?;
+
         Ok(id)
+    }
+
+    fn get_last_item_id(&self) -> Result<Option<i64>> {
+        self.query_row("SELECT MAX(id) FROM item", [], |row| row.get(0))
+            .map_err(Into::into)
     }
 
     fn prepare_schema(&self) -> Result<()> {

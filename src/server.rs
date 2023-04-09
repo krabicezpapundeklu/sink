@@ -1,12 +1,13 @@
 use std::{
     fmt::{self, Display, Formatter},
     path,
+    sync::atomic::{AtomicI64, Ordering::Relaxed},
 };
 
 use actix_web::{
     dev::Service,
     get,
-    http::header::{ContentType, HeaderValue, CACHE_CONTROL},
+    http::header::{ContentType, ETag, EntityTag, HeaderValue, CACHE_CONTROL, IF_NONE_MATCH},
     middleware::{Compress, Logger, NormalizePath, TrailingSlash},
     post, routes,
     web::{Bytes, Data, Json, Path, Query},
@@ -37,7 +38,10 @@ mod server_module {}
 
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 static DB_POOL: OnceCell<Pool> = OnceCell::new();
+static LAST_ITEM_ID: AtomicI64 = AtomicI64::new(0);
 
 pub enum FetchDataResult {
     Data(String),
@@ -183,15 +187,42 @@ async fn fetch_data(path: String, search: String) -> FetchDataResult {
     }
 }
 
+fn get_etag(path: &str, tz: Option<String>, use_last_item_id: bool) -> String {
+    let mut etag = format!("{VERSION}|{path}|{}", tz.unwrap_or_default());
+
+    if use_last_item_id {
+        let id = LAST_ITEM_ID.load(Relaxed);
+
+        etag.push('|');
+        etag.push_str(&id.to_string());
+    }
+
+    format!("{:x}", md5::compute(etag.as_bytes()))
+}
+
 #[routes]
 #[get("/")]
 #[get("/item/{id}")]
 async fn get_html(js_pool: Data<JsPool>, request: HttpRequest) -> Response<impl Responder> {
+    let path = get_path(&request);
+    let tz = get_tz(&request);
+    let etag = get_etag(&path, tz.clone(), request.path() == "/");
+
+    if let Some(expected_etag) = request.headers().get(IF_NONE_MATCH) {
+        let expected_etag = expected_etag.as_bytes();
+
+        if expected_etag.len() > 2 && &expected_etag[1..expected_etag.len() - 1] == etag.as_bytes()
+        {
+            return Ok(HttpResponse::NotModified().finish());
+        }
+    }
+
     let js = js_pool.get().await.map_err(Error::new)?;
-    let result = render(&js, &request).await?;
+    let result = render(&js, &path, &tz).await?;
 
     Ok(HttpResponse::Ok()
         .insert_header(ContentType::html())
+        .insert_header(ETag(EntityTag::new_strong(etag)))
         .body(result))
 }
 
@@ -208,6 +239,19 @@ async fn get_items(db_pool: Data<Pool>, filter: Query<ItemFilter>) -> Response<i
         .map(Json)
 }
 
+fn get_path(request: &HttpRequest) -> String {
+    format!(
+        "{}://{}{}",
+        request.connection_info().scheme(),
+        request.connection_info().host(),
+        request.uri()
+    )
+}
+
+fn get_tz(request: &HttpRequest) -> Option<String> {
+    request.cookie("tz").map(|tz| tz.value().to_string())
+}
+
 fn map_to_anyhow_error(error: InteractError) -> Error {
     anyhow!(match error {
         InteractError::Panic(_) => "panic",
@@ -215,16 +259,7 @@ fn map_to_anyhow_error(error: InteractError) -> Error {
     })
 }
 
-async fn render(js: &Js, request: &HttpRequest) -> Result<String> {
-    let path = format!(
-        "{}://{}{}",
-        request.connection_info().scheme(),
-        request.connection_info().host(),
-        request.uri()
-    );
-
-    let tz = request.cookie("tz").map(|tz| tz.value().to_string());
-
+async fn render(js: &Js, path: &str, tz: &Option<String>) -> Result<String> {
     let result: Promise<String> = js.run(|ctx| {
         let globals = ctx.globals();
         let render: Function = globals.get("render")?;
@@ -246,13 +281,20 @@ async fn render(js: &Js, request: &HttpRequest) -> Result<String> {
 pub async fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> {
     let db_pool = Config::new(db).create_pool(Runtime::Tokio1)?;
 
-    db_pool
+    let last_item_id = db_pool
         .get()
         .await?
-        .interact(|db| db.prepare_schema())
+        .interact(|db| {
+            db.prepare_schema()?;
+            db.get_last_item_id()
+        })
         .await
         .map_err(map_to_anyhow_error)?
         .with_context(|| format!("cannot prepare database schema in {}", db.display()))?;
+
+    if let Some(last_item_id) = last_item_id {
+        LAST_ITEM_ID.store(last_item_id, Relaxed);
+    }
 
     DB_POOL
         .set(db_pool.clone())
@@ -326,10 +368,13 @@ async fn submit_item(
         body: body.to_vec(),
     };
 
-    call_db(&db_pool, move |db| {
+    let id = call_db(&db_pool, move |db| {
         item.update_metadata();
         db.insert_item(&item)
     })
-    .await
-    .map(Json)
+    .await?;
+
+    LAST_ITEM_ID.store(id, Relaxed);
+
+    Ok(Json(id))
 }
