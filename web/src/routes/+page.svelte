@@ -27,12 +27,12 @@
 	let itemListElement: HTMLElement;
 	let loadMoreElement: HTMLElement;
 
-	let query: string;
-	let system: string;
-	let type: string;
-	let from: string;
-	let to: string;
-	let asc: boolean;
+	let query = data.filter.query ?? '';
+	let system = data.filter.system ?? '';
+	let type = data.filter.type ?? '';
+	let from = utcDateStringToLocalString(data.filter.from);
+	let to = utcDateStringToLocalString(data.filter.to);
+	let asc = data.filter.asc ?? false;
 
 	let loading = false;
 
@@ -41,17 +41,6 @@
 	let totalItems = data.totalItems;
 	let hasMoreItems = data.items.length > BATCH_SIZE;
 	let activeItem = data.firstItem;
-
-	const fillFromParams = () => {
-		const params = $page.url.searchParams;
-
-		query = params.get('query') || '';
-		system = params.get('system') || '';
-		type = params.get('type') || '';
-		from = utcDateStringToLocalString(params.get('from'));
-		to = utcDateStringToLocalString(params.get('to'));
-		asc = (params.get('asc') || 'false') === 'true';
-	};
 
 	const loadMore = async () => {
 		loading = true;
@@ -133,10 +122,15 @@
 		refresh(params);
 	};
 
-	fillFromParams();
-
 	afterNavigate(async () => {
-		fillFromParams();
+		const params = $page.url.searchParams;
+
+		query = params.get('query') ?? '';
+		system = params.get('system') ?? '';
+		type = params.get('type') ?? '';
+		from = utcDateStringToLocalString(params.get('from'));
+		to = utcDateStringToLocalString(params.get('to'));
+		asc = (params.get('asc') ?? 'false') === 'true';
 
 		items = data.items.slice(0, BATCH_SIZE);
 		systems = data.systems;
@@ -207,8 +201,8 @@
 						value={asc}
 						on:change={toggleSortBy}
 					>
-						<option value={false}>Latest</option>
-						<option value={true}>Oldest</option>
+						<option value={false} selected={!asc}>Latest</option>
+						<option value={true} selected={asc}>Oldest</option>
 					</select>
 				</div>
 			</div>

@@ -228,7 +228,7 @@ impl Item {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ItemFilter {
     pub query: Option<String>,
@@ -256,6 +256,7 @@ pub struct ItemSearchResult {
     pub items: Vec<ItemSummary>,
     pub systems: Vec<String>,
     pub total_items: i32,
+    pub filter: ItemFilter,
 }
 
 #[derive(Serialize)]

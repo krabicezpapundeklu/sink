@@ -3,6 +3,18 @@ export interface Item extends ItemSummary {
 	body: string;
 }
 
+export interface ItemFilter {
+	query: string | null;
+	system: string | null;
+	type: string | null;
+	from: string | null;
+	to: string | null;
+	asc: boolean | null;
+	firstItemId: number | null;
+	lastItemId: number | null;
+	batchSize: number | null;
+}
+
 export interface ItemHeader {
 	name: string;
 	value: string;
@@ -12,6 +24,7 @@ export interface ItemSearchResult {
 	items: ItemSummary[];
 	systems: string[];
 	totalItems: number;
+	filter: ItemFilter;
 }
 
 export interface ItemSummary {

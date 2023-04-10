@@ -172,7 +172,7 @@ async fn fetch_data(path: String, search: String) -> FetchDataResult {
             let filter = Query::<ItemFilter>::from_query(&search)?.0;
 
             let items = db
-                .interact(move |db| db.get_items(&filter))
+                .interact(move |db| db.get_items(filter))
                 .await
                 .map_err(map_to_anyhow_error)??;
 
@@ -237,7 +237,9 @@ async fn get_item(db_pool: Data<Pool>, path: Path<i64>) -> Response<impl Respond
 
 #[get("/api/items")]
 async fn get_items(db_pool: Data<Pool>, filter: Query<ItemFilter>) -> Response<impl Responder> {
-    call_db(&db_pool, move |db| db.get_items(&filter))
+    let filter = filter.into_inner();
+
+    call_db(&db_pool, move |db| db.get_items(filter))
         .await
         .map(Json)
 }
