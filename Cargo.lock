@@ -1804,6 +1804,7 @@ dependencies = [
  "libc",
  "log",
  "md5",
+ "num_cpus",
  "once_cell",
  "rquickjs",
  "rusqlite",

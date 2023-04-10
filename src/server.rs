@@ -18,6 +18,7 @@ use actix_web_static_files::ResourceFiles;
 use anyhow::{anyhow, bail, Context, Error, Result};
 use deadpool::unmanaged::Pool as UnmanagedPool;
 use deadpool_sqlite::{Config, InteractError, Pool, Runtime};
+use log::info;
 use once_cell::sync::OnceCell;
 
 use rquickjs::{
@@ -107,6 +108,8 @@ impl Js {
         self.runtime.run_gc();
     }
 }
+
+unsafe impl Send for Js {}
 
 type JsPool = UnmanagedPool<Js>;
 type Response<T> = Result<T, ServerError>;
@@ -300,18 +303,20 @@ pub async fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> 
         .set(db_pool.clone())
         .map_err(|_| anyhow!("cannot set db pool"))?;
 
+    let js_pool_size = num_cpus::get();
+    let mut js = Vec::with_capacity(js_pool_size);
+
+    for i in 0..js_pool_size {
+        info!("creating js runtime ({} of {js_pool_size})", i + 1);
+        js.push(Js::new()?);
+    }
+
+    let js_pool = UnmanagedPool::from(js);
+
     HttpServer::new(move || {
-        let mut js = Vec::new();
-
-        for _ in 0..4 {
-            js.push(Js::new().expect("cannot init js"));
-        }
-
-        let js_pool = UnmanagedPool::from(js);
-
         App::new()
             .app_data(Data::new(db_pool.clone()))
-            .app_data(Data::new(js_pool))
+            .app_data(Data::new(js_pool.clone()))
             .service(get_html)
             .service(get_item)
             .service(get_items)
