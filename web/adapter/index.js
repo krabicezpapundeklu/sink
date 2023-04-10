@@ -75,7 +75,7 @@ export default function (opts = {}) {
 			const purgeCSSResult = await new PurgeCSS().purge({
 				content: [`${out}/client/**/*.js`],
 				css: [`${out}/client/**/*.css`],
-				safelist: [/popper$/, /^hljs/]
+				safelist: ['opacity-25', 'w-25', /popper$/, /^hljs/]
 			});
 
 			for (const purge of purgeCSSResult) {

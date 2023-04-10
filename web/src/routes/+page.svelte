@@ -243,10 +243,14 @@
 				<div bind:this={loadMoreElement} />
 			</div>
 		</div>
-		<div class="flex-fill overflow-auto p-2">
-			{#if activeItem}
+		{#if activeItem}
+			<div class="flex-fill overflow-auto p-2">
 				<Item item={activeItem} />
-			{/if}
-		</div>
+			</div>
+		{:else}
+			<div class="d-flex flex-fill">
+				<img alt="No result" class="m-auto opacity-25 w-25" src="no-result-found-icon.svg" />
+			</div>
+		{/if}
 	</div>
 </div>
