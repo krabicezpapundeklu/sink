@@ -82,15 +82,21 @@ export function formatSubmitDate(value: string, detail = false): string {
 		options.dateStyle = 'full';
 		options.timeStyle = 'medium';
 	} else {
-		const now = new Date();
-
 		options.timeStyle = 'short';
 
-		if (
-			now.getDate() !== submitDate.getDate() ||
-			now.getMonth() !== submitDate.getMonth() ||
-			now.getFullYear() !== submitDate.getFullYear()
-		) {
+		// same *local* day?
+		const now = new Date();
+
+		if (now.getTime() - submitDate.getTime() < MILLISECONDS_IN_DAY) {
+			const opts: Intl.DateTimeFormatOptions = { dateStyle: 'short', timeZone: options.timeZone };
+			const dtf = new Intl.DateTimeFormat('en-us', opts);
+			const sd = dtf.format(submitDate);
+			const nowDate = dtf.format(now);
+
+			if (sd !== nowDate) {
+				options.dateStyle = 'short';
+			}
+		} else {
 			options.dateStyle = 'short';
 		}
 	}
