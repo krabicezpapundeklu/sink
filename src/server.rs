@@ -18,7 +18,7 @@ use actix_web_static_files::ResourceFiles;
 use anyhow::{anyhow, bail, Context, Error, Result};
 use deadpool::unmanaged::Pool as UnmanagedPool;
 use deadpool_sqlite::{Config, InteractError, Pool, Runtime};
-use log::info;
+use log::{debug, info};
 use once_cell::sync::OnceCell;
 
 use rquickjs::{
@@ -154,12 +154,14 @@ where
 
 async fn fetch_data(path: String, search: String) -> FetchDataResult {
     async fn get_data(path: String, search: String) -> Result<String> {
+        debug!("get_data START");
+
         let db = {
             let db_pool = DB_POOL.get().ok_or_else(|| anyhow!("cannot get db pool"))?;
             db_pool.get().await?
         };
 
-        if let Some(id) = path.strip_prefix("/api/item/") {
+        let data = if let Some(id) = path.strip_prefix("/api/item/") {
             let id: i64 = id.parse()?;
 
             let item = db
@@ -167,7 +169,7 @@ async fn fetch_data(path: String, search: String) -> FetchDataResult {
                 .await
                 .map_err(map_to_anyhow_error)??;
 
-            to_string(&item).map_err(Into::into)
+            to_string(&item)
         } else if path == "/api/items" {
             let filter = Query::<ItemFilter>::from_query(&search)?.0;
 
@@ -176,10 +178,14 @@ async fn fetch_data(path: String, search: String) -> FetchDataResult {
                 .await
                 .map_err(map_to_anyhow_error)??;
 
-            to_string(&items).map_err(Into::into)
+            to_string(&items)
         } else {
             bail!("wrong path {path}")
-        }
+        }?;
+
+        debug!("get_data END");
+
+        Ok(data)
     }
 
     let result = get_data(path, search).await;
@@ -265,6 +271,8 @@ fn map_to_anyhow_error(error: InteractError) -> Error {
 }
 
 async fn render(js: &Js, path: &str, tz: &Option<String>) -> Result<String> {
+    debug!("render START");
+
     let result: Promise<String> = js.run(|ctx| {
         let globals = ctx.globals();
         let render: Function = globals.get("render")?;
@@ -278,6 +286,8 @@ async fn render(js: &Js, path: &str, tz: &Option<String>) -> Result<String> {
 
     js.idle().await;
     js.run_gc();
+
+    debug!("render END");
 
     Ok(result)
 }

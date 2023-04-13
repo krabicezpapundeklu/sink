@@ -52,6 +52,8 @@ pub trait Repository {
 
 impl Repository for Connection {
     fn get_item(&self, id: i64) -> Result<Item> {
+        debug!("get_item START");
+
         let mut item = self.query_row("SELECT i.id, i.submit_date, i.system, i.type, ib.body FROM item i JOIN item_body ib ON ib.item_id = i.id WHERE i.id = ?", [id], |row| {
             Ok(Item {
                 id: Some(row.get(0)?),
@@ -77,6 +79,8 @@ impl Repository for Connection {
 
             item.headers.push(header);
         }
+
+        debug!("get_item END");
 
         Ok(item)
     }
@@ -189,6 +193,8 @@ impl Repository for Connection {
     }
 
     fn insert_item(&mut self, item: &Item) -> Result<i64> {
+        debug!("insert_item START");
+
         let tx = self.transaction()?;
 
         tx.execute(
@@ -212,15 +218,22 @@ impl Repository for Connection {
 
         tx.commit()?;
 
+        debug!("insert_item END");
+
         Ok(id)
     }
 
     fn get_last_item_id(&self) -> Result<Option<i64>> {
-        self.query_row("SELECT MAX(id) FROM item", [], |row| row.get(0))
-            .map_err(Into::into)
+        debug!("get_last_item_id START");
+        let id = self.query_row("SELECT MAX(id) FROM item", [], |row| row.get(0))?;
+        debug!("get_last_item_id END");
+
+        Ok(id)
     }
 
     fn prepare_schema(&self) -> Result<()> {
+        debug!("prepare_schema START");
+
         self.execute_batch("
             PRAGMA foreign_keys = ON;
             PRAGMA journal_mode = WAL;
@@ -233,7 +246,11 @@ impl Repository for Connection {
             CREATE INDEX IF NOT EXISTS idx_item_system ON item (system);
             CREATE INDEX IF NOT EXISTS idx_item_type ON item (type);
             CREATE INDEX IF NOT EXISTS idx_item_header_item_id ON item_header (item_id);
-        ").map_err(Into::into)
+        ")?;
+
+        debug!("prepare_schema END");
+
+        Ok(())
     }
 }
 
