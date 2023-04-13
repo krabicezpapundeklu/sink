@@ -53,7 +53,10 @@ enum Command {
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    env_logger::init_from_env(Env::default().default_filter_or("info"));
+    env_logger::builder()
+        .format_timestamp_micros()
+        .parse_env(Env::default().default_filter_or("info"))
+        .init();
 
     match &args.command {
         Command::Shell { args } => unsafe {
