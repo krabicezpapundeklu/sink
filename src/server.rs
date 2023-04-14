@@ -82,6 +82,8 @@ impl Js {
         context.with(|ctx| {
             let globals = ctx.globals();
 
+            globals.set("debug", Func::from(|message: String| debug!("{message}")))?;
+
             let module = ctx.compile(
                 "server",
                 "import { render } from 'main'; export { render };",
@@ -285,7 +287,12 @@ async fn render(js: &Js, path: &str, tz: &Option<String>) -> Result<String> {
     let result = result.await?;
 
     js.idle().await;
+
+    debug!("run_gc START");
+
     js.run_gc();
+
+    debug!("run_gc END");
 
     debug!("render END");
 
