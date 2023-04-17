@@ -37,7 +37,9 @@ export const ITEM_TYPES: ItemType[] = [
 
 if (typeof debug === 'undefined') {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	(globalThis as any).debug = console.log;
+	(globalThis as any).debug = () => {
+		/* empty */
+	};
 }
 
 hljs.registerLanguage('json', json);
