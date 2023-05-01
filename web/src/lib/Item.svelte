@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatNumber, formatSubmitDate, itemTypeToName } from '$lib/shared';
+	import { formatNumber, itemTypeToName } from '$lib/shared';
 	import { onMount } from 'svelte';
 	import type { ItemWithHighlighting } from '$lib/model';
 
@@ -16,7 +16,7 @@
 
 <div>
 	<span class="fs-3 me-3">#{formatNumber(item.id)}</span>
-	<span>{formatSubmitDate(item.submitDate, true)}</span>
+	<span>{item.submitDate}</span>
 	<div>
 		{#if item.system}
 			<span class="badge bg-secondary">{item.system}</span>
