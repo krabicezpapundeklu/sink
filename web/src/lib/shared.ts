@@ -15,8 +15,6 @@ export const MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
 export const MILLISECONDS_IN_HOUR = 60 * 60 * 1000;
 export const MILLISECONDS_IN_MINUTE = 60 * 1000;
 
-const NUMBER_FORMAT = new Intl.NumberFormat('en-US');
-
 export const ITEM_TYPES: ItemType[] = [
 	{ name: 'Event Notification', key: 'event_notification' },
 	{ name: 'Event Payload', key: 'event_payload' },
@@ -77,7 +75,40 @@ function formatJson(json: string): string {
 }
 
 export function formatNumber(value: number): string {
-	return NUMBER_FORMAT.format(value);
+	const input = value.toString();
+	const length = input.length;
+
+	if (length < 4) {
+		return input;
+	}
+
+	if (length < 7) {
+		return input.substring(0, length - 3) + ',' + input.substring(length - 3);
+	}
+
+	if (length < 10) {
+		return (
+			input.substring(0, length - 6) +
+			',' +
+			input.substring(length - 6, length - 3) +
+			',' +
+			input.substring(length - 3)
+		);
+	}
+
+	if (length < 13) {
+		return (
+			input.substring(0, length - 9) +
+			',' +
+			input.substring(length - 9, length - 6) +
+			',' +
+			input.substring(length - 6, length - 3) +
+			',' +
+			input.substring(length - 3)
+		);
+	}
+
+	return input;
 }
 
 function formatSubmitDates(items: ItemSummary[], detail = false) {
