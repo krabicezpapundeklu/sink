@@ -1,11 +1,9 @@
 use std::{
     fmt::{self, Display, Formatter},
-    result,
     str::FromStr,
 };
 
 use anyhow::{bail, Error};
-use chrono::{NaiveDateTime, Utc};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{from_slice, Value};
 
@@ -71,7 +69,6 @@ macro_rules! serializable_as_string {
 }
 
 serializable_as_string! {
-    DateTime
     ItemType
 }
 
@@ -93,43 +90,11 @@ item_types! {
     VacancyUpdated = "vacancy_updated"
 }
 
-#[derive(Debug)]
-pub struct DateTime(NaiveDateTime);
-
-impl DateTime {
-    pub fn now() -> Self {
-        Self(Utc::now().naive_utc())
-    }
-}
-
-impl Display for DateTime {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        self.0.format("%Y-%m-%d %H:%M:%S").fmt(f)
-    }
-}
-
-impl FromStr for DateTime {
-    type Err = Error;
-
-    fn from_str(s: &str) -> result::Result<Self, Self::Err> {
-        let date_time = NaiveDateTime::parse_from_str(
-            s,
-            if s.len() == 16 {
-                "%Y-%m-%d %H:%M"
-            } else {
-                "%Y-%m-%d %H:%M:%S"
-            },
-        )?;
-
-        Ok(Self(date_time))
-    }
-}
-
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Item {
     pub id: Option<i64>,
-    pub submit_date: DateTime,
+    pub submit_date: String,
     pub system: Option<String>,
     pub r#type: Option<ItemType>,
     pub headers: Vec<ItemHeader>,
@@ -234,8 +199,8 @@ pub struct ItemFilter {
     pub query: Option<String>,
     pub system: Option<String>,
     pub r#type: Option<ItemType>,
-    pub from: Option<DateTime>,
-    pub to: Option<DateTime>,
+    pub from: Option<String>,
+    pub to: Option<String>,
     pub asc: Option<bool>,
     pub first_item_id: Option<i64>,
     pub last_item_id: Option<i64>,
@@ -263,7 +228,7 @@ pub struct ItemSearchResult {
 #[serde(rename_all = "camelCase")]
 pub struct ItemSummary {
     pub id: i64,
-    pub submit_date: DateTime,
+    pub submit_date: String,
     pub system: Option<String>,
     pub r#type: Option<ItemType>,
 }

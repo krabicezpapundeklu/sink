@@ -7,8 +7,6 @@ module.crypto = {
 	}
 };
 
-module.Intl = {};
-
 module.TextEncoder = function () {
 	this.encode = (str) => {
 		const binstr = unescape(encodeURIComponent(str));

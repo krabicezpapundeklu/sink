@@ -1,6 +1,8 @@
 use std::{fmt::Debug, mem::take, str::FromStr};
 
 use anyhow::Result;
+use chrono::{DateTime, Locale, NaiveDateTime, Utc};
+use chrono_tz::Tz;
 use log::debug;
 
 use rusqlite::{
@@ -9,9 +11,7 @@ use rusqlite::{
     Connection, Error, ToSql,
 };
 
-use crate::shared::{
-    DateTime, Item, ItemFilter, ItemHeader, ItemSearchResult, ItemSummary, ItemType,
-};
+use crate::shared::{Item, ItemFilter, ItemHeader, ItemSearchResult, ItemSummary, ItemType};
 
 macro_rules! store_as_sql_text {
     ($($type:ty)+) => {
@@ -32,7 +32,6 @@ macro_rules! store_as_sql_text {
 }
 
 store_as_sql_text! {
-    DateTime
     ItemType
 }
 
@@ -41,8 +40,8 @@ trait Parameter: Debug + ToSql {}
 impl<T: Debug + ToSql> Parameter for T {}
 
 pub trait Repository {
-    fn get_item(&self, id: i64) -> Result<Item>;
-    fn get_items(&self, filter: ItemFilter) -> Result<ItemSearchResult>;
+    fn get_item(&self, id: i64, tz: &str) -> Result<Item>;
+    fn get_items(&self, filter: ItemFilter, tz: &str) -> Result<ItemSearchResult>;
     fn get_last_item_id(&self) -> Result<Option<i64>>;
 
     fn insert_item(&mut self, item: &Item) -> Result<i64>;
@@ -51,7 +50,7 @@ pub trait Repository {
 }
 
 impl Repository for Connection {
-    fn get_item(&self, id: i64) -> Result<Item> {
+    fn get_item(&self, id: i64, tz: &str) -> Result<Item> {
         debug!("get_item START");
 
         let mut item = self.query_row("SELECT i.id, i.submit_date, i.system, i.type, ib.body FROM item i JOIN item_body ib ON ib.item_id = i.id WHERE i.id = ?", [id], |row| {
@@ -64,6 +63,18 @@ impl Repository for Connection {
                 body: row.get(4)?
             })
         })?;
+
+        let tz: Tz = tz.parse().unwrap_or(Tz::UTC);
+
+        let sd = DateTime::<Utc>::from_utc(
+            NaiveDateTime::parse_from_str(&item.submit_date, "%Y-%m-%d %H:%M:%S")?,
+            Utc,
+        )
+        .with_timezone(&tz);
+
+        item.submit_date = sd
+            .format_localized("%A, %B %-e, %Y at %l:%M:%S %p (%Z)", Locale::en_US)
+            .to_string();
 
         let mut stmt = self.prepare(
             "SELECT name, value FROM item_header WHERE item_id = ? ORDER BY name, value",
@@ -85,7 +96,7 @@ impl Repository for Connection {
         Ok(item)
     }
 
-    fn get_items(&self, filter: ItemFilter) -> Result<ItemSearchResult> {
+    fn get_items(&self, filter: ItemFilter, tz: &str) -> Result<ItemSearchResult> {
         debug!("get_items START");
 
         let mut params: Vec<&dyn Parameter> = Vec::new();
@@ -166,13 +177,30 @@ impl Repository for Connection {
             filter,
         };
 
+        let tz: Tz = tz.parse().unwrap_or(Tz::UTC);
+        let today = Utc::now().naive_utc().format("%Y-%m-%d").to_string();
+
         while let Some(row) = rows.next()? {
-            let item = ItemSummary {
+            let mut item = ItemSummary {
                 id: row.get(0)?,
                 submit_date: row.get(1)?,
                 system: row.get(2)?,
                 r#type: row.get(3)?,
             };
+
+            let format = if item.submit_date.starts_with(&today) {
+                "%l:%M %p"
+            } else {
+                "%-m/%-e/%y %l:%M %p"
+            };
+
+            let sd = DateTime::<Utc>::from_utc(
+                NaiveDateTime::parse_from_str(&item.submit_date, "%Y-%m-%d %H:%M:%S")?,
+                Utc,
+            )
+            .with_timezone(&tz);
+
+            item.submit_date = sd.format_localized(format, Locale::en_US).to_string();
 
             result.items.push(item);
             result.total_items = row.get(4)?;

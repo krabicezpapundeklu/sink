@@ -16,6 +16,7 @@ use actix_web::{
 
 use actix_web_static_files::ResourceFiles;
 use anyhow::{anyhow, bail, Context, Error, Result};
+use chrono::Utc;
 use deadpool::unmanaged::Pool as UnmanagedPool;
 use deadpool_sqlite::{Config, InteractError, Pool, Runtime};
 use log::{debug, info};
@@ -31,7 +32,7 @@ use serde_json::to_string;
 
 use crate::{
     repository::Repository,
-    shared::{DateTime, Item, ItemFilter, ItemHeader},
+    shared::{Item, ItemFilter, ItemHeader},
 };
 
 #[embed(name = "main", path = "./web/build/server")]
@@ -154,8 +155,8 @@ where
         .map_err(|err| ServerError(err.into()))
 }
 
-async fn fetch_data(path: String, search: String) -> FetchDataResult {
-    async fn get_data(path: String, search: String) -> Result<String> {
+async fn fetch_data(path: String, search: String, tz: String) -> FetchDataResult {
+    async fn get_data(path: String, search: String, tz: String) -> Result<String> {
         debug!("get_data START");
 
         let db = {
@@ -167,7 +168,7 @@ async fn fetch_data(path: String, search: String) -> FetchDataResult {
             let id: i64 = id.parse()?;
 
             let item = db
-                .interact(move |db| db.get_item(id))
+                .interact(move |db| db.get_item(id, &tz))
                 .await
                 .map_err(map_to_anyhow_error)??;
 
@@ -176,7 +177,7 @@ async fn fetch_data(path: String, search: String) -> FetchDataResult {
             let filter = Query::<ItemFilter>::from_query(&search)?.0;
 
             let items = db
-                .interact(move |db| db.get_items(filter))
+                .interact(move |db| db.get_items(filter, &tz))
                 .await
                 .map_err(map_to_anyhow_error)??;
 
@@ -190,7 +191,7 @@ async fn fetch_data(path: String, search: String) -> FetchDataResult {
         Ok(data)
     }
 
-    let result = get_data(path, search).await;
+    let result = get_data(path, search, tz).await;
 
     match result {
         Ok(data) => FetchDataResult::Data(data),
@@ -198,8 +199,8 @@ async fn fetch_data(path: String, search: String) -> FetchDataResult {
     }
 }
 
-fn get_etag(path: &str, tz: Option<String>, use_last_item_id: bool) -> String {
-    let mut etag = format!("{VERSION}|{path}|{}", tz.unwrap_or_default());
+fn get_etag(path: &str, tz: &str, use_last_item_id: bool) -> String {
+    let mut etag = format!("{VERSION}|{path}|{tz}");
 
     if use_last_item_id {
         let id = LAST_ITEM_ID.load(Relaxed);
@@ -216,8 +217,8 @@ fn get_etag(path: &str, tz: Option<String>, use_last_item_id: bool) -> String {
 #[get("/item/{id}")]
 async fn get_html(js_pool: Data<JsPool>, request: HttpRequest) -> Response<impl Responder> {
     let path = get_path(&request);
-    let tz = get_tz(&request);
-    let etag = get_etag(&path, tz.clone(), request.path() == "/");
+    let tz = get_tz(&request).unwrap_or_default();
+    let etag = get_etag(&path, &tz, request.path() == "/");
 
     if let Some(expected_etag) = request.headers().get(IF_NONE_MATCH) {
         let expected_etag = expected_etag.as_bytes();
@@ -238,16 +239,29 @@ async fn get_html(js_pool: Data<JsPool>, request: HttpRequest) -> Response<impl 
 }
 
 #[get("/api/item/{id}")]
-async fn get_item(db_pool: Data<Pool>, path: Path<i64>) -> Response<impl Responder> {
+async fn get_item(
+    db_pool: Data<Pool>,
+    path: Path<i64>,
+    request: HttpRequest,
+) -> Response<impl Responder> {
     let id = path.into_inner();
-    call_db(&db_pool, move |db| db.get_item(id)).await.map(Json)
+    let tz = get_tz(&request).unwrap_or_default();
+
+    call_db(&db_pool, move |db| db.get_item(id, &tz))
+        .await
+        .map(Json)
 }
 
 #[get("/api/items")]
-async fn get_items(db_pool: Data<Pool>, filter: Query<ItemFilter>) -> Response<impl Responder> {
+async fn get_items(
+    db_pool: Data<Pool>,
+    filter: Query<ItemFilter>,
+    request: HttpRequest,
+) -> Response<impl Responder> {
     let filter = filter.into_inner();
+    let tz = get_tz(&request).unwrap_or_default();
 
-    call_db(&db_pool, move |db| db.get_items(filter))
+    call_db(&db_pool, move |db| db.get_items(filter, &tz))
         .await
         .map(Json)
 }
@@ -272,7 +286,7 @@ fn map_to_anyhow_error(error: InteractError) -> Error {
     })
 }
 
-async fn render(js: &Js, path: &str, tz: &Option<String>) -> Result<String> {
+async fn render(js: &Js, path: &str, tz: &str) -> Result<String> {
     debug!("render START");
 
     let result: Promise<String> = js.run(|ctx| {
@@ -293,7 +307,6 @@ async fn render(js: &Js, path: &str, tz: &Option<String>) -> Result<String> {
     js.run_gc();
 
     debug!("run_gc END");
-
     debug!("render END");
 
     Ok(result)
@@ -385,7 +398,10 @@ async fn submit_item(
 
     let mut item = Item {
         id: None,
-        submit_date: DateTime::now(),
+        submit_date: Utc::now()
+            .naive_utc()
+            .format("%Y-%m-%d %H:%M:%S")
+            .to_string(),
         system: None,
         r#type: None,
         headers,
