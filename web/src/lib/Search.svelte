@@ -121,6 +121,10 @@
 			<button class="btn btn-outline-secondary btn-sm" type="button" on:click={today}>Today</button>
 		</div>
 		<div class="border-top d-flex justify-content-end mt-2 pt-2">
+			<div class="me-auto my-auto">
+				Version:
+				<a href="https://github.com/krabicezpapundeklu/sink/releases/tag/0.9.7">0.9.7</a>
+			</div>
 			<button class="btn btn-link me-2" type="reset">Clear</button>
 			<button class="btn btn-primary">Search</button>
 		</div>
