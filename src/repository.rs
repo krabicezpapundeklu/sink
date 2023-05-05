@@ -1,7 +1,7 @@
 use std::{fmt::Debug, mem::take, str::FromStr};
 
 use anyhow::Result;
-use chrono::{DateTime, Locale, NaiveDateTime, Utc};
+use chrono::{DateTime, Datelike, Locale, NaiveDateTime, Utc};
 use chrono_tz::Tz;
 use log::debug;
 
@@ -178,7 +178,7 @@ impl Repository for Connection {
         };
 
         let tz: Tz = tz.parse().unwrap_or(Tz::UTC);
-        let today = Utc::now().naive_utc().format("%Y-%m-%d").to_string();
+        let today = Utc::now().with_timezone(&tz);
 
         while let Some(row) = rows.next()? {
             let mut item = ItemSummary {
@@ -188,17 +188,20 @@ impl Repository for Connection {
                 r#type: row.get(3)?,
             };
 
-            let format = if item.submit_date.starts_with(&today) {
-                "%l:%M %p"
-            } else {
-                "%-m/%-e/%y %l:%M %p"
-            };
-
             let sd = DateTime::<Utc>::from_utc(
                 NaiveDateTime::parse_from_str(&item.submit_date, "%Y-%m-%d %H:%M:%S")?,
                 Utc,
             )
             .with_timezone(&tz);
+
+            let format = if sd.day() == today.day()
+                && sd.month() == today.month()
+                && sd.year() == today.year()
+            {
+                "%l:%M %p"
+            } else {
+                "%-m/%-e/%y %l:%M %p"
+            };
 
             item.submit_date = sd.format_localized(format, Locale::en_US).to_string();
 
