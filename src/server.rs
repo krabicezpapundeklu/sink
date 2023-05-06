@@ -15,21 +15,21 @@ use actix_web::{
 };
 
 use actix_web_static_files::ResourceFiles;
-use anyhow::{anyhow, bail, Context, Error, Result};
+use anyhow::{anyhow, Context, Error, Result};
 use chrono::{DateTime, Datelike, Locale, NaiveDateTime, Utc};
 use chrono_tz::Tz;
 use deadpool::unmanaged::Pool as UnmanagedPool;
 use deadpool_sqlite::{Config, InteractError, Pool, Runtime};
 use log::{debug, info};
-use once_cell::sync::OnceCell;
 
+use once_cell::sync::OnceCell;
 use rquickjs::{
     embed, Async, Context as JsContext, Ctx, Func, Function, IntoJs, Object, Promise,
     Result as JsResult, Runtime as JsRuntime, Tokio, Value as JsValue,
 };
 
 use rusqlite::Connection;
-use serde_json::to_string;
+use serde::Deserialize;
 
 use crate::{
     repository::Repository,
@@ -43,8 +43,8 @@ include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-static DB_POOL: OnceCell<Pool> = OnceCell::new();
 static LAST_ITEM_ID: AtomicI64 = AtomicI64::new(0);
+static PORT: OnceCell<u16> = OnceCell::new();
 
 pub enum FetchDataResult {
     Data(String),
@@ -147,6 +147,11 @@ impl From<InteractError> for ServerError {
 
 impl ResponseError for ServerError {}
 
+#[derive(Deserialize)]
+struct TzQuery {
+    tz: Option<String>,
+}
+
 async fn call_db<F, T, E>(db_pool: &Pool, f: F) -> Response<T>
 where
     F: FnOnce(&mut Connection) -> Result<T, E> + Send + 'static,
@@ -162,45 +167,27 @@ where
         .map_err(|err| ServerError(err.into()))
 }
 
-async fn fetch_data(path: String, search: String, tz: String) -> FetchDataResult {
-    async fn get_data(path: String, search: String, tz: String) -> Result<String> {
+async fn fetch_data(path: String) -> FetchDataResult {
+    async fn get_data(path: String) -> Result<String> {
         debug!("get_data START");
 
-        let db = {
-            let db_pool = DB_POOL.get().ok_or_else(|| anyhow!("cannot get db pool"))?;
-            db_pool.get().await?
-        };
+        let port = PORT.get().unwrap_or(&8080);
+        let response = reqwest::get(format!("http://localhost:{port}{path}")).await?;
+        let status = response.status();
+        let body = response.text().await?;
 
-        let data = if let Some(id) = path.strip_prefix("/api/item/") {
-            let id: i64 = id.parse()?;
-
-            let mut item = db
-                .interact(move |db| db.get_item(id))
-                .await
-                .map_err(map_to_anyhow_error)??;
-
-            format_submit_date(&mut item, &tz)?;
-            to_string(&item)
-        } else if path == "/api/items" {
-            let filter = Query::<ItemFilter>::from_query(&search)?.0;
-
-            let mut items = db
-                .interact(move |db| db.get_items(filter))
-                .await
-                .map_err(map_to_anyhow_error)??;
-
-            format_submit_dates(items.items.as_mut_slice(), &tz)?;
-            to_string(&items)
+        let result = if status.is_success() {
+            Ok(body)
         } else {
-            bail!("wrong path {path}")
-        }?;
+            Err(anyhow!(body))
+        };
 
         debug!("get_data END");
 
-        Ok(data)
+        result
     }
 
-    let result = get_data(path, search, tz).await;
+    let result = get_data(path).await;
 
     match result {
         Ok(data) => FetchDataResult::Data(data),
@@ -294,9 +281,15 @@ async fn get_item(
     db_pool: Data<Pool>,
     path: Path<i64>,
     request: HttpRequest,
+    query: Query<TzQuery>,
 ) -> Response<impl Responder> {
     let id = path.into_inner();
-    let tz = get_tz(&request).unwrap_or_default();
+    let query = query.into_inner();
+
+    let tz = query
+        .tz
+        .unwrap_or_else(|| get_tz(&request).unwrap_or_default());
+
     let mut item = call_db(&db_pool, move |db| db.get_item(id)).await?;
 
     format_submit_date(&mut item, &tz)?;
@@ -311,7 +304,13 @@ async fn get_items(
     request: HttpRequest,
 ) -> Response<impl Responder> {
     let filter = filter.into_inner();
-    let tz = get_tz(&request).unwrap_or_default();
+
+    let tz = if let Some(tz) = &filter.tz {
+        tz.clone()
+    } else {
+        get_tz(&request).unwrap_or_default()
+    };
+
     let mut items = call_db(&db_pool, move |db| db.get_items(filter)).await?;
 
     format_submit_dates(items.items.as_mut_slice(), &tz)?;
@@ -384,9 +383,7 @@ pub async fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> 
         LAST_ITEM_ID.store(last_item_id, Relaxed);
     }
 
-    DB_POOL
-        .set(db_pool.clone())
-        .map_err(|_| anyhow!("cannot set db pool"))?;
+    PORT.set(port).map_err(|_| anyhow!("cannot set port"))?;
 
     let js_pool_size = num_cpus::get();
     let mut js = Vec::with_capacity(js_pool_size);
