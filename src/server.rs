@@ -16,7 +16,8 @@ use actix_web::{
 
 use actix_web_static_files::ResourceFiles;
 use anyhow::{anyhow, bail, Context, Error, Result};
-use chrono::Utc;
+use chrono::{DateTime, Datelike, Locale, NaiveDateTime, Utc};
+use chrono_tz::Tz;
 use deadpool::unmanaged::Pool as UnmanagedPool;
 use deadpool_sqlite::{Config, InteractError, Pool, Runtime};
 use log::{debug, info};
@@ -32,7 +33,7 @@ use serde_json::to_string;
 
 use crate::{
     repository::Repository,
-    shared::{Item, ItemFilter, ItemHeader},
+    shared::{Item, ItemFilter, ItemHeader, ItemSummary},
 };
 
 #[embed(name = "main", path = "./web/build/server")]
@@ -167,20 +168,22 @@ async fn fetch_data(path: String, search: String, tz: String) -> FetchDataResult
         let data = if let Some(id) = path.strip_prefix("/api/item/") {
             let id: i64 = id.parse()?;
 
-            let item = db
-                .interact(move |db| db.get_item(id, &tz))
+            let mut item = db
+                .interact(move |db| db.get_item(id))
                 .await
                 .map_err(map_to_anyhow_error)??;
 
+            format_submit_date(&mut item, &tz)?;
             to_string(&item)
         } else if path == "/api/items" {
             let filter = Query::<ItemFilter>::from_query(&search)?.0;
 
-            let items = db
-                .interact(move |db| db.get_items(filter, &tz))
+            let mut items = db
+                .interact(move |db| db.get_items(filter))
                 .await
                 .map_err(map_to_anyhow_error)??;
 
+            format_submit_dates(items.items.as_mut_slice(), &tz)?;
             to_string(&items)
         } else {
             bail!("wrong path {path}")
@@ -197,6 +200,48 @@ async fn fetch_data(path: String, search: String, tz: String) -> FetchDataResult
         Ok(data) => FetchDataResult::Data(data),
         Err(error) => FetchDataResult::Error(error.to_string()),
     }
+}
+
+fn format_submit_date(item: &mut Item, tz: &str) -> Result<()> {
+    let tz: Tz = tz.parse().unwrap_or(Tz::UTC);
+
+    let sd = DateTime::<Utc>::from_utc(
+        NaiveDateTime::parse_from_str(&item.submit_date, "%Y-%m-%d %H:%M:%S")?,
+        Utc,
+    )
+    .with_timezone(&tz);
+
+    item.submit_date = sd
+        .format_localized("%A, %B %-e, %Y at %l:%M:%S %p (%Z)", Locale::en_US)
+        .to_string();
+
+    Ok(())
+}
+
+fn format_submit_dates(items: &mut [ItemSummary], tz: &str) -> Result<()> {
+    let tz: Tz = tz.parse().unwrap_or(Tz::UTC);
+    let today = Utc::now().with_timezone(&tz);
+
+    for item in items {
+        let sd = DateTime::<Utc>::from_utc(
+            NaiveDateTime::parse_from_str(&item.submit_date, "%Y-%m-%d %H:%M:%S")?,
+            Utc,
+        )
+        .with_timezone(&tz);
+
+        let format = if sd.day() == today.day()
+            && sd.month() == today.month()
+            && sd.year() == today.year()
+        {
+            "%l:%M %p"
+        } else {
+            "%-m/%-e/%y %l:%M %p"
+        };
+
+        item.submit_date = sd.format_localized(format, Locale::en_US).to_string();
+    }
+
+    Ok(())
 }
 
 fn get_etag(path: &str, tz: &str, use_last_item_id: bool) -> String {
@@ -246,10 +291,11 @@ async fn get_item(
 ) -> Response<impl Responder> {
     let id = path.into_inner();
     let tz = get_tz(&request).unwrap_or_default();
+    let mut item = call_db(&db_pool, move |db| db.get_item(id)).await?;
 
-    call_db(&db_pool, move |db| db.get_item(id, &tz))
-        .await
-        .map(Json)
+    format_submit_date(&mut item, &tz)?;
+
+    Ok(Json(item))
 }
 
 #[get("/api/items")]
@@ -260,10 +306,11 @@ async fn get_items(
 ) -> Response<impl Responder> {
     let filter = filter.into_inner();
     let tz = get_tz(&request).unwrap_or_default();
+    let mut items = call_db(&db_pool, move |db| db.get_items(filter)).await?;
 
-    call_db(&db_pool, move |db| db.get_items(filter, &tz))
-        .await
-        .map(Json)
+    format_submit_dates(items.items.as_mut_slice(), &tz)?;
+
+    Ok(Json(items))
 }
 
 fn get_path(request: &HttpRequest) -> String {
