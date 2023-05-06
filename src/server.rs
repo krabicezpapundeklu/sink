@@ -21,8 +21,9 @@ use chrono_tz::Tz;
 use deadpool::unmanaged::Pool as UnmanagedPool;
 use deadpool_sqlite::{Config, InteractError, Pool, Runtime};
 use log::{debug, info};
-
 use once_cell::sync::OnceCell;
+use reqwest::Client;
+
 use rquickjs::{
     embed, Async, Context as JsContext, Ctx, Func, Function, IntoJs, Object, Promise,
     Result as JsResult, Runtime as JsRuntime, Tokio, Value as JsValue,
@@ -43,6 +44,7 @@ include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+static CLIENT: OnceCell<Client> = OnceCell::new();
 static LAST_ITEM_ID: AtomicI64 = AtomicI64::new(0);
 static PORT: OnceCell<u16> = OnceCell::new();
 
@@ -171,8 +173,14 @@ async fn fetch_data(path: String) -> FetchDataResult {
     async fn get_data(path: String) -> Result<String> {
         debug!("get_data START");
 
+        let client = CLIENT.get().unwrap();
         let port = PORT.get().unwrap_or(&8080);
-        let response = reqwest::get(format!("http://localhost:{port}{path}")).await?;
+
+        let response = client
+            .get(format!("http://localhost:{port}{path}"))
+            .send()
+            .await?;
+
         let status = response.status();
         let body = response.text().await?;
 
@@ -382,6 +390,10 @@ pub async fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> 
     if let Some(last_item_id) = last_item_id {
         LAST_ITEM_ID.store(last_item_id, Relaxed);
     }
+
+    CLIENT
+        .set(Client::new())
+        .map_err(|_| anyhow!("cannot set client"))?;
 
     PORT.set(port).map_err(|_| anyhow!("cannot set port"))?;
 
