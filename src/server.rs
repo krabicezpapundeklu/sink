@@ -218,7 +218,7 @@ fn format_submit_date(item: &mut Item, tz: &str) -> Result<()> {
     .with_timezone(&tz);
 
     item.submit_date = sd
-        .format_localized("%A, %B %-e, %Y at %l:%M:%S %p (%Z)", Locale::en_US)
+        .format_localized("%A, %B %-e, %Y at %-l:%M:%S %p (%Z)", Locale::en_US)
         .to_string();
 
     Ok(())
@@ -239,9 +239,9 @@ fn format_submit_dates(items: &mut [ItemSummary], tz: &str) -> Result<()> {
             && sd.month() == today.month()
             && sd.year() == today.year()
         {
-            "%l:%M %p"
+            "%-l:%M %p"
         } else {
-            "%-m/%-e/%y %l:%M %p"
+            "%-m/%-e/%y %-l:%M %p"
         };
 
         item.submit_date = sd.format_localized(format, Locale::en_US).to_string();
