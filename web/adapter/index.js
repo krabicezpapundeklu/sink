@@ -47,8 +47,7 @@ export default function (opts = {}) {
 			);
 
 			copyFileSync(`${files}/main.js`, `${tmp}/main.js`);
-			copyFileSync(`${files}/polyfills-0.js`, `${tmp}/polyfills-0.js`);
-			copyFileSync(`${files}/polyfills-1.js`, `${tmp}/polyfills-1.js`);
+			copyFileSync(`${files}/polyfills.js`, `${tmp}/polyfills.js`);
 
 			const bundle = await rollup({
 				input: {
@@ -70,11 +69,7 @@ export default function (opts = {}) {
 				inlineDynamicImports: true
 			});
 
-			const purgeCSSResult = await new PurgeCSS().purge({
-				content: [`${out}/client/**/*.js`],
-				css: [`${out}/client/**/*.css`],
-				safelist: ['opacity-25', 'w-25', /popper$/, /^hljs/]
-			});
+			const purgeCSSResult = await new PurgeCSS().purge('./purgecss.config.cjs');
 
 			for (const purge of purgeCSSResult) {
 				writeFileSync(purge.file, purge.css);

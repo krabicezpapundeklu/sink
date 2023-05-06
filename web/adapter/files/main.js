@@ -1,5 +1,5 @@
-import './polyfills-0';
-import './polyfills-1';
+import './polyfills';
+
 import { manifest } from './manifest.js';
 import { Server } from './index.js';
 
