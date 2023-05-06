@@ -222,7 +222,6 @@ pub struct ItemSearchResult {
     pub items: Vec<ItemSummary>,
     pub systems: Vec<String>,
     pub total_items: i32,
-    pub filter: ItemFilter,
 }
 
 #[derive(Serialize)]

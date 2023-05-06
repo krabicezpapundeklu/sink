@@ -39,7 +39,7 @@ impl<T: Debug + ToSql> Parameter for T {}
 
 pub trait Repository {
     fn get_item(&self, id: i64) -> Result<Item>;
-    fn get_items(&self, filter: ItemFilter) -> Result<ItemSearchResult>;
+    fn get_items(&self, filter: &ItemFilter) -> Result<ItemSearchResult>;
     fn get_last_item_id(&self) -> Result<Option<i64>>;
 
     fn insert_item(&mut self, item: &Item) -> Result<i64>;
@@ -82,7 +82,7 @@ impl Repository for Connection {
         Ok(item)
     }
 
-    fn get_items(&self, filter: ItemFilter) -> Result<ItemSearchResult> {
+    fn get_items(&self, filter: &ItemFilter) -> Result<ItemSearchResult> {
         debug!("get_items START");
 
         let mut params: Vec<&dyn Parameter> = Vec::new();
@@ -160,7 +160,6 @@ impl Repository for Connection {
             items: Vec::new(),
             systems: Vec::new(),
             total_items: 0,
-            filter,
         };
 
         while let Some(row) = rows.next()? {

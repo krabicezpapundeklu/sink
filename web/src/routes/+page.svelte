@@ -26,12 +26,12 @@
 	let itemListElement: HTMLElement;
 	let loadMoreElement: HTMLElement;
 
-	let query = data.filter.query ?? '';
-	let system = data.filter.system ?? '';
-	let type = data.filter.type ?? '';
-	let from = utcDateStringToLocalString(data.filter.from);
-	let to = utcDateStringToLocalString(data.filter.to);
-	let asc = data.filter.asc ?? false;
+	let query: string;
+	let system: string;
+	let type: string;
+	let from: string;
+	let to: string;
+	let asc: boolean;
 
 	let loading = false;
 
@@ -66,6 +66,17 @@
 		hasMoreItems = result.items.length > BATCH_SIZE;
 
 		loading = false;
+	};
+
+	const prefillFilters = () => {
+		const params = $page.url.searchParams;
+
+		query = params.get('query') ?? '';
+		system = params.get('system') ?? '';
+		type = params.get('type') ?? '';
+		from = utcDateStringToLocalString(params.get('from'));
+		to = utcDateStringToLocalString(params.get('to'));
+		asc = (params.get('asc') ?? 'false') === 'true';
 	};
 
 	const refresh = (params: URLSearchParams) => {
@@ -122,14 +133,7 @@
 	};
 
 	afterNavigate(async () => {
-		const params = $page.url.searchParams;
-
-		query = params.get('query') ?? '';
-		system = params.get('system') ?? '';
-		type = params.get('type') ?? '';
-		from = utcDateStringToLocalString(params.get('from'));
-		to = utcDateStringToLocalString(params.get('to'));
-		asc = (params.get('asc') ?? 'false') === 'true';
+		prefillFilters();
 
 		items = data.items.slice(0, BATCH_SIZE);
 		systems = data.systems;
@@ -175,6 +179,8 @@
 			totalItems += result.items.length;
 		}, MILLISECONDS_IN_MINUTE);
 	});
+
+	prefillFilters();
 </script>
 
 <svelte:head>

@@ -319,7 +319,7 @@ async fn get_items(
         get_tz(&request).unwrap_or_default()
     };
 
-    let mut items = call_db(&db_pool, move |db| db.get_items(filter)).await?;
+    let mut items = call_db(&db_pool, move |db| db.get_items(&filter)).await?;
 
     format_submit_dates(items.items.as_mut_slice(), &tz)?;
 
