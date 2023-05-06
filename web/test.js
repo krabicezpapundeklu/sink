@@ -1,4 +1,4 @@
-import { render } from './build/server/main.js';
+import { init, render } from './build/server/main.js';
 
 // eslint-disable-next-line no-undef
 const module = globalThis;
@@ -104,6 +104,10 @@ module.fetchData = function (path) {
 	});
 };
 
-render('http://localhost/')
-	.then((response) => console.log(response))
+init('xxx')
+	.then(() => {
+		render('http://localhost/')
+			.then((response) => console.log(response))
+			.catch((e) => console.log(`${e} ${e.stack}`));
+	})
 	.catch((e) => console.log(`${e} ${e.stack}`));

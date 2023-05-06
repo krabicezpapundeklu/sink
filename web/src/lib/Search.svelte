@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
+	import { env } from '$env/dynamic/public';
 	import { ITEM_TYPES, localDateToString, MILLISECONDS_IN_HOUR } from '$lib/shared';
 
 	export let query: string;
@@ -9,6 +10,8 @@
 	export let to: string;
 
 	export let systems: string[] = [];
+
+	const version = env.PUBLIC_VERSION;
 
 	let filterButton: HTMLElement;
 	let filterDropDown: { hide: () => void };
@@ -123,7 +126,7 @@
 		<div class="border-top d-flex justify-content-end mt-2 pt-2">
 			<div class="me-auto my-auto">
 				Version:
-				<a href="https://github.com/krabicezpapundeklu/sink/releases/tag/0.9.7">0.9.7</a>
+				<a href="https://github.com/krabicezpapundeklu/sink/releases/tag/{version}">{version}</a>
 			</div>
 			<button class="btn btn-link me-2" type="reset">Clear</button>
 			<button class="btn btn-primary">Search</button>

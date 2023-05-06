@@ -74,29 +74,35 @@ impl Js {
         self.runtime.idle().await;
     }
 
-    fn new() -> Result<Self> {
+    async fn new() -> Result<Self> {
         let runtime = JsRuntime::new()?;
         let context = JsContext::full(&runtime)?;
 
         runtime.set_loader(SERVER_MODULE, SERVER_MODULE);
         runtime.spawn_executor(Tokio);
 
-        context.with(|ctx| {
+        let result: Promise<()> = context.with(|ctx| {
             let globals = ctx.globals();
 
             globals.set("debug", Func::from(|message: String| debug!("{message}")))?;
 
             let module = ctx.compile(
                 "server",
-                "import { render } from 'main'; export { render };",
+                "import { init, render } from 'main'; export { init, render };",
             )?;
 
             let fetch_data = Func::from(Async(fetch_data));
+            let init: Function = module.get("init")?;
             let render: Function = module.get("render")?;
 
             globals.set("fetchData", fetch_data)?;
-            globals.set("render", render)
+            globals.set("render", render)?;
+
+            init.call((VERSION,))
         })?;
+
+        result.await?;
+        runtime.idle().await;
 
         Ok(Self { runtime, context })
     }
@@ -387,7 +393,7 @@ pub async fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> 
 
     for i in 0..js_pool_size {
         info!("creating js runtime ({} of {js_pool_size})", i + 1);
-        js.push(Js::new()?);
+        js.push(Js::new().await?);
     }
 
     let js_pool = UnmanagedPool::from(js);
