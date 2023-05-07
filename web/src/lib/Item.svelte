@@ -1,17 +1,25 @@
 <script lang="ts">
 	import { formatNumber, itemTypeToName } from '$lib/shared';
-	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 	import type { ItemWithHighlighting } from '$lib/model';
 
-	const tabs = ['#body-preview', '#original-body', '#headers'];
-
 	export let item: ItemWithHighlighting;
+	export let preventDefault = true;
 
-	let activeTab = 0;
+	const tabs = ['body-preview', 'original-body', 'headers'];
 
-	onMount(() => {
-		activeTab = Math.max(0, tabs.indexOf(location.hash));
-	});
+	let activeTab = Math.max(0, tabs.indexOf($page.url.searchParams.get('view') ?? ''));
+	let base: string;
+
+	const selectTab = (e: Event, tab: number) => {
+		if (preventDefault) {
+			e.preventDefault();
+		}
+
+		activeTab = tab;
+	};
+
+	$: base = `/item/${item.id}?view=`;
 </script>
 
 <div>
@@ -31,24 +39,27 @@
 		<a
 			class="nav-link"
 			class:active={activeTab === 0}
-			href={tabs[0]}
-			on:click={() => (activeTab = 0)}>Body Preview</a
+			data-sveltekit-preload-data="off"
+			href="{base}{tabs[0]}"
+			on:click={(e) => selectTab(e, 0)}>Body Preview</a
 		>
 	</li>
 	<li class="nav-item">
 		<a
 			class="nav-link"
 			class:active={activeTab === 1}
-			href={tabs[1]}
-			on:click={() => (activeTab = 1)}>Original Body</a
+			data-sveltekit-preload-data="off"
+			href="{base}{tabs[1]}"
+			on:click={(e) => selectTab(e, 1)}>Original Body</a
 		>
 	</li>
 	<li class="nav-item">
 		<a
 			class="nav-link"
 			class:active={activeTab === 2}
-			href={tabs[2]}
-			on:click={() => (activeTab = 2)}>Headers</a
+			data-sveltekit-preload-data="off"
+			href="{base}{tabs[2]}"
+			on:click={(e) => selectTab(e, 2)}>Headers</a
 		>
 	</li>
 </ul>

@@ -11,5 +11,5 @@
 </svelte:head>
 
 <div class="container p-2">
-	<Item item={highlightItem(data)} />
+	<Item item={highlightItem(data)} preventDefault={false} />
 </div>
