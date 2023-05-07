@@ -205,7 +205,6 @@ pub struct ItemFilter {
     pub first_item_id: Option<i64>,
     pub last_item_id: Option<i64>,
     pub batch_size: Option<u32>,
-    pub tz: Option<String>,
 }
 
 #[derive(Serialize)]

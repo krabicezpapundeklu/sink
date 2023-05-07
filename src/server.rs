@@ -30,7 +30,6 @@ use rquickjs::{
 };
 
 use rusqlite::Connection;
-use serde::Deserialize;
 
 use crate::{
     repository::Repository,
@@ -93,11 +92,9 @@ impl Js {
                 "import { init, render } from 'main'; export { init, render };",
             )?;
 
-            let fetch_data = Func::from(Async(fetch_data));
             let init: Function = module.get("init")?;
             let render: Function = module.get("render")?;
 
-            globals.set("fetchData", fetch_data)?;
             globals.set("render", render)?;
 
             init.call((VERSION,))
@@ -149,11 +146,6 @@ impl From<InteractError> for ServerError {
 
 impl ResponseError for ServerError {}
 
-#[derive(Deserialize)]
-struct TzQuery {
-    tz: Option<String>,
-}
-
 async fn call_db<F, T, E>(db_pool: &Pool, f: F) -> Response<T>
 where
     F: FnOnce(&mut Connection) -> Result<T, E> + Send + 'static,
@@ -169,8 +161,8 @@ where
         .map_err(|err| ServerError(err.into()))
 }
 
-async fn fetch_data(path: String) -> FetchDataResult {
-    async fn get_data(path: String) -> Result<String> {
+async fn fetch_data(path: String, tz: String) -> FetchDataResult {
+    async fn get_data(path: String, tz: String) -> Result<String> {
         debug!("get_data START");
 
         let client = CLIENT.get().unwrap();
@@ -178,6 +170,7 @@ async fn fetch_data(path: String) -> FetchDataResult {
 
         let response = client
             .get(format!("http://localhost:{port}{path}"))
+            .header("cookie", format!("tz={tz}"))
             .send()
             .await?;
 
@@ -195,7 +188,7 @@ async fn fetch_data(path: String) -> FetchDataResult {
         result
     }
 
-    let result = get_data(path).await;
+    let result = get_data(path, tz).await;
 
     match result {
         Ok(data) => FetchDataResult::Data(data),
@@ -276,7 +269,7 @@ async fn get_html(js_pool: Data<JsPool>, request: HttpRequest) -> Response<impl 
     }
 
     let js = js_pool.get().await.map_err(Error::new)?;
-    let result = render(&js, &path, &tz).await?;
+    let result = render(&js, &path, tz).await?;
 
     Ok(HttpResponse::Ok()
         .insert_header(ContentType::html())
@@ -289,14 +282,9 @@ async fn get_item(
     db_pool: Data<Pool>,
     path: Path<i64>,
     request: HttpRequest,
-    query: Query<TzQuery>,
 ) -> Response<impl Responder> {
     let id = path.into_inner();
-    let query = query.into_inner();
-
-    let tz = query
-        .tz
-        .unwrap_or_else(|| get_tz(&request).unwrap_or_default());
+    let tz = get_tz(&request).unwrap_or_default();
 
     let mut item = call_db(&db_pool, move |db| db.get_item(id)).await?;
 
@@ -312,12 +300,7 @@ async fn get_items(
     request: HttpRequest,
 ) -> Response<impl Responder> {
     let filter = filter.into_inner();
-
-    let tz = if let Some(tz) = &filter.tz {
-        tz.clone()
-    } else {
-        get_tz(&request).unwrap_or_default()
-    };
+    let tz = get_tz(&request).unwrap_or_default();
 
     let mut items = call_db(&db_pool, move |db| db.get_items(&filter)).await?;
 
@@ -346,14 +329,17 @@ fn map_to_anyhow_error(error: InteractError) -> Error {
     })
 }
 
-async fn render(js: &Js, path: &str, tz: &str) -> Result<String> {
+async fn render(js: &Js, path: &str, tz: String) -> Result<String> {
     debug!("render START");
 
     let result: Promise<String> = js.run(|ctx| {
         let globals = ctx.globals();
+
+        let fetch_data = Func::from(Async(move |path: String| fetch_data(path, tz.clone())));
+
         let render: Function = globals.get("render")?;
 
-        globals.set("TIME_ZONE", tz)?;
+        globals.set("fetchData", fetch_data)?;
 
         render.call((path,))
     })?;
