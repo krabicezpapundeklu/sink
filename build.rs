@@ -14,6 +14,7 @@ fn main() -> Result<()> {
     println!("cargo:rerun-if-changed=web/src");
     println!("cargo:rerun-if-changed=web/static");
     println!("cargo:rerun-if-changed=web/package.json");
+    println!("cargo:rerun-if-changed=web/purgecss.config.cjs");
     println!("cargo:rerun-if-changed=web/svelte.config.js");
     println!("cargo:rerun-if-changed=web/tsconfig.json");
     println!("cargo:rerun-if-changed=web/vite.config.ts");
