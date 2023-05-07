@@ -8,7 +8,7 @@ module.console.error = module.console.log;
 module.fetchData = function (path) {
 	let result = {};
 
-	if (path.startsWith('/api/items')) {
+	if (path === '/api/items') {
 		result = {
 			items: [
 				{
@@ -356,7 +356,7 @@ module.fetchData = function (path) {
 				batchSize: 100
 			}
 		};
-	} else if (path.startsWith('/api/item/1000048')) {
+	} else if (path === '/api/item/1000048') {
 		result = {
 			id: 1000048,
 			submitDate: 'Saturday, May 6, 2023 at 8:49:53 AM (CEST)',

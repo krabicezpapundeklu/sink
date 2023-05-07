@@ -15,14 +15,12 @@ use actix_web::{
 };
 
 use actix_web_static_files::ResourceFiles;
-use anyhow::{anyhow, Context, Error, Result};
+use anyhow::{anyhow, bail, Context, Error, Result};
 use chrono::{DateTime, Datelike, Locale, NaiveDateTime, Utc};
 use chrono_tz::Tz;
 use deadpool::unmanaged::Pool as UnmanagedPool;
 use deadpool_sqlite::{Config, InteractError, Pool, Runtime};
 use log::{debug, info};
-use once_cell::sync::OnceCell;
-use reqwest::Client;
 
 use rquickjs::{
     embed, Async, Context as JsContext, Ctx, Func, Function, IntoJs, Object, Promise,
@@ -30,6 +28,7 @@ use rquickjs::{
 };
 
 use rusqlite::Connection;
+use serde_json::to_string;
 
 use crate::{
     repository::Repository,
@@ -43,9 +42,7 @@ include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-static CLIENT: OnceCell<Client> = OnceCell::new();
 static LAST_ITEM_ID: AtomicI64 = AtomicI64::new(0);
-static PORT: OnceCell<u16> = OnceCell::new();
 
 pub enum FetchDataResult {
     Data(String),
@@ -161,34 +158,40 @@ where
         .map_err(|err| ServerError(err.into()))
 }
 
-async fn fetch_data(path: String, tz: String) -> FetchDataResult {
-    async fn get_data(path: String, tz: String) -> Result<String> {
-        debug!("get_data START");
+async fn fetch_data(db_pool: Pool, path: String, search: String, tz: String) -> FetchDataResult {
+    async fn get_data(db_pool: Pool, path: String, search: String, tz: String) -> Result<String> {
+        let db = db_pool.get().await?;
 
-        let client = CLIENT.get().unwrap();
-        let port = PORT.get().unwrap_or(&8080);
+        let data = if let Some(id) = path.strip_prefix("/api/item/") {
+            let id: i64 = id.parse()?;
 
-        let response = client
-            .get(format!("http://localhost:{port}{path}"))
-            .header("cookie", format!("tz={tz}"))
-            .send()
-            .await?;
+            let mut item = db
+                .interact(move |db| db.get_item(id))
+                .await
+                .map_err(map_to_anyhow_error)??;
 
-        let status = response.status();
-        let body = response.text().await?;
+            format_submit_date(&mut item, &tz)?;
+            to_string(&item)
+        } else if path == "/api/items" {
+            let filter = Query::<ItemFilter>::from_query(&search)?.0;
 
-        let result = if status.is_success() {
-            Ok(body)
+            let mut items = db
+                .interact(move |db| db.get_items(&filter))
+                .await
+                .map_err(map_to_anyhow_error)??;
+
+            format_submit_dates(items.items.as_mut_slice(), &tz)?;
+            to_string(&items)
         } else {
-            Err(anyhow!(body))
-        };
+            bail!("wrong path {path}")
+        }?;
 
         debug!("get_data END");
 
-        result
+        Ok(data)
     }
 
-    let result = get_data(path, tz).await;
+    let result = get_data(db_pool, path, search, tz).await;
 
     match result {
         Ok(data) => FetchDataResult::Data(data),
@@ -254,7 +257,11 @@ fn get_etag(path: &str, tz: &str, use_last_item_id: bool) -> String {
 #[routes]
 #[get("/")]
 #[get("/item/{id}")]
-async fn get_html(js_pool: Data<JsPool>, request: HttpRequest) -> Response<impl Responder> {
+async fn get_html(
+    db_pool: Data<Pool>,
+    js_pool: Data<JsPool>,
+    request: HttpRequest,
+) -> Response<impl Responder> {
     let path = get_path(&request);
     let tz = get_tz(&request).unwrap_or_default();
     let etag = get_etag(&path, &tz, request.path() == "/");
@@ -269,7 +276,7 @@ async fn get_html(js_pool: Data<JsPool>, request: HttpRequest) -> Response<impl 
     }
 
     let js = js_pool.get().await.map_err(Error::new)?;
-    let result = render(&js, &path, tz).await?;
+    let result = render(db_pool.get_ref().clone(), &js, &path, tz).await?;
 
     Ok(HttpResponse::Ok()
         .insert_header(ContentType::html())
@@ -329,13 +336,15 @@ fn map_to_anyhow_error(error: InteractError) -> Error {
     })
 }
 
-async fn render(js: &Js, path: &str, tz: String) -> Result<String> {
+async fn render(db_pool: Pool, js: &Js, path: &str, tz: String) -> Result<String> {
     debug!("render START");
 
     let result: Promise<String> = js.run(|ctx| {
         let globals = ctx.globals();
 
-        let fetch_data = Func::from(Async(move |path: String| fetch_data(path, tz.clone())));
+        let fetch_data = Func::from(Async(move |path, search| {
+            fetch_data(db_pool.clone(), path, search, tz.clone())
+        }));
 
         let render: Function = globals.get("render")?;
 
@@ -376,12 +385,6 @@ pub async fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> 
     if let Some(last_item_id) = last_item_id {
         LAST_ITEM_ID.store(last_item_id, Relaxed);
     }
-
-    CLIENT
-        .set(Client::new())
-        .map_err(|_| anyhow!("cannot set client"))?;
-
-    PORT.set(port).map_err(|_| anyhow!("cannot set port"))?;
 
     let js_pool_size = num_cpus::get();
     let mut js = Vec::with_capacity(js_pool_size);
