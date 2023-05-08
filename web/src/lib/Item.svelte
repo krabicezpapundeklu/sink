@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { formatNumber, itemTypeToName } from '$lib/shared';
+	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import type { ItemWithHighlighting } from '$lib/model';
 
@@ -10,6 +11,12 @@
 
 	let activeTab = Math.max(0, tabs.indexOf($page.url.searchParams.get('view') ?? ''));
 	let base: string;
+	let copy: (text: string) => boolean;
+	let tab: HTMLElement;
+
+	const copyTab = () => {
+		copy(tab.innerText);
+	};
 
 	const selectTab = (e: Event, tab: number) => {
 		if (preventDefault) {
@@ -18,6 +25,10 @@
 
 		activeTab = tab;
 	};
+
+	onMount(async () => {
+		copy = (await import('copy-to-clipboard')).default;
+	});
 
 	$: base = `/item/${item.id}?view=`;
 </script>
@@ -34,36 +45,41 @@
 		{/if}
 	</div>
 </div>
-<ul class="mt-3 nav nav-tabs">
-	<li class="nav-item">
-		<a
-			class="nav-link"
-			class:active={activeTab === 0}
-			data-sveltekit-preload-data="off"
-			href="{base}{tabs[0]}"
-			on:click={(e) => selectTab(e, 0)}>Body Preview</a
-		>
-	</li>
-	<li class="nav-item">
-		<a
-			class="nav-link"
-			class:active={activeTab === 1}
-			data-sveltekit-preload-data="off"
-			href="{base}{tabs[1]}"
-			on:click={(e) => selectTab(e, 1)}>Original Body</a
-		>
-	</li>
-	<li class="nav-item">
-		<a
-			class="nav-link"
-			class:active={activeTab === 2}
-			data-sveltekit-preload-data="off"
-			href="{base}{tabs[2]}"
-			on:click={(e) => selectTab(e, 2)}>Headers</a
-		>
-	</li>
-</ul>
-<div class="bg-white">
+<div class="d-flex mt-3">
+	<ul class="d-inline-flex nav nav-tabs">
+		<li class="nav-item">
+			<a
+				class="nav-link"
+				class:active={activeTab === 0}
+				data-sveltekit-preload-data="off"
+				href="{base}{tabs[0]}"
+				on:click={(e) => selectTab(e, 0)}>Body Preview</a
+			>
+		</li>
+		<li class="nav-item">
+			<a
+				class="nav-link"
+				class:active={activeTab === 1}
+				data-sveltekit-preload-data="off"
+				href="{base}{tabs[1]}"
+				on:click={(e) => selectTab(e, 1)}>Original Body</a
+			>
+		</li>
+		<li class="nav-item">
+			<a
+				class="nav-link"
+				class:active={activeTab === 2}
+				data-sveltekit-preload-data="off"
+				href="{base}{tabs[2]}"
+				on:click={(e) => selectTab(e, 2)}>Headers</a
+			>
+		</li>
+	</ul>
+	<div class="align-self-center flex-fill">
+		<button class="btn btn-secondary btn-sm float-end" on:click={copyTab}>Copy to Clipboard</button>
+	</div>
+</div>
+<div class="bg-white" bind:this={tab}>
 	{#if activeTab === 2}
 		<table class="m-0 table table-bordered table-sm">
 			<thead>
