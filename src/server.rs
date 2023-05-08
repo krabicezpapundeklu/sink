@@ -10,6 +10,7 @@ use actix_web::{
     http::header::{ContentType, ETag, EntityTag, HeaderValue, CACHE_CONTROL, IF_NONE_MATCH},
     middleware::{Compress, Logger, NormalizePath, TrailingSlash},
     post, routes,
+    rt::System,
     web::{Bytes, Data, Json, Path, Query},
     App, HttpRequest, HttpResponse, HttpServer, Responder, ResponseError,
 };
@@ -29,6 +30,7 @@ use rquickjs::{
 
 use rusqlite::Connection;
 use serde_json::to_string;
+use tokio::runtime::Builder;
 
 use crate::{
     repository::Repository,
@@ -367,69 +369,76 @@ async fn render(db_pool: Pool, js: &Js, path: &str, tz: String) -> Result<String
     Ok(result)
 }
 
-#[actix_web::main]
-pub async fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> {
-    let db_pool = Config::new(db).create_pool(Runtime::Tokio1)?;
-
-    let last_item_id = db_pool
-        .get()
-        .await?
-        .interact(|db| {
-            db.prepare_schema()?;
-            db.get_last_item_id()
-        })
-        .await
-        .map_err(map_to_anyhow_error)?
-        .with_context(|| format!("cannot prepare database schema in {}", db.display()))?;
-
-    if let Some(last_item_id) = last_item_id {
-        LAST_ITEM_ID.store(last_item_id, Relaxed);
-    }
-
-    let js_pool_size = num_cpus::get();
-    let mut js = Vec::with_capacity(js_pool_size);
-
-    for i in 0..js_pool_size {
-        info!("creating js runtime ({} of {js_pool_size})", i + 1);
-        js.push(Js::new().await?);
-    }
-
-    let js_pool = UnmanagedPool::from(js);
-
-    HttpServer::new(move || {
-        App::new()
-            .app_data(Data::new(db_pool.clone()))
-            .app_data(Data::new(js_pool.clone()))
-            .service(get_html)
-            .service(get_item)
-            .service(get_items)
-            .service(submit_item)
-            .service(ResourceFiles::new("/", generate()).resolve_not_found_to_root())
-            .wrap(Compress::default())
-            .wrap(Logger::default())
-            .wrap(NormalizePath::new(TrailingSlash::Trim))
-            .wrap_fn(|request, service| {
-                let is_immutable = request.path().starts_with("/_app/immutable/");
-                let response = service.call(request);
-
-                async move {
-                    let mut response = response.await?;
-
-                    if is_immutable {
-                        response.headers_mut().insert(
-                            CACHE_CONTROL,
-                            HeaderValue::from_static("public, max-age=31536000, immutable"),
-                        );
-                    }
-
-                    Ok(response)
-                }
-            })
+pub fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> {
+    System::with_tokio_rt(|| {
+        Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("cannot init tokio runtime")
     })
-    .bind((host, port))?
-    .run()
-    .await
-    .map_err(Into::into)
+    .block_on(async move {
+        let db_pool = Config::new(db).create_pool(Runtime::Tokio1)?;
+
+        let last_item_id = db_pool
+            .get()
+            .await?
+            .interact(|db| {
+                db.prepare_schema()?;
+                db.get_last_item_id()
+            })
+            .await
+            .map_err(map_to_anyhow_error)?
+            .with_context(|| format!("cannot prepare database schema in {}", db.display()))?;
+
+        if let Some(last_item_id) = last_item_id {
+            LAST_ITEM_ID.store(last_item_id, Relaxed);
+        }
+
+        let js_pool_size = num_cpus::get();
+        let mut js = Vec::with_capacity(js_pool_size);
+
+        for i in 0..js_pool_size {
+            info!("creating js runtime ({} of {js_pool_size})", i + 1);
+            js.push(Js::new().await?);
+        }
+
+        let js_pool = UnmanagedPool::from(js);
+
+        HttpServer::new(move || {
+            App::new()
+                .app_data(Data::new(db_pool.clone()))
+                .app_data(Data::new(js_pool.clone()))
+                .service(get_html)
+                .service(get_item)
+                .service(get_items)
+                .service(submit_item)
+                .service(ResourceFiles::new("/", generate()).resolve_not_found_to_root())
+                .wrap(Compress::default())
+                .wrap(Logger::default())
+                .wrap(NormalizePath::new(TrailingSlash::Trim))
+                .wrap_fn(|request, service| {
+                    let is_immutable = request.path().starts_with("/_app/immutable/");
+                    let response = service.call(request);
+
+                    async move {
+                        let mut response = response.await?;
+
+                        if is_immutable {
+                            response.headers_mut().insert(
+                                CACHE_CONTROL,
+                                HeaderValue::from_static("public, max-age=31536000, immutable"),
+                            );
+                        }
+
+                        Ok(response)
+                    }
+                })
+        })
+        .bind((host, port))?
+        .run()
+        .await
+        .map_err(Into::into)
+    })
 }
 
 #[post("/item")]
