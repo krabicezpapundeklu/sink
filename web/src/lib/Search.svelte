@@ -4,8 +4,8 @@
 	import { ITEM_TYPES, localDateToString, MILLISECONDS_IN_HOUR } from '$lib/shared';
 
 	export let query: string;
-	export let system: string;
-	export let type: string;
+	export let system: string[];
+	export let type: string[];
 	export let from: string;
 	export let to: string;
 
@@ -17,6 +17,11 @@
 	let filterDropDown: { hide: () => void };
 
 	const dispatch = createEventDispatcher();
+
+	const clear = (): void => {
+		system = [];
+		type = [];
+	};
 
 	const lastHour = (): void => {
 		const now = new Date();
@@ -78,8 +83,16 @@
 		<div class="row">
 			<div class="col">
 				<label class="form-label" for="system">System</label>
-				<select class="form-select form-select-sm" id="system" name="system" value={system}>
-					<option value="">All</option>
+				{#if system.length}
+					<small>({system.length} selected)</small>
+				{/if}
+				<select
+					class="form-select form-select-sm"
+					id="system"
+					multiple
+					name="system"
+					bind:value={system}
+				>
 					{#each systems as system}
 						<option value={system}>{system}</option>
 					{/each}
@@ -87,8 +100,10 @@
 			</div>
 			<div class="col">
 				<label class="form-label" for="type">Type</label>
-				<select class="form-select form-select-sm" id="type" name="type" value={type}>
-					<option value="">All</option>
+				{#if type.length}
+					<small>({type.length} selected)</small>
+				{/if}
+				<select class="form-select form-select-sm" id="type" multiple name="type" bind:value={type}>
 					{#each ITEM_TYPES as type}
 						<option value={type.key}>{type.name}</option>
 					{/each}
@@ -128,7 +143,7 @@
 				Version:
 				<a href="https://github.com/krabicezpapundeklu/sink/releases/tag/{version}">{version}</a>
 			</div>
-			<button class="btn btn-link me-2" type="reset">Clear</button>
+			<button class="btn btn-link me-2" type="reset" on:click={clear}>Clear</button>
 			<button class="btn btn-primary">Search</button>
 		</div>
 	</div>

@@ -27,8 +27,8 @@
 	let loadMoreElement: HTMLElement;
 
 	let query: string;
-	let system: string;
-	let type: string;
+	let system: string[];
+	let type: string[];
 	let from: string;
 	let to: string;
 	let asc: boolean;
@@ -72,8 +72,8 @@
 		const params = $page.url.searchParams;
 
 		query = params.get('query') ?? '';
-		system = params.get('system') ?? '';
-		type = params.get('type') ?? '';
+		system = (params.get('system') ?? '').split(',').filter((s) => s.length);
+		type = (params.get('type') ?? '').split(',').filter((t) => t.length);
 		from = utcDateStringToLocalString(params.get('from'));
 		to = utcDateStringToLocalString(params.get('to'));
 		asc = (params.get('asc') ?? 'false') === 'true';
@@ -96,7 +96,15 @@
 					v = utcDateToString(new Date(v));
 				}
 
-				params.set(key, v);
+				let val = params.get(key) ?? '';
+
+				if (val) {
+					val += ',';
+				}
+
+				val += v;
+
+				params.set(key, val);
 			}
 		}
 

@@ -109,14 +109,48 @@ impl Repository for Connection {
             sql.push_str(") ");
         }
 
-        if let Some(system) = &filter.system {
-            params.push(system);
-            sql.push_str(" AND system = ?");
+        let systems: Vec<String> = if let Some(system) = &filter.system {
+            system.split(",").map(|s| s.to_string()).collect()
+        } else {
+            vec![]
+        };
+
+        if !systems.is_empty() {
+            sql.push_str(" AND system IN (");
+
+            for (i, system) in systems.iter().enumerate() {
+                params.push(system);
+
+                if i > 0 {
+                    sql.push_str(", ");
+                }
+
+                sql.push('?');
+            }
+
+            sql.push(')');
         }
 
-        if let Some(r#type) = &filter.r#type {
-            params.push(r#type);
-            sql.push_str(" AND type = ?");
+        let types: Vec<String> = if let Some(r#type) = &filter.r#type {
+            r#type.split(",").map(|t| t.to_string()).collect()
+        } else {
+            vec![]
+        };
+
+        if !types.is_empty() {
+            sql.push_str(" AND type IN (");
+
+            for (i, r#type) in types.iter().enumerate() {
+                params.push(r#type);
+
+                if i > 0 {
+                    sql.push_str(", ");
+                }
+
+                sql.push('?');
+            }
+
+            sql.push(')');
         }
 
         if let Some(from) = &filter.from {
