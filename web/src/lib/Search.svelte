@@ -23,6 +23,18 @@
 		type = [];
 	};
 
+	const countSelected = (selected: string[], available: string[]): number => {
+		let count = 0;
+
+		for (const item of selected) {
+			if (available.indexOf(item) !== -1) {
+				++count;
+			}
+		}
+
+		return count;
+	};
+
 	const lastHour = (): void => {
 		const now = new Date();
 
@@ -83,8 +95,8 @@
 		<div class="row">
 			<div class="col">
 				<label class="form-label" for="system">System</label>
-				{#if system.length}
-					<small>({system.length} selected)</small>
+				{#if countSelected(system, systems)}
+					<small>({countSelected(system, systems)} selected)</small>
 				{/if}
 				<select
 					class="form-select form-select-sm"
