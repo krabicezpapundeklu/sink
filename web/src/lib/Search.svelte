@@ -9,6 +9,7 @@
 	export let from: string;
 	export let to: string;
 
+	export let filterActive: boolean;
 	export let systems: string[] = [];
 
 	const version = env.PUBLIC_VERSION;
@@ -86,10 +87,51 @@
 		class="btn btn-primary filter rounded-end"
 		data-bs-auto-close="outside"
 		data-bs-toggle="dropdown"
+		title="Filter{filterActive ? ' active' : ''}"
 		type="button"
 		bind:this={filterButton}
 	>
-		Filter
+		{#if filterActive}
+			<svg
+				fill="white"
+				version="1.1"
+				viewBox="0 0 512 512"
+				width="1em"
+				xml:space="preserve"
+				xmlns:xlink="http://www.w3.org/1999/xlink"
+				xmlns="http://www.w3.org/2000/svg"
+			>
+				<g>
+					<g>
+						<polygon
+							points="0,0 0,128 201.143,329.143 201.143,512 310.857,475.429 310.857,329.143 512,128 512,0"
+						/>
+					</g>
+				</g>
+			</svg>
+		{:else}
+			<svg
+				fill="white"
+				version="1.1"
+				viewBox="0 0 300.906 300.906"
+				width="1em"
+				xml:space="preserve"
+				xmlns:xlink="http://www.w3.org/1999/xlink"
+				xmlns="http://www.w3.org/2000/svg"
+			>
+				<g>
+					<g>
+						<path
+							d="M288.953,0h-277c-5.522,0-10,4.478-10,10v49.531c0,5.522,4.478,10,10,10h12.372l91.378,107.397v113.978
+			c0,3.688,2.03,7.076,5.281,8.816c1.479,0.792,3.101,1.184,4.718,1.184c1.94,0,3.875-0.564,5.548-1.68l49.5-33
+			c2.782-1.854,4.453-4.977,4.453-8.32v-80.978l91.378-107.397h12.372c5.522,0,10-4.478,10-10V10C298.953,4.478,294.476,0,288.953,0
+			z M167.587,166.77c-1.539,1.809-2.384,4.105-2.384,6.48v79.305l-29.5,19.666V173.25c0-2.375-0.845-4.672-2.384-6.48L50.585,69.531
+			h199.736L167.587,166.77z M278.953,49.531h-257V20h257V49.531z"
+						/>
+					</g>
+				</g>
+			</svg>
+		{/if}
 	</button>
 	<div class="dropdown-menu mt-1 p-2 shadow w-100">
 		<div class="row">
