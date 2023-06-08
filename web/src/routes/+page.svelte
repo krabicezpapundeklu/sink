@@ -32,7 +32,6 @@
 	let from: string;
 	let to: string;
 	let asc: boolean;
-	let filterActive: boolean;
 
 	let loading = false;
 
@@ -78,8 +77,6 @@
 		from = utcDateStringToLocalString(params.get('from'));
 		to = utcDateStringToLocalString(params.get('to'));
 		asc = (params.get('asc') ?? 'false') === 'true';
-
-		filterActive = system.length > 0 || type.length > 0 || from.length > 0 || to.length > 0;
 	};
 
 	const refresh = (params: URLSearchParams) => {
@@ -201,7 +198,7 @@
 <div class="d-flex flex-column vh-100">
 	<nav class="navbar shadow">
 		<div class="m-auto w-50">
-			<Search {filterActive} {query} {system} {type} {from} {to} {systems} on:search={search} />
+			<Search {query} {system} {type} {from} {to} {systems} on:search={search} />
 		</div>
 	</nav>
 	<div class="d-flex flex-fill overflow-hidden">
