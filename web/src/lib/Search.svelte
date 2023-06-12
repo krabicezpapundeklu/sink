@@ -75,7 +75,7 @@
 	<label class="visually-hidden" for="query">Query</label>
 	<input
 		autocomplete="off"
-		class="border-0 form-control rounded-start"
+		class="form-control"
 		id="query"
 		name="query"
 		placeholder="Search"
@@ -83,7 +83,7 @@
 		value={query}
 	/>
 	<button
-		class="btn btn-primary filter rounded-end"
+		class="btn btn-outline-secondary filter"
 		data-bs-auto-close="outside"
 		data-bs-toggle="dropdown"
 		type="button"

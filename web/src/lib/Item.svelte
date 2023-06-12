@@ -46,7 +46,7 @@
 	</div>
 </div>
 <div class="d-flex mt-3">
-	<ul class="d-inline-flex nav nav-tabs">
+	<ul class="d-inline-flex nav nav-underline">
 		<li class="nav-item">
 			<a
 				class="nav-link"
@@ -76,14 +76,16 @@
 		</li>
 	</ul>
 	<div class="align-self-center flex-fill">
-		<button class="btn btn-secondary btn-sm float-end" on:click={copyTab}>Copy to Clipboard</button>
+		<button class="btn btn-outline-secondary btn-sm float-end" on:click={copyTab}
+			>Copy to Clipboard</button
+		>
 	</div>
 </div>
-<div class="bg-white" bind:this={tab}>
+<div class="mt-1 white-bg" bind:this={tab}>
 	{#if activeTab === 2}
 		<table class="m-0 table table-bordered table-sm">
 			<thead>
-				<tr class="border-top-0">
+				<tr>
 					<th scope="col">Name</th>
 					<th scope="col">Value</th>
 				</tr>
@@ -98,7 +100,7 @@
 			</tbody>
 		</table>
 	{:else}
-		<div class="border border-top-0 p-2">
+		<div class="border p-2">
 			<pre class="mb-0"><code
 					>{@html activeTab === 0 ? item.highlightedBodyPreview : item.higlightedBody}</code
 				></pre>

@@ -219,9 +219,9 @@
 					</select>
 				</div>
 			</div>
-			<div class="overflow-auto p-2" bind:this={itemListElement}>
+			<div class="overflow-auto" bind:this={itemListElement}>
 				{#if items.length > 0}
-					<div class="list-group list-group-flush">
+					<div class="list-group list-group-flush p-2">
 						{#each items as item, index (item.id)}
 							<a
 								class="list-group-item list-group-item-action"

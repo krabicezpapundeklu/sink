@@ -1,9 +1,8 @@
-$badge-border-radius: 0;
+$enable-dark-mode: false;
+$enable-rounded: false;
+$input-bg: white;
 $list-group-active-bg: white;
-$list-group-active-color: #495057;
-$list-group-bg: #f0f0f0;
-$list-group-hover-bg: white;
-$nav-link-color: #0a58ca;
+$list-group-active-color: black;
 
 @import 'bootstrap/scss/functions';
 @import 'bootstrap/scss/variables';
@@ -32,23 +31,12 @@ $nav-link-color: #0a58ca;
 	--bs-body-bg: #f0f0f0;
 }
 
-#query {
-	background-color: #dadae9;
-	color: #444791;
+.dropdown-menu {
+	--bs-dropdown-bg: white;
 }
 
-#query:focus {
-	background-color: white;
-	color: black;
-}
-
-nav {
-	background-color: #444791;
-}
-
-#query:focus,
-nav .filter:focus {
-	box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.25);
+.table {
+	--bs-table-bg: white;
 }
 
 .event_notification {
@@ -109,4 +97,8 @@ nav .filter:focus {
 
 .vacancy_updated {
 	background-color: $cyan-500;
+}
+
+.white-bg {
+	background-color: white;
 }
