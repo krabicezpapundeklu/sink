@@ -2,6 +2,7 @@
 	import { createEventDispatcher, onMount } from 'svelte';
 	import { env } from '$env/dynamic/public';
 	import { ITEM_TYPES, localDateToString, MILLISECONDS_IN_HOUR } from '$lib/shared';
+	import SettingsIcon from './SettingsIcon.svelte';
 
 	export let query: string;
 	export let system: string[];
@@ -71,11 +72,12 @@
 	});
 </script>
 
-<form class="dropdown input-group m-1" on:submit|preventDefault={search}>
+<form class="dropdown m-1" on:submit|preventDefault={search}>
+	<div class="border d-flex p-1 rounded-pill text-bg-light w-100">
 	<label class="visually-hidden" for="query">Query</label>
 	<input
 		autocomplete="off"
-		class="form-control"
+		class="border-0 form-control rounded-start-pill"
 		id="query"
 		name="query"
 		placeholder="Search"
@@ -83,13 +85,13 @@
 		value={query}
 	/>
 	<button
-		class="btn btn-outline-secondary filter"
+		class="align-items-center btn btn-link d-flex filter rounded-end-pill"
 		data-bs-auto-close="outside"
 		data-bs-toggle="dropdown"
 		type="button"
 		bind:this={filterButton}
 	>
-		Filter
+		<SettingsIcon />
 	</button>
 	<div class="dropdown-menu mt-1 p-2 shadow w-100">
 		<div class="row">
@@ -159,4 +161,5 @@
 			<button class="btn btn-primary">Search</button>
 		</div>
 	</div>
+</div>
 </form>
