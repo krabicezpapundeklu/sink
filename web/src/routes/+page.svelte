@@ -196,13 +196,13 @@
 </svelte:head>
 
 <div class="d-flex flex-column vh-100">
-	<nav class="navbar shadow">
+	<nav class="navbar">
 		<div class="m-auto w-50">
 			<Search {query} {system} {type} {from} {to} {systems} on:search={search} />
 		</div>
 	</nav>
 	<div class="d-flex flex-fill overflow-hidden">
-		<div class="border-end d-flex flex-column" style="min-width: 25em">
+		<div class="d-flex flex-column" style="min-width: 25em">
 			<div class="align-items-center border-bottom d-flex justify-content-between p-2">
 				<div>{formatNumber(totalItems)} Items</div>
 				<div class="d-flex">
@@ -257,11 +257,11 @@
 			</div>
 		</div>
 		{#if activeItem}
-			<div class="flex-fill overflow-auto p-2">
+			<div class="border-start border-top flex-fill overflow-auto p-2 rounded-top">
 				<Item item={activeItem} />
 			</div>
 		{:else}
-			<div class="d-flex flex-fill">
+			<div class="border-start border-top d-flex flex-fill rounded-top">
 				<div class="m-auto opacity-25 w-25">
 					<svg
 						xmlns="http://www.w3.org/2000/svg"

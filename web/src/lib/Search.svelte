@@ -74,92 +74,101 @@
 
 <form class="dropdown m-1" on:submit|preventDefault={search}>
 	<div class="border d-flex p-1 rounded-pill text-bg-light w-100">
-	<label class="visually-hidden" for="query">Query</label>
-	<input
-		autocomplete="off"
-		class="border-0 form-control rounded-start-pill"
-		id="query"
-		name="query"
-		placeholder="Search"
-		type="search"
-		value={query}
-	/>
-	<button
-		class="align-items-center btn btn-link d-flex filter rounded-end-pill"
-		data-bs-auto-close="outside"
-		data-bs-toggle="dropdown"
-		type="button"
-		bind:this={filterButton}
-	>
-		<SettingsIcon />
-	</button>
-	<div class="dropdown-menu mt-1 p-2 shadow w-100">
-		<div class="row">
-			<div class="col">
-				<label class="form-label" for="system">System</label>
-				{#if countSelected(system, systems)}
-					<small>({countSelected(system, systems)} selected)</small>
-				{/if}
-				<select
-					class="form-select form-select-sm"
-					id="system"
-					multiple
-					name="system"
-					bind:value={system}
+		<label class="visually-hidden" for="query">Query</label>
+		<input
+			autocomplete="off"
+			class="border-0 form-control rounded-start-pill"
+			id="query"
+			name="query"
+			placeholder="Search"
+			type="search"
+			value={query}
+		/>
+		<button
+			class="align-items-center btn btn-link d-flex filter rounded-end-pill"
+			data-bs-auto-close="outside"
+			data-bs-toggle="dropdown"
+			title="Filter"
+			type="button"
+			bind:this={filterButton}
+		>
+			<SettingsIcon />
+		</button>
+		<div class="dropdown-menu mt-1 p-2 shadow w-100">
+			<div class="row">
+				<div class="col">
+					<label class="form-label" for="system">System</label>
+					{#if countSelected(system, systems)}
+						<small>({countSelected(system, systems)} selected)</small>
+					{/if}
+					<select
+						class="form-select form-select-sm"
+						id="system"
+						multiple
+						name="system"
+						bind:value={system}
+					>
+						{#each systems as system}
+							<option value={system}>{system}</option>
+						{/each}
+					</select>
+				</div>
+				<div class="col">
+					<label class="form-label" for="type">Type</label>
+					{#if type.length}
+						<small>({type.length} selected)</small>
+					{/if}
+					<select
+						class="form-select form-select-sm"
+						id="type"
+						multiple
+						name="type"
+						bind:value={type}
+					>
+						{#each ITEM_TYPES as type}
+							<option value={type.key}>{type.name}</option>
+						{/each}
+					</select>
+				</div>
+			</div>
+			<div class="mt-2 row">
+				<div class="col">
+					<label class="form-label" for="from">Submitted From</label>
+					<input
+						class="form-control form-control-sm"
+						id="from"
+						name="from"
+						type="datetime-local"
+						value={from}
+					/>
+				</div>
+				<div class="col">
+					<label class="form-label" for="to">Submitted To</label>
+					<input
+						class="form-control form-control-sm"
+						id="to"
+						name="to"
+						type="datetime-local"
+						value={to}
+					/>
+				</div>
+			</div>
+			<div class="d-flex justify-content-end mt-2">
+				<button class="btn btn-outline-secondary btn-sm me-2" type="button" on:click={lastHour}>
+					Last Hour
+				</button>
+				<button class="btn btn-outline-secondary btn-sm" type="button" on:click={today}
+					>Today</button
 				>
-					{#each systems as system}
-						<option value={system}>{system}</option>
-					{/each}
-				</select>
 			</div>
-			<div class="col">
-				<label class="form-label" for="type">Type</label>
-				{#if type.length}
-					<small>({type.length} selected)</small>
-				{/if}
-				<select class="form-select form-select-sm" id="type" multiple name="type" bind:value={type}>
-					{#each ITEM_TYPES as type}
-						<option value={type.key}>{type.name}</option>
-					{/each}
-				</select>
+			<div class="border-top d-flex justify-content-end mt-2 pt-2">
+				<div class="me-auto my-auto">
+					Version:
+					<a href="https://github.com/krabicezpapundeklu/sink/releases/tag/{version}">{version}</a>
+				</div>
+				<button class="btn btn-link me-2" type="reset" on:click={clear}>Clear</button>
+				<button class="btn btn-primary">Search</button>
 			</div>
-		</div>
-		<div class="mt-2 row">
-			<div class="col">
-				<label class="form-label" for="from">Submitted From</label>
-				<input
-					class="form-control form-control-sm"
-					id="from"
-					name="from"
-					type="datetime-local"
-					value={from}
-				/>
-			</div>
-			<div class="col">
-				<label class="form-label" for="to">Submitted To</label>
-				<input
-					class="form-control form-control-sm"
-					id="to"
-					name="to"
-					type="datetime-local"
-					value={to}
-				/>
-			</div>
-		</div>
-		<div class="d-flex justify-content-end mt-2">
-			<button class="btn btn-outline-secondary btn-sm me-2" type="button" on:click={lastHour}>
-				Last Hour
-			</button>
-			<button class="btn btn-outline-secondary btn-sm" type="button" on:click={today}>Today</button>
-		</div>
-		<div class="border-top d-flex justify-content-end mt-2 pt-2">
-			<div class="me-auto my-auto">
-				Version:
-				<a href="https://github.com/krabicezpapundeklu/sink/releases/tag/{version}">{version}</a>
-			</div>
-			<button class="btn btn-link me-2" type="reset" on:click={clear}>Clear</button>
-			<button class="btn btn-primary">Search</button>
 		</div>
 	</div>
-</div>
 </form>
