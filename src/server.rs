@@ -24,8 +24,12 @@ use deadpool_sqlite::{Config, InteractError, Pool, Runtime};
 use log::{debug, info};
 
 use rquickjs::{
-    embed, Async, Context as JsContext, Ctx, Func, Function, IntoJs, Object, Promise,
-    Result as JsResult, Runtime as JsRuntime, Tokio, Value as JsValue,
+    async_with, embed,
+    function::{Async, Func, Function},
+    loader::Bundle,
+    promise::Promise,
+    AsyncContext as JsContext, AsyncRuntime as JsRuntime, Ctx, IntoJs, Object, Result as JsResult,
+    Value as JsValue,
 };
 
 use rusqlite::Connection;
@@ -37,12 +41,13 @@ use crate::{
     shared::{Item, ItemFilter, ItemHeader, ItemSummary},
 };
 
-#[embed(name = "main", path = "./web/build/server")]
-mod server_module {}
-
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+static BUNDLE: Bundle = embed! {
+    "main": "./web/build/server/main.js"
+};
 
 static LAST_ITEM_ID: AtomicI64 = AtomicI64::new(0);
 
@@ -76,12 +81,11 @@ impl Js {
 
     async fn new() -> Result<Self> {
         let runtime = JsRuntime::new()?;
-        let context = JsContext::full(&runtime)?;
+        let context = JsContext::full(&runtime).await?;
 
-        runtime.set_loader(SERVER_MODULE, SERVER_MODULE);
-        runtime.spawn_executor(Tokio);
+        runtime.set_loader(BUNDLE, BUNDLE).await;
 
-        let result: Promise<()> = context.with(|ctx| {
+        async_with!(context => |ctx| {
             let globals = ctx.globals();
 
             globals.set("debug", Func::from(|message: String| debug!("{message}")))?;
@@ -97,23 +101,16 @@ impl Js {
             globals.set("render", render)?;
 
             init.call((VERSION,))
-        })?;
+        })
+        .await?;
 
-        result.await?;
         runtime.idle().await;
 
         Ok(Self { runtime, context })
     }
 
-    fn run<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(Ctx) -> R,
-    {
-        self.context.with(f)
-    }
-
-    fn run_gc(&self) {
-        self.runtime.run_gc();
+    async fn run_gc(&self) {
+        self.runtime.run_gc().await;
     }
 }
 
@@ -160,7 +157,12 @@ where
         .map_err(|err| ServerError(err.into()))
 }
 
-async fn fetch_data(db_pool: Pool, path: String, search: String, tz: String) -> FetchDataResult {
+async fn fetch_data(
+    db_pool: Pool,
+    path: String,
+    search: String,
+    tz: String,
+) -> JsResult<FetchDataResult> {
     async fn get_data(db_pool: Pool, path: String, search: String, tz: String) -> Result<String> {
         let db = db_pool.get().await?;
 
@@ -195,10 +197,10 @@ async fn fetch_data(db_pool: Pool, path: String, search: String, tz: String) -> 
 
     let result = get_data(db_pool, path, search, tz).await;
 
-    match result {
+    Ok(match result {
         Ok(data) => FetchDataResult::Data(data),
         Err(error) => FetchDataResult::Error(error.to_string()),
-    }
+    })
 }
 
 fn format_submit_date(item: &mut Item, tz: &str) -> Result<()> {
@@ -341,7 +343,7 @@ fn map_to_anyhow_error(error: InteractError) -> Error {
 async fn render(db_pool: Pool, js: &Js, path: &str, tz: String) -> Result<String> {
     debug!("render START");
 
-    let result: Promise<String> = js.run(|ctx| {
+    let result = async_with!(js.context => |ctx| {
         let globals = ctx.globals();
 
         let fetch_data = Func::from(Async(move |path, search| {
@@ -352,16 +354,17 @@ async fn render(db_pool: Pool, js: &Js, path: &str, tz: String) -> Result<String
 
         globals.set("fetchData", fetch_data)?;
 
-        render.call((path,))
-    })?;
+        let result: Promise<String> = render.call((path,))?;
 
-    let result = result.await?;
+        result.await
+    })
+    .await?;
 
     js.idle().await;
 
     debug!("run_gc START");
 
-    js.run_gc();
+    js.run_gc().await;
 
     debug!("run_gc END");
     debug!("render END");
