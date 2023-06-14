@@ -257,11 +257,11 @@
 			</div>
 		</div>
 		{#if activeItem}
-			<div class="border-start border-top flex-fill overflow-auto p-2 rounded-top">
+			<div class="border-start border-top flex-fill ms-1 mt-1 overflow-auto p-2 rounded-top shadow" style="background-color: #f5f5f5">
 				<Item item={activeItem} />
 			</div>
 		{:else}
-			<div class="border-start border-top d-flex flex-fill rounded-top">
+			<div class="border-start border-top d-flex flex-fill ms-1 mt-1 rounded-top shadow" style="background-color: #f5f5f5">
 				<div class="m-auto opacity-25 w-25">
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
