@@ -69,7 +69,7 @@ fn main() -> Result<()> {
             }
 
             let c_chars: Vec<*const c_char> = c_strings.iter().map(|cs| cs.as_ptr()).collect();
-            let result = shell_main(c_chars.len() as c_int, c_chars.as_ptr());
+            let result = shell_main(c_int::try_from(c_chars.len())?, c_chars.as_ptr());
 
             exit(result);
         },

@@ -1859,7 +1859,7 @@ dependencies = [
 
 [[package]]
 name = "sink"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "actix-web",
  "actix-web-static-files",

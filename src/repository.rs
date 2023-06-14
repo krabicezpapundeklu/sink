@@ -1,4 +1,4 @@
-use std::{fmt::Debug, mem::take, str::FromStr};
+use std::{fmt::Debug, mem::take, str::FromStr, string::ToString};
 
 use anyhow::Result;
 use log::debug;
@@ -110,7 +110,7 @@ impl Repository for Connection {
         }
 
         let systems: Vec<String> = if let Some(system) = &filter.system {
-            system.split(",").map(|s| s.to_string()).collect()
+            system.split(',').map(ToString::to_string).collect()
         } else {
             vec![]
         };
@@ -132,7 +132,7 @@ impl Repository for Connection {
         }
 
         let types: Vec<String> = if let Some(r#type) = &filter.r#type {
-            r#type.split(",").map(|t| t.to_string()).collect()
+            r#type.split(',').map(ToString::to_string).collect()
         } else {
             vec![]
         };
