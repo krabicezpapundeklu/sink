@@ -1,4 +1,5 @@
 use std::{
+    cmp::max,
     fmt::{self, Display, Formatter},
     path,
     sync::atomic::{AtomicI64, Ordering::Relaxed},
@@ -113,8 +114,6 @@ impl Js {
         self.runtime.run_gc().await;
     }
 }
-
-unsafe impl Send for Js {}
 
 type JsPool = UnmanagedPool<Js>;
 type Response<T> = Result<T, ServerError>;
@@ -397,7 +396,7 @@ pub fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> {
             LAST_ITEM_ID.store(last_item_id, Relaxed);
         }
 
-        let js_pool_size = num_cpus::get();
+        let js_pool_size = max(2, num_cpus::get());
         let mut js = Vec::with_capacity(js_pool_size);
 
         for i in 0..js_pool_size {
