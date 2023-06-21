@@ -1,7 +1,6 @@
 use std::{
     env::current_exe,
     ffi::{c_char, CString, OsString},
-    os::unix::prelude::OsStrExt,
     path::PathBuf,
     process::exit,
 };
@@ -11,6 +10,9 @@ use clap::{Parser, Subcommand};
 use env_logger::Env;
 use libc::c_int;
 use server::start_server;
+
+#[cfg(unix)]
+use std::os::unix::prelude::OsStrExt;
 
 mod repository;
 mod server;
@@ -29,6 +31,7 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Command {
+    #[cfg(unix)]
     /// Enter SQL shell
     Shell {
         /// Arguments passed directly to the shell
@@ -59,6 +62,7 @@ fn main() -> Result<()> {
         .init();
 
     match &args.command {
+        #[cfg(unix)]
         Command::Shell { args } => unsafe {
             let mut c_strings = Vec::new();
 

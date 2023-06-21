@@ -3,12 +3,17 @@ use std::io::Result;
 use cc::Build;
 use static_files::NpmBuild;
 
-fn main() -> Result<()> {
+fn build_sqlite_shell() {
     println!("cargo:rerun-if-changed=sqlite-shell");
 
     Build::new()
         .file("./sqlite-shell/shell.c")
         .compile("sqlite-shell");
+}
+
+fn main() -> Result<()> {
+    #[cfg(unix)]
+    build_sqlite_shell();
 
     println!("cargo:rerun-if-changed=web/adapter");
     println!("cargo:rerun-if-changed=web/src");
