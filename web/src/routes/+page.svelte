@@ -201,7 +201,7 @@
 			<Search {query} {system} {type} {from} {to} {systems} on:search={search} />
 		</div>
 	</nav>
-	<div class="d-flex flex-fill overflow-hidden">
+	<div class="border-top d-flex flex-fill overflow-hidden">
 		<div class="d-flex flex-column" style="min-width: 25em">
 			<div class="align-items-center border-bottom d-flex justify-content-between p-2">
 				<div>{formatNumber(totalItems)} Items</div>
@@ -219,7 +219,7 @@
 					</select>
 				</div>
 			</div>
-			<div class="overflow-auto" bind:this={itemListElement}>
+			<div class="me-1 overflow-auto" bind:this={itemListElement}>
 				{#if items.length > 0}
 					<div class="list-group list-group-flush p-2">
 						{#each items as item, index (item.id)}
@@ -258,14 +258,14 @@
 		</div>
 		{#if activeItem}
 			<div
-				class="border-start border-top flex-fill ms-1 mt-1 overflow-auto p-2 rounded-top shadow"
+				class="border-start flex-fill overflow-auto p-2 shadow"
 				style="background-color: #f5f5f5"
 			>
 				<Item item={activeItem} />
 			</div>
 		{:else}
 			<div
-				class="border-start border-top d-flex flex-fill ms-1 mt-1 rounded-top shadow"
+				class="border-start d-flex flex-fill shadow"
 				style="background-color: #f5f5f5"
 			>
 				<div class="m-auto opacity-25 w-25">
