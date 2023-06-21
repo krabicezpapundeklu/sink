@@ -17,10 +17,10 @@ libc = "0.2.146"
 log = "0.4.19"
 md5 = "0.7.0"
 num_cpus = "1.15.0"
-rquickjs = { version = "0.2.2", features = ["bindgen", "futures", "loader", "macro", "parallel"] }
+rquickjs = { version = "0.3.0", features = ["bindgen", "futures", "loader", "macro", "parallel"] }
 rusqlite = { version = "0.28.0", features = ["bundled"] }
 serde = { version = "1.0.164", features = ["derive"] }
-serde_json = "1.0.96"
+serde_json = "1.0.97"
 static-files = "0.2.3"
 tokio = { version = "1.28.2", features = ["rt-multi-thread"] }
 xml-rs = "0.8.14"

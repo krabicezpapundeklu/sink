@@ -264,10 +264,7 @@
 				<Item item={activeItem} />
 			</div>
 		{:else}
-			<div
-				class="border-start d-flex flex-fill shadow"
-				style="background-color: #f5f5f5"
-			>
+			<div class="border-start d-flex flex-fill shadow" style="background-color: #f5f5f5">
 				<div class="m-auto opacity-25 w-25">
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
