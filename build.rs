@@ -12,7 +12,6 @@ fn build_sqlite_shell() {
 }
 
 fn main() -> Result<()> {
-    #[cfg(unix)]
     build_sqlite_shell();
 
     println!("cargo:rerun-if-changed=web/adapter");

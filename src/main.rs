@@ -1,6 +1,6 @@
 use std::{
     env::current_exe,
-    ffi::{c_char, CString, OsString},
+    ffi::{c_char, CString, OsStr, OsString},
     path::PathBuf,
     process::exit,
 };
@@ -10,9 +10,6 @@ use clap::{Parser, Subcommand};
 use env_logger::Env;
 use libc::c_int;
 use server::start_server;
-
-#[cfg(unix)]
-use std::os::unix::prelude::OsStrExt;
 
 mod repository;
 mod server;
@@ -31,7 +28,6 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Command {
-    #[cfg(unix)]
     /// Enter SQL shell
     Shell {
         /// Arguments passed directly to the shell
@@ -62,14 +58,13 @@ fn main() -> Result<()> {
         .init();
 
     match &args.command {
-        #[cfg(unix)]
         Command::Shell { args } => unsafe {
             let mut c_strings = Vec::new();
 
-            c_strings.push(CString::new(current_exe()?.as_os_str().as_bytes())?);
+            c_strings.push(to_cstring(current_exe()?.as_os_str())?);
 
             for arg in args {
-                c_strings.push(CString::new(arg.as_bytes())?);
+                c_strings.push(to_cstring(arg)?);
             }
 
             let c_chars: Vec<*const c_char> = c_strings.iter().map(|cs| cs.as_ptr()).collect();
@@ -81,4 +76,8 @@ fn main() -> Result<()> {
             start_server(host, *port, db).context("error running server")
         }
     }
+}
+
+fn to_cstring(os_string: &OsStr) -> Result<CString> {
+    CString::new(os_string.to_string_lossy().as_bytes()).map_err(Into::into)
 }
