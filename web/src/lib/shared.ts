@@ -4,6 +4,7 @@ import plaintext from 'highlight.js/lib/languages/plaintext';
 import xml from 'highlight.js/lib/languages/xml';
 
 import type { Item, ItemSearchResult, ItemType, ItemWithHighlighting } from './model';
+import { error } from '@sveltejs/kit';
 
 declare function debug(message: string): void;
 
@@ -200,6 +201,11 @@ export async function loadItems(
 	url += `&${params}`;
 
 	const response = await fetch(url);
+
+	if (!response.ok) {
+		throw error(response.status, await response.text());
+	}
+
 	const items = await response.json();
 
 	return items;
