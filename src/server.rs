@@ -355,7 +355,10 @@ pub fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> {
         for i in 0..pool_size {
             info!("creating db connection ({} of {pool_size})", i + 1);
 
-            connections.push(Connection::open(db)?);
+            let connection = Connection::open(db)?;
+
+            connection.init()?;
+            connections.push(connection);
         }
 
         let db_pool = UnmanagedPool::from(connections);

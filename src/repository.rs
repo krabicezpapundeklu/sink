@@ -1,9 +1,12 @@
-use std::{fmt::Debug, mem::take, str::FromStr, string::ToString};
+use std::{fmt::Debug, mem::take, str::FromStr, string::ToString, sync::Arc};
 
 use anyhow::Result;
 use log::debug;
 
+use regex::bytes::Regex;
+
 use rusqlite::{
+    functions::FunctionFlags,
     params, params_from_iter,
     types::{FromSql, FromSqlError, FromSqlResult, ToSqlOutput, Value, ValueRef},
     Connection, Error, ToSql,
@@ -41,6 +44,8 @@ pub trait Repository {
     fn get_item(&self, id: i64) -> Result<Item>;
     fn get_items(&self, filter: &ItemFilter) -> Result<ItemSearchResult>;
     fn get_last_item_id(&self) -> Result<Option<i64>>;
+
+    fn init(&self) -> Result<()>;
 
     fn insert_item(&mut self, item: &Item) -> Result<i64>;
 
@@ -95,15 +100,23 @@ impl Repository for Connection {
         .to_string();
 
         let mut terms = Vec::new();
+        let regex: String;
 
         if let Some(query) = &filter.query {
-            parse_query(query, &mut terms);
-
             sql.push_str(" AND EXISTS (SELECT 1 FROM item_body WHERE item_id = id");
 
-            for term in &terms {
-                params.push(term);
-                sql.push_str(" AND body LIKE '%' || ? || '%'");
+            if let Some(pattern) = query.strip_prefix("regex:") {
+                regex = pattern.to_string();
+
+                params.push(&regex);
+                sql.push_str(" AND matches(?, body)");
+            } else {
+                parse_query(query, &mut terms);
+
+                for term in &terms {
+                    params.push(term);
+                    sql.push_str(" AND body LIKE '%' || ? || '%'");
+                }
             }
 
             sql.push_str(") ");
@@ -220,6 +233,29 @@ impl Repository for Connection {
         debug!("get_items END");
 
         Ok(result)
+    }
+
+    fn init(&self) -> Result<()> {
+        self.create_scalar_function("matches", 2, FunctionFlags::SQLITE_DETERMINISTIC, |ctx| {
+            type BoxError = Box<dyn std::error::Error + Send + Sync + 'static>;
+
+            let regex: Arc<Regex> = ctx.get_or_create_aux(0, |vr| -> Result<_, BoxError> {
+                Ok(Regex::new(vr.as_str()?)?)
+            })?;
+
+            let is_match = {
+                let text = ctx
+                    .get_raw(1)
+                    .as_bytes()
+                    .map_err(|e| Error::UserFunctionError(e.into()))?;
+
+                regex.is_match(text)
+            };
+
+            Ok(is_match)
+        })?;
+
+        Ok(())
     }
 
     fn insert_item(&mut self, item: &Item) -> Result<i64> {
