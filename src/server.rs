@@ -17,11 +17,10 @@ use actix_web::{
 };
 
 use actix_web_static_files::ResourceFiles;
-use anyhow::{anyhow, bail, Context, Error, Result};
+use anyhow::{bail, Error, Result};
 use chrono::{DateTime, Datelike, Locale, NaiveDateTime, Utc};
 use chrono_tz::Tz;
-use deadpool::unmanaged::Pool as UnmanagedPool;
-use deadpool_sqlite::{Config, InteractError, Pool, Runtime};
+use deadpool::unmanaged::{Pool as UnmanagedPool, PoolError};
 use log::{debug, info};
 
 use rquickjs::{
@@ -44,13 +43,15 @@ use crate::{
 
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
-const VERSION: &str = env!("CARGO_PKG_VERSION");
-
 static BUNDLE: Bundle = embed! {
     "main": "./web/build/server/main.js"
 };
 
 static LAST_ITEM_ID: AtomicI64 = AtomicI64::new(0);
+
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+type DbPool = UnmanagedPool<Connection>;
 
 pub enum FetchDataResult {
     Data(String),
@@ -133,55 +134,32 @@ impl From<Error> for ServerError {
     }
 }
 
-impl From<InteractError> for ServerError {
-    fn from(value: InteractError) -> Self {
-        Self(map_to_anyhow_error(value))
+impl From<PoolError> for ServerError {
+    fn from(value: PoolError) -> Self {
+        Self(Error::new(value))
     }
 }
 
 impl ResponseError for ServerError {}
 
-async fn call_db<F, T, E>(db_pool: &Pool, f: F) -> Response<T>
-where
-    F: FnOnce(&mut Connection) -> Result<T, E> + Send + 'static,
-    T: Send + 'static,
-    E: Send + Into<Error> + 'static,
-{
-    db_pool
-        .get()
-        .await
-        .map_err(Error::new)?
-        .interact(f)
-        .await?
-        .map_err(|err| ServerError(err.into()))
-}
-
 async fn fetch_data(
-    db_pool: Pool,
+    db_pool: DbPool,
     path: String,
     search: String,
     tz: String,
 ) -> JsResult<FetchDataResult> {
-    async fn get_data(db_pool: Pool, path: String, search: String, tz: String) -> Result<String> {
+    async fn get_data(db_pool: DbPool, path: String, search: String, tz: String) -> Result<String> {
         let db = db_pool.get().await?;
 
         let data = if let Some(id) = path.strip_prefix("/api/item/") {
             let id: i64 = id.parse()?;
-
-            let mut item = db
-                .interact(move |db| db.get_item(id))
-                .await
-                .map_err(map_to_anyhow_error)??;
+            let mut item = db.get_item(id)?;
 
             format_submit_date(&mut item, &tz)?;
             to_string(&item)
         } else if path == "/api/items" {
             let filter = Query::<ItemFilter>::from_query(&search)?.0;
-
-            let mut items = db
-                .interact(move |db| db.get_items(&filter))
-                .await
-                .map_err(map_to_anyhow_error)??;
+            let mut items = db.get_items(&filter)?;
 
             format_submit_dates(items.items.as_mut_slice(), &tz)?;
             to_string(&items)
@@ -261,7 +239,7 @@ fn get_etag(path: &str, tz: &str, use_last_item_id: bool) -> String {
 #[get("/")]
 #[get("/item/{id}")]
 async fn get_html(
-    db_pool: Data<Pool>,
+    db_pool: Data<DbPool>,
     js_pool: Data<JsPool>,
     request: HttpRequest,
 ) -> Response<impl Responder> {
@@ -289,14 +267,13 @@ async fn get_html(
 
 #[get("/api/item/{id}")]
 async fn get_item(
-    db_pool: Data<Pool>,
+    db_pool: Data<DbPool>,
     path: Path<i64>,
     request: HttpRequest,
 ) -> Response<impl Responder> {
     let id = path.into_inner();
     let tz = get_tz(&request).unwrap_or_default();
-
-    let mut item = call_db(&db_pool, move |db| db.get_item(id)).await?;
+    let mut item = db_pool.get().await?.get_item(id)?;
 
     format_submit_date(&mut item, &tz)?;
 
@@ -305,14 +282,13 @@ async fn get_item(
 
 #[get("/api/items")]
 async fn get_items(
-    db_pool: Data<Pool>,
+    db_pool: Data<DbPool>,
     filter: Query<ItemFilter>,
     request: HttpRequest,
 ) -> Response<impl Responder> {
     let filter = filter.into_inner();
     let tz = get_tz(&request).unwrap_or_default();
-
-    let mut items = call_db(&db_pool, move |db| db.get_items(&filter)).await?;
+    let mut items = db_pool.get().await?.get_items(&filter)?;
 
     format_submit_dates(items.items.as_mut_slice(), &tz)?;
 
@@ -332,14 +308,7 @@ fn get_tz(request: &HttpRequest) -> Option<String> {
     request.cookie("tz").map(|tz| tz.value().to_string())
 }
 
-fn map_to_anyhow_error(error: InteractError) -> Error {
-    anyhow!(match error {
-        InteractError::Panic(_) => "panic",
-        InteractError::Aborted => "aborted",
-    })
-}
-
-async fn render(db_pool: Pool, js: &Js, path: &str, tz: String) -> Result<String> {
+async fn render(db_pool: DbPool, js: &Js, path: &str, tz: String) -> Result<String> {
     debug!("render START");
 
     let result = async_with!(js.context => |ctx| {
@@ -379,32 +348,34 @@ pub fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> {
             .expect("cannot init tokio runtime")
     })
     .block_on(async move {
-        let db_pool = Config::new(db).create_pool(Runtime::Tokio1)?;
+        let pool_size = max(2, num_cpus::get());
 
-        let last_item_id = db_pool
-            .get()
-            .await?
-            .interact(|db| {
-                db.prepare_schema()?;
-                db.get_last_item_id()
-            })
-            .await
-            .map_err(map_to_anyhow_error)?
-            .with_context(|| format!("cannot prepare database schema in {}", db.display()))?;
+        let mut connections = Vec::with_capacity(pool_size);
 
-        if let Some(last_item_id) = last_item_id {
-            LAST_ITEM_ID.store(last_item_id, Relaxed);
+        for i in 0..pool_size {
+            info!("creating db connection ({} of {pool_size})", i + 1);
+
+            connections.push(Connection::open(db)?);
         }
 
-        let js_pool_size = max(2, num_cpus::get());
-        let mut js = Vec::with_capacity(js_pool_size);
+        let db_pool = UnmanagedPool::from(connections);
 
-        for i in 0..js_pool_size {
-            info!("creating js runtime ({} of {js_pool_size})", i + 1);
+        let mut js = Vec::with_capacity(pool_size);
+
+        for i in 0..pool_size {
+            info!("creating js runtime ({} of {pool_size})", i + 1);
             js.push(Js::new().await?);
         }
 
         let js_pool = UnmanagedPool::from(js);
+
+        let db = db_pool.get().await?;
+
+        db.prepare_schema()?;
+
+        if let Some(last_item_id) = db.get_last_item_id()? {
+            LAST_ITEM_ID.store(last_item_id, Relaxed);
+        }
 
         HttpServer::new(move || {
             App::new()
@@ -445,7 +416,7 @@ pub fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> {
 
 #[post("/item")]
 async fn submit_item(
-    db_pool: Data<Pool>,
+    db_pool: Data<DbPool>,
     request: HttpRequest,
     body: Bytes,
 ) -> Response<impl Responder> {
@@ -470,11 +441,9 @@ async fn submit_item(
         body: body.to_vec(),
     };
 
-    let id = call_db(&db_pool, move |db| {
-        item.update_metadata();
-        db.insert_item(&item)
-    })
-    .await?;
+    item.update_metadata();
+
+    let id = db_pool.get().await?.insert_item(&item)?;
 
     LAST_ITEM_ID.store(id, Relaxed);
 
