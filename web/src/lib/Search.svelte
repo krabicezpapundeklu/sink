@@ -193,7 +193,7 @@
 			type="button"
 			bind:this={queryButton}
 		>
-			<svg xmlns="http://www.w3.org/2000/svg" height="1.5em" viewBox="0 -960 960 960"
+			<svg xmlns="http://www.w3.org/2000/svg" height="1.3em" viewBox="0 -960 960 960"
 				><path
 					style="fill: #6c757d"
 					d="M260-260h560v-560h-60v278l-93-57-93 57v-278H260v560Zm0 60q-24 0-42-18t-18-42v-560q0-24 18-42t42-18h560q24 0 42 18t18 42v560q0 24-18 42t-42 18H260ZM140-80q-24 0-42-18t-18-42v-620h60v620h620v60H140Zm434-740h186-186Zm-314 0h560-560Z"
@@ -226,7 +226,7 @@
 			type="button"
 			bind:this={filterButton}
 		>
-			<svg xmlns="http://www.w3.org/2000/svg" height="1.5em" viewBox="0 -960 960 960"
+			<svg xmlns="http://www.w3.org/2000/svg" height="1.3em" viewBox="0 -960 960 960"
 				><path
 					style="fill: #6c757d"
 					d="M427-120v-225h60v83h353v60H487v82h-60Zm-307-82v-60h247v60H120Zm187-166v-82H120v-60h187v-84h60v226h-60Zm120-82v-60h413v60H427Zm166-165v-225h60v82h187v60H653v83h-60Zm-473-83v-60h413v60H120Z"
