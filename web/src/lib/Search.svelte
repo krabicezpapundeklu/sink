@@ -12,95 +12,150 @@
 	export let systems: string[] = [];
 
 	const events = [
-		{ id: 91, label: 'APPIAN_CASE APPIAN_SEND_PAYLOAD' },
-		{ id: 90, label: 'APPIAN_EIE APPIAN_EIE_EVENT' },
-		{ id: 49, label: 'APPLICANT RESUME_CREATED_UPDATED' },
-		{ id: 50, label: 'APPLICANT RESUME_CREATED_UPDATED_DOC' },
-		{ id: 44, label: 'APPLICATION CREATED' },
-		{ id: 48, label: 'APPLICATION FIRST_HIRED' },
-		{ id: 46, label: 'APPLICATION HIRED' },
-		{ id: 47, label: 'APPLICATION UNHIRED' },
-		{ id: 45, label: 'APPLICATION UPDATED' },
-		{ id: 42, label: 'CERTIFICATE CREATED' },
-		{ id: 72, label: 'CERTIFICATE EXPIRATION_UPDATED' },
-		{ id: 71, label: 'CERTIFICATE STATUS_CHANGED' },
-		{ id: 43, label: 'CERTIFICATE UPDATED' },
-		{ id: 51, label: 'CERTIFICATE_APPLICANT CREATED' },
-		{ id: 64, label: 'CERTIFICATE_APPLICATION HIRED' },
-		{ id: 73, label: 'CERTIFICATE_APPLICATION SELECTED' },
-		{ id: 65, label: 'CERTIFICATE_APPLICATION UNHIRED' },
-		{ id: 74, label: 'CERTIFICATE_APPLICATION UNSELECTED' },
-		{ id: 75, label: 'CERTIFICATE_ASSIGNEE SO_ASSIGN_CERTIFICATE' },
-		{ id: 78, label: 'CERTIFICATE_ASSIGNEE SO_CERTIFICATE_ASSIGNEE_RETURNED' },
-		{ id: 76, label: 'CERTIFICATE_ASSIGNEE SO_CERTIFICATE_ASSIGNEE_VIEWED' },
-		{ id: 77, label: 'CERTIFICATE_ASSIGNEE SO_UNASSIGN_CERTIFICATE' },
-		{ id: 68, label: 'ONBOARDING_NEW_HIRE UPDATED' },
-		{ id: 5, label: 'ONBOARDING_PROCESS OB_COMPLETED' },
-		{ id: 67, label: 'ONBOARDING_PROCESS OB_REASSIGNED' },
-		{ id: 3, label: 'ONBOARDING_PROCESS OB_RESUMED' },
-		{ id: 1, label: 'ONBOARDING_PROCESS OB_STARTED' },
-		{ id: 2, label: 'ONBOARDING_PROCESS OB_SUSPENDED' },
-		{ id: 4, label: 'ONBOARDING_PROCESS OB_TERMINATED' },
-		{ id: 69, label: 'ONBOARDING_TASK OB_COMPLETED' },
-		{ id: 66, label: 'ONBOARDING_TASK OB_REASSIGNED' },
-		{ id: 70, label: 'ONBOARDING_TASK OB_STARTED' },
-		{ id: 16, label: 'POSITION_CLASSIFICATION PC_CL_APPROVED' },
-		{ id: 18, label: 'POSITION_CLASSIFICATION PC_CL_APPROVED_DELETED' },
-		{ id: 17, label: 'POSITION_CLASSIFICATION PC_CL_APPROVED_UPDATED' },
-		{ id: 13, label: 'POSITION_CLASSIFICATION PC_CS_APPROVED' },
-		{ id: 14, label: 'POSITION_CLASSIFICATION PC_CS_APPROVED_DELETED' },
-		{ id: 15, label: 'POSITION_CLASSIFICATION PC_CS_APPROVED_UPDATED' },
-		{ id: 84, label: 'POSITION_CLASSIFICATION PC_FS_APPROVED' },
-		{ id: 88, label: 'POSITION_CLASSIFICATION PC_FS_APPROVED_ACTIVATED' },
-		{ id: 87, label: 'POSITION_CLASSIFICATION PC_FS_APPROVED_DEACTIVATED' },
-		{ id: 85, label: 'POSITION_CLASSIFICATION PC_FS_APPROVED_DELETED' },
-		{ id: 86, label: 'POSITION_CLASSIFICATION PC_FS_APPROVED_TERMINATED' },
-		{ id: 83, label: 'POSITION_CLASSIFICATION PC_FS_APPROVED_UPDATED' },
-		{ id: 19, label: 'POSITION_CLASSIFICATION PC_IDPD_APPROVED' },
-		{ id: 21, label: 'POSITION_CLASSIFICATION PC_IDPD_APPROVED_DELETED' },
-		{ id: 20, label: 'POSITION_CLASSIFICATION PC_IDPD_APPROVED_UPDATED' },
-		{ id: 8, label: 'POSITION_CLASSIFICATION PC_PD_APPROVED' },
-		{ id: 12, label: 'POSITION_CLASSIFICATION PC_PD_APPROVED_ACTIVATED' },
-		{ id: 11, label: 'POSITION_CLASSIFICATION PC_PD_APPROVED_DEACTIVATED' },
-		{ id: 9, label: 'POSITION_CLASSIFICATION PC_PD_APPROVED_DELETED' },
-		{ id: 10, label: 'POSITION_CLASSIFICATION PC_PD_APPROVED_TERMINATED' },
-		{ id: 7, label: 'POSITION_CLASSIFICATION PC_PD_APPROVED_UPDATED' },
-		{ id: 35, label: 'VACANCY ANNOUNCED' },
-		{ id: 37, label: 'VACANCY ANNOUNCEMENT_UPDATED' },
-		{ id: 53, label: 'VACANCY APPROVED' },
-		{ id: 56, label: 'VACANCY CANCELLED' },
-		{ id: 36, label: 'VACANCY CERTIFICATE_CREATED' },
-		{ id: 34, label: 'VACANCY CLOSED' },
-		{ id: 41, label: 'VACANCY CREATED' },
-		{ id: 39, label: 'VACANCY DELETED' },
-		{ id: 55, label: 'VACANCY FILLED' },
-		{ id: 40, label: 'VACANCY FIRST_HIRED' },
-		{ id: 80, label: 'VACANCY NOT_READY_FOR_APPROVAL' },
-		{ id: 33, label: 'VACANCY OPENED' },
-		{ id: 52, label: 'VACANCY READY_FOR_APPROVAL' },
-		{ id: 54, label: 'VACANCY UNAPPROVED' },
-		{ id: 38, label: 'VACANCY UNLINK' },
-		{ id: 57, label: 'VACANCY UN_PUBLISHED' },
-		{ id: 81, label: 'VACANCY_REVIEW CREATED' },
-		{ id: 82, label: 'VACANCY_REVIEW STATUS_CHANGED' },
-		{ id: 26, label: 'VAC_DATA_TX ANNOUNCED' },
-		{ id: 28, label: 'VAC_DATA_TX ANNOUNCEMENT_UPDATED' },
-		{ id: 59, label: 'VAC_DATA_TX APPROVED' },
-		{ id: 62, label: 'VAC_DATA_TX CANCELLED' },
-		{ id: 27, label: 'VAC_DATA_TX CERTIFICATE_CREATED' },
-		{ id: 23, label: 'VAC_DATA_TX CLOSED' },
-		{ id: 32, label: 'VAC_DATA_TX CREATED' },
-		{ id: 30, label: 'VAC_DATA_TX DELETED' },
-		{ id: 61, label: 'VAC_DATA_TX FILLED' },
-		{ id: 31, label: 'VAC_DATA_TX FIRST_HIRED' },
-		{ id: 24, label: 'VAC_DATA_TX HIRED' },
-		{ id: 79, label: 'VAC_DATA_TX NOT_READY_FOR_APPROVAL' },
-		{ id: 22, label: 'VAC_DATA_TX OPENED' },
-		{ id: 58, label: 'VAC_DATA_TX READY_FOR_APPROVAL' },
-		{ id: 60, label: 'VAC_DATA_TX UNAPPROVED' },
-		{ id: 25, label: 'VAC_DATA_TX UNHIRED' },
-		{ id: 29, label: 'VAC_DATA_TX UNLINK' },
-		{ id: 63, label: 'VAC_DATA_TX UN_PUBLISHED' }
+		{ label: 'APPIAN_CASE', events: [{ id: 91, label: 'APPIAN_SEND_PAYLOAD' }] },
+		{ label: 'APPIAN_EIE', events: [{ id: 90, label: 'APPIAN_EIE_EVENT' }] },
+		{
+			label: 'APPLICANT',
+			events: [
+				{ id: 49, label: 'RESUME_CREATED_UPDATED' },
+				{ id: 50, label: 'RESUME_CREATED_UPDATED_DOC' }
+			]
+		},
+		{
+			label: 'APPLICATION',
+			events: [
+				{ id: 44, label: 'CREATED' },
+				{ id: 48, label: 'FIRST_HIRED' },
+				{ id: 46, label: 'HIRED' },
+				{ id: 47, label: 'UNHIRED' },
+				{ id: 45, label: 'UPDATED' }
+			]
+		},
+		{
+			label: 'CERTIFICATE',
+			events: [
+				{ id: 42, label: 'CREATED' },
+				{ id: 72, label: 'EXPIRATION_UPDATED' },
+				{ id: 71, label: 'STATUS_CHANGED' },
+				{ id: 43, label: 'UPDATED' }
+			]
+		},
+		{ label: 'CERTIFICATE_APPLICANT', events: [{ id: 51, label: 'CREATED' }] },
+		{
+			label: 'CERTIFICATE_APPLICATION',
+			events: [
+				{ id: 64, label: 'HIRED' },
+				{ id: 73, label: 'SELECTED' },
+				{ id: 65, label: 'UNHIRED' },
+				{ id: 74, label: 'UNSELECTED' }
+			]
+		},
+		{
+			label: 'CERTIFICATE_ASSIGNEE',
+			events: [
+				{ id: 75, label: 'SO_ASSIGN_CERTIFICATE' },
+				{ id: 78, label: 'SO_CERTIFICATE_ASSIGNEE_RETURNED' },
+				{ id: 76, label: 'SO_CERTIFICATE_ASSIGNEE_VIEWED' },
+				{ id: 77, label: 'SO_UNASSIGN_CERTIFICATE' }
+			]
+		},
+		{ label: 'ONBOARDING_NEW_HIRE', events: [{ id: 68, label: 'UPDATED' }] },
+		{
+			label: 'ONBOARDING_PROCESS',
+			events: [
+				{ id: 5, label: 'OB_COMPLETED' },
+				{ id: 67, label: 'OB_REASSIGNED' },
+				{ id: 3, label: 'OB_RESUMED' },
+				{ id: 1, label: 'OB_STARTED' },
+				{ id: 2, label: 'OB_SUSPENDED' },
+				{ id: 4, label: 'OB_TERMINATED' }
+			]
+		},
+		{
+			label: 'ONBOARDING_TASK',
+			events: [
+				{ id: 69, label: 'OB_COMPLETED' },
+				{ id: 66, label: 'OB_REASSIGNED' },
+				{ id: 70, label: 'OB_STARTED' }
+			]
+		},
+		{
+			label: 'POSITION_CLASSIFICATION',
+			events: [
+				{ id: 16, label: 'PC_CL_APPROVED' },
+				{ id: 18, label: 'PC_CL_APPROVED_DELETED' },
+				{ id: 17, label: 'PC_CL_APPROVED_UPDATED' },
+				{ id: 13, label: 'PC_CS_APPROVED' },
+				{ id: 14, label: 'PC_CS_APPROVED_DELETED' },
+				{ id: 15, label: 'PC_CS_APPROVED_UPDATED' },
+				{ id: 84, label: 'PC_FS_APPROVED' },
+				{ id: 88, label: 'PC_FS_APPROVED_ACTIVATED' },
+				{ id: 87, label: 'PC_FS_APPROVED_DEACTIVATED' },
+				{ id: 85, label: 'PC_FS_APPROVED_DELETED' },
+				{ id: 86, label: 'PC_FS_APPROVED_TERMINATED' },
+				{ id: 83, label: 'PC_FS_APPROVED_UPDATED' },
+				{ id: 19, label: 'PC_IDPD_APPROVED' },
+				{ id: 21, label: 'PC_IDPD_APPROVED_DELETED' },
+				{ id: 20, label: 'PC_IDPD_APPROVED_UPDATED' },
+				{ id: 8, label: 'PC_PD_APPROVED' },
+				{ id: 12, label: 'PC_PD_APPROVED_ACTIVATED' },
+				{ id: 11, label: 'PC_PD_APPROVED_DEACTIVATED' },
+				{ id: 9, label: 'PC_PD_APPROVED_DELETED' },
+				{ id: 10, label: 'PC_PD_APPROVED_TERMINATED' },
+				{ id: 7, label: 'PC_PD_APPROVED_UPDATED' }
+			]
+		},
+		{
+			label: 'VACANCY',
+			events: [
+				{ id: 35, label: 'ANNOUNCED' },
+				{ id: 37, label: 'ANNOUNCEMENT_UPDATED' },
+				{ id: 53, label: 'APPROVED' },
+				{ id: 56, label: 'CANCELLED' },
+				{ id: 36, label: 'CERTIFICATE_CREATED' },
+				{ id: 34, label: 'CLOSED' },
+				{ id: 41, label: 'CREATED' },
+				{ id: 39, label: 'DELETED' },
+				{ id: 55, label: 'FILLED' },
+				{ id: 40, label: 'FIRST_HIRED' },
+				{ id: 80, label: 'NOT_READY_FOR_APPROVAL' },
+				{ id: 33, label: 'OPENED' },
+				{ id: 52, label: 'READY_FOR_APPROVAL' },
+				{ id: 54, label: 'UNAPPROVED' },
+				{ id: 38, label: 'UNLINK' },
+				{ id: 57, label: 'UN_PUBLISHED' }
+			]
+		},
+		{
+			label: 'VACANCY_REVIEW',
+			events: [
+				{ id: 81, label: 'CREATED' },
+				{ id: 82, label: 'STATUS_CHANGED' }
+			]
+		},
+		{
+			label: 'VAC_DATA_TX',
+			events: [
+				{ id: 26, label: 'ANNOUNCED' },
+				{ id: 28, label: 'ANNOUNCEMENT_UPDATED' },
+				{ id: 59, label: 'APPROVED' },
+				{ id: 62, label: 'CANCELLED' },
+				{ id: 27, label: 'CERTIFICATE_CREATED' },
+				{ id: 23, label: 'CLOSED' },
+				{ id: 32, label: 'CREATED' },
+				{ id: 30, label: 'DELETED' },
+				{ id: 61, label: 'FILLED' },
+				{ id: 31, label: 'FIRST_HIRED' },
+				{ id: 24, label: 'HIRED' },
+				{ id: 79, label: 'NOT_READY_FOR_APPROVAL' },
+				{ id: 22, label: 'OPENED' },
+				{ id: 58, label: 'READY_FOR_APPROVAL' },
+				{ id: 60, label: 'UNAPPROVED' },
+				{ id: 25, label: 'UNHIRED' },
+				{ id: 29, label: 'UNLINK' },
+				{ id: 63, label: 'UN_PUBLISHED' }
+			]
+		}
 	];
 
 	const version = env.PUBLIC_VERSION;
@@ -186,7 +241,7 @@
 	<div class="border d-flex p-1 rounded-pill text-bg-light w-100">
 		<label class="visually-hidden" for="query">Query</label>
 		<button
-			class="align-items-center btn btn-link d-flex me-1 rounded-start-pill"
+			class="align-items-center btn btn-link btn-sm d-flex me-1 rounded-start-pill"
 			data-bs-auto-close="outside"
 			data-bs-toggle="dropdown"
 			title="Queries"
@@ -200,13 +255,17 @@
 				/></svg
 			>
 		</button>
-		<ul class="dropdown-menu mt-1 overflow-auto pe-1" style="max-height: 80vh">
-			<li><h6 class="dropdown-header">Events</h6></li>
-			{#each events as event}
-				<li>
-					<!-- svelte-ignore a11y-invalid-attribute -->
-					<a class="dropdown-item" href="#" on:click={() => selectEvent(event.id)}>{event.label}</a>
-				</li>
+		<ul class="dropdown-menu mt-1 overflow-auto p-1" style="max-height: 80vh">
+			{#each events as group, i}
+				<li><h6 class="dropdown-header">{group.label}</h6></li>
+				{#each group.events as event}
+					<button class="dropdown-item" type="button" on:click={() => selectEvent(event.id)}
+						>{event.label}</button
+					>
+				{/each}
+				{#if i < events.length - 1}
+					<li><hr class="dropdown-divider" /></li>
+				{/if}
 			{/each}
 		</ul>
 		<input
@@ -219,7 +278,7 @@
 			value={query}
 		/>
 		<button
-			class="align-items-center btn btn-link d-flex filter rounded-end-pill"
+			class="align-items-center btn btn-link btn-sm d-flex filter rounded-end-pill"
 			data-bs-auto-close="outside"
 			data-bs-toggle="dropdown"
 			title="Filter"
