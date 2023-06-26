@@ -8,6 +8,9 @@ fn build_sqlite_shell() {
 
     Build::new()
         .file("./sqlite-shell/shell.c")
+        .flag_if_supported("-Wno-implicit-fallthrough")
+        .flag_if_supported("-Wno-unused-function")
+        .flag_if_supported("-Wno-sign-compare")
         .compile("sqlite-shell");
 }
 

@@ -222,7 +222,7 @@
 			<div class="me-1 overflow-auto" bind:this={itemListElement}>
 				{#if items.length > 0}
 					<div class="list-group list-group-flush p-2">
-						{#each items as item, index (item.id)}
+						{#each items as item (item.id)}
 							<a
 								class="list-group-item list-group-item-action"
 								class:active={activeItem && activeItem.id === item.id}
