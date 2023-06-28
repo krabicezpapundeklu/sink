@@ -11,6 +11,8 @@
 
 	export let systems: string[] = [];
 
+	const EVENT_REGEX = /regex:"entityEventId"\\s\*:\\s\*(\d+)\\D/;
+
 	const events = [
 		{ label: 'APPIAN_CASE', events: [{ id: 91, label: 'APPIAN_SEND_PAYLOAD' }] },
 		{ label: 'APPIAN_EIE', events: [{ id: 90, label: 'APPIAN_EIE_EVENT' }] },
@@ -166,11 +168,14 @@
 	let filterDropDown: { hide: () => void };
 	let queryDropDown: { hide: () => void };
 
+	let selectedEvent: number | null;
+
 	const dispatch = createEventDispatcher();
 
 	const clear = (): void => {
 		system = [];
 		type = [];
+		selectedEvent = null;
 	};
 
 	const countSelected = (selected: string[], available: string[]): number => {
@@ -194,6 +199,17 @@
 		to = '';
 	};
 
+	const preselectEvent = (query?: string) => {
+		let data = new FormData(form);
+		const match = EVENT_REGEX.exec(query ?? data.get('query') + '');
+
+		if (match) {
+			selectedEvent = +match[1];
+		} else {
+			selectedEvent = null;
+		}
+	};
+
 	const search = (e: SubmitEvent) => {
 		filterDropDown.hide();
 		dispatch('search', new FormData(e.target as HTMLFormElement));
@@ -201,7 +217,10 @@
 
 	const selectEvent = (id: number) => {
 		queryDropDown.hide();
-		query = `regex:"entityEventId"\\s*:\\s*${id}\\D`;
+		selectedEvent = id;
+
+		const q = (new FormData(form).get('query') + '').replace(EVENT_REGEX, '').trim();
+		query = `regex:"entityEventId"\\s*:\\s*${id}\\D` + (q.length > 0 ? ' ' : '') + q;
 
 		let data = new FormData(form);
 
@@ -235,6 +254,8 @@
 			queryButton.focus();
 		});
 	});
+
+	preselectEvent(query);
 </script>
 
 <form class="dropdown m-1" bind:this={form} on:submit|preventDefault={search}>
@@ -259,8 +280,11 @@
 			{#each events as group, i}
 				<li><h6 class="dropdown-header">{group.label}</h6></li>
 				{#each group.events as event}
-					<button class="dropdown-item" type="button" on:click={() => selectEvent(event.id)}
-						>{event.label}</button
+					<button
+						class="dropdown-item"
+						type="button"
+						class:active={event.id === selectedEvent}
+						on:click={() => selectEvent(event.id)}>{event.label}</button
 					>
 				{/each}
 				{#if i < events.length - 1}
@@ -276,6 +300,7 @@
 			placeholder="Search"
 			type="search"
 			value={query}
+			on:change={() => preselectEvent()}
 		/>
 		<button
 			class="align-items-center btn btn-link btn-sm d-flex filter rounded-end-pill"

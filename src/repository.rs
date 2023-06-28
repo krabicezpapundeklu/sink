@@ -36,6 +36,8 @@ store_as_sql_text! {
     ItemType
 }
 
+const REGEX_PREFIX: &'static str = "regex:";
+
 trait Parameter: Debug + ToSql {}
 
 impl<T: Debug + ToSql> Parameter for T {}
@@ -100,21 +102,18 @@ impl Repository for Connection {
         .to_string();
 
         let mut terms = Vec::new();
-        let regex: String;
 
         if let Some(query) = &filter.query {
             sql.push_str(" AND EXISTS (SELECT 1 FROM item_body WHERE item_id = id");
 
-            if let Some(pattern) = query.strip_prefix("regex:") {
-                regex = pattern.to_string();
+            parse_query(query, &mut terms);
 
-                params.push(&regex);
-                sql.push_str(" AND matches(?, body)");
-            } else {
-                parse_query(query, &mut terms);
+            for term in &terms {
+                params.push(term);
 
-                for term in &terms {
-                    params.push(term);
+                if term.starts_with(REGEX_PREFIX) {
+                    sql.push_str(" AND matches(?, body)");
+                } else {
                     sql.push_str(" AND body LIKE '%' || ? || '%'");
                 }
             }
@@ -240,7 +239,10 @@ impl Repository for Connection {
             type BoxError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
             let regex: Arc<Regex> = ctx.get_or_create_aux(0, |vr| -> Result<_, BoxError> {
-                Ok(Regex::new(vr.as_str()?)?)
+                let regex = vr.as_str()?;
+                Ok(Regex::new(
+                    regex.strip_prefix(REGEX_PREFIX).unwrap_or(regex),
+                )?)
             })?;
 
             let is_match = {
@@ -327,7 +329,7 @@ fn parse_query(query: &str, terms: &mut Vec<String>) {
     let mut in_quotes = false;
 
     for c in query.chars() {
-        if c == '"' {
+        if c == '"' && !term.starts_with(REGEX_PREFIX) {
             if escaping {
                 escaping = false;
                 term.push('"');
