@@ -200,8 +200,7 @@
 	};
 
 	const preselectEvent = (query?: string) => {
-		let data = new FormData(form);
-		const match = EVENT_REGEX.exec(query ?? data.get('query') + '');
+		const match = EVENT_REGEX.exec(query ?? new FormData(form).get('query') + '');
 
 		if (match) {
 			selectedEvent = +match[1];
