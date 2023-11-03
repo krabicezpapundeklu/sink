@@ -4,33 +4,32 @@ version = "1.0.7"
 edition = "2021"
 
 [dependencies]
-actix-web = "4.3.1"
+actix-web = "4.4.0"
 actix-web-static-files = "4.0.1"
-anyhow = "1.0.71"
-chrono = { version = "0.4.26", features = ["unstable-locales"] }
-chrono-tz = "0.8.2"
-clap = { version = "4.3.3", features = ["derive"] }
-deadpool = "0.9.5"
+anyhow = "1.0.75"
+chrono = { version = "0.4.31", features = ["unstable-locales"] }
+chrono-tz = "0.8.4"
+clap = { version = "4.4.7", features = ["derive"] }
+deadpool = "0.10.0"
 env_logger = "0.10.0"
-libc = "0.2.146"
-log = "0.4.19"
+libc = "0.2.149"
+log = "0.4.20"
 md5 = "0.7.0"
-num_cpus = "1.15.0"
-regex = "1.8.4"
-rquickjs = { version = "0.3.0", features = ["bindgen", "futures", "loader", "macro", "parallel"] }
+num_cpus = "1.16.0"
+regex = "1.10.2"
+rquickjs = { version = "0.3.1", features = ["bindgen", "futures", "loader", "macro", "parallel"] }
 rusqlite = { version = "0.29.0", features = ["bundled", "functions"] }
-serde = { version = "1.0.164", features = ["derive"] }
-serde_json = "1.0.97"
+serde = { version = "1.0.190", features = ["derive"] }
+serde_json = "1.0.108"
 static-files = "0.2.3"
-tokio = { version = "1.28.2", features = ["rt-multi-thread"] }
-xml-rs = "0.8.14"
+tokio = { version = "1.33.0", features = ["rt-multi-thread"] }
+xml-rs = "0.8.19"
 
 [build-dependencies]
-cc = "1.0.79"
+cc = "1.0.83"
 static-files = "0.2.3"
 
 [profile.release]
 codegen-units = 1
 lto = true
-opt-level = "z"
 strip = true
