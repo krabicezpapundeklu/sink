@@ -6,8 +6,6 @@ import xml from 'highlight.js/lib/languages/xml';
 import type { Item, ItemSearchResult, ItemType, ItemWithHighlighting } from './model';
 import { error } from '@sveltejs/kit';
 
-declare function debug(message: string): void;
-
 export const BATCH_SIZE = 100;
 export const MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
 export const MILLISECONDS_IN_HOUR = 60 * 60 * 1000;
@@ -31,13 +29,6 @@ export const ITEM_TYPES: ItemType[] = [
 	{ name: 'SOAP Vacancy Updated', key: 'vacancy_updated' }
 ];
 
-if (typeof debug === 'undefined') {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	(globalThis as any).debug = () => {
-		/* empty */
-	};
-}
-
 hljs.registerLanguage('json', json);
 hljs.registerLanguage('plaintext', plaintext);
 hljs.registerLanguage('xml', xml);
@@ -57,8 +48,6 @@ function dateToString(
 }
 
 function formatJson(json: string): string {
-	debug('formatJson START');
-
 	let formatted: string;
 
 	try {
@@ -66,8 +55,6 @@ function formatJson(json: string): string {
 	} catch (e) {
 		formatted = json;
 	}
-
-	debug('formatJson END');
 
 	return formatted;
 }
@@ -110,8 +97,6 @@ export function formatNumber(value: number): string {
 }
 
 function formatXml(xml: string): string {
-	debug('formatXml START');
-
 	let formatted = '';
 	let indent = '';
 
@@ -129,14 +114,10 @@ function formatXml(xml: string): string {
 
 	formatted = formatted.substring(1, formatted.length - 3);
 
-	debug('formatXml END');
-
 	return formatted;
 }
 
 export function highlightItem(item: Item): ItemWithHighlighting {
-	debug('highlightItem START');
-
 	let language = 'plaintext';
 	let formattedBody = item.body;
 
@@ -156,8 +137,6 @@ export function highlightItem(item: Item): ItemWithHighlighting {
 
 	const higlightedBody = hljs.highlight(item.body, { language }).value;
 	const highlightedBodyPreview = hljs.highlight(formattedBody, { language }).value;
-
-	debug('highlightItem END');
 
 	return {
 		...item,
