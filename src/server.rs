@@ -15,14 +15,13 @@ use actix_web::{
 
 use actix_web_static_files::ResourceFiles;
 use anyhow::{anyhow, Context, Error, Result};
-use chrono::{DateTime, Datelike, Locale, NaiveDateTime, Utc};
-use chrono_tz::Tz;
+use chrono::Utc;
 use deadpool_sqlite::{Config, InteractError, Pool, Runtime};
 use rusqlite::Connection;
 
 use crate::{
     repository::Repository,
-    shared::{Item, ItemFilter, ItemHeader, ItemSummary},
+    shared::{Item, ItemFilter, ItemHeader},
 };
 
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
@@ -67,59 +66,13 @@ where
         .map_err(|err| ServerError(err.into()))
 }
 
-fn format_submit_date(item: &mut Item, tz: &str) -> Result<()> {
-    let tz: Tz = tz.parse().unwrap_or(Tz::UTC);
-
-    let sd = DateTime::<Utc>::from_utc(
-        NaiveDateTime::parse_from_str(&item.submit_date, "%Y-%m-%d %H:%M:%S")?,
-        Utc,
-    )
-    .with_timezone(&tz);
-
-    item.submit_date = sd
-        .format_localized("%A, %B %-e, %Y at %-l:%M:%S %p (%Z)", Locale::en_US)
-        .to_string();
-
-    Ok(())
-}
-
-fn format_submit_dates(items: &mut [ItemSummary], tz: &str) -> Result<()> {
-    let tz: Tz = tz.parse().unwrap_or(Tz::UTC);
-    let today = Utc::now().with_timezone(&tz);
-
-    for item in items {
-        let sd = DateTime::<Utc>::from_utc(
-            NaiveDateTime::parse_from_str(&item.submit_date, "%Y-%m-%d %H:%M:%S")?,
-            Utc,
-        )
-        .with_timezone(&tz);
-
-        let format = if sd.day() == today.day()
-            && sd.month() == today.month()
-            && sd.year() == today.year()
-        {
-            "%-l:%M %p"
-        } else {
-            "%-m/%-e/%y %-l:%M %p"
-        };
-
-        item.submit_date = sd.format_localized(format, Locale::en_US).to_string();
-    }
-
-    Ok(())
-}
-
 #[get("/api/item/{id}")]
 async fn get_item(
     db_pool: Data<Pool>,
     path: Path<i64>,
-    request: HttpRequest,
 ) -> Response<impl Responder> {
     let id = path.into_inner();
-    let tz = get_tz(&request).unwrap_or_default();
-    let mut item = call_db(&db_pool, move |db| db.get_item(id)).await?;
-
-    format_submit_date(&mut item, &tz)?;
+    let item = call_db(&db_pool, move |db| db.get_item(id)).await?;
 
     Ok(Json(item))
 }
@@ -128,19 +81,11 @@ async fn get_item(
 async fn get_items(
     db_pool: Data<Pool>,
     filter: Query<ItemFilter>,
-    request: HttpRequest,
 ) -> Response<impl Responder> {
     let filter = filter.into_inner();
-    let tz = get_tz(&request).unwrap_or_default();
-    let mut items = call_db(&db_pool, move |db| db.get_items(&filter)).await?;
-
-    format_submit_dates(items.items.as_mut_slice(), &tz)?;
+    let items = call_db(&db_pool, move |db| db.get_items(&filter)).await?;
 
     Ok(Json(items))
-}
-
-fn get_tz(request: &HttpRequest) -> Option<String> {
-    request.cookie("tz").map(|tz| tz.value().to_string())
 }
 
 fn map_to_anyhow_error(error: InteractError) -> Error {

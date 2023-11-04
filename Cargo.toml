@@ -7,8 +7,7 @@ edition = "2021"
 actix-web = "4.4.0"
 actix-web-static-files = "4.0.1"
 anyhow = "1.0.75"
-chrono = { version = "0.4.31", features = ["unstable-locales"] }
-chrono-tz = "0.8.4"
+chrono = "0.4.31"
 clap = { version = "4.4.7", features = ["derive"] }
 deadpool-sqlite = "0.6.0"
 env_logger = "0.10.0"
