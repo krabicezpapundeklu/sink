@@ -16,7 +16,7 @@ use actix_web::{
 use actix_web_static_files::ResourceFiles;
 use anyhow::{anyhow, Context, Error, Result};
 use chrono::Utc;
-use deadpool_sqlite::{Config, InteractError, Pool, Runtime};
+use deadpool_sqlite::{Config, Pool, Runtime};
 use rusqlite::Connection;
 
 use crate::{
@@ -43,62 +43,47 @@ impl From<Error> for ServerError {
     }
 }
 
-impl From<InteractError> for ServerError {
-    fn from(value: InteractError) -> Self {
-        Self(map_to_anyhow_error(value))
-    }
-}
-
 impl ResponseError for ServerError {}
 
-async fn call_db<F, T, E>(db_pool: &Pool, f: F) -> Response<T>
+async fn call_db<F, T>(db_pool: &Pool, f: F) -> Result<T>
 where
-    F: FnOnce(&mut Connection) -> Result<T, E> + Send + 'static,
+    F: FnOnce(&mut Connection) -> Result<T> + Send + 'static,
     T: Send + 'static,
-    E: Send + Into<Error> + 'static,
 {
     db_pool
         .get()
-        .await
-        .map_err(Error::new)?
-        .interact(f)
         .await?
-        .map_err(|err| ServerError(err.into()))
+        .interact(f)
+        .await
+        .map_err(|error| anyhow!("cannot call db: {error}"))?
 }
 
 #[get("/api/item/{id}")]
 async fn get_item(db_pool: Data<Pool>, path: Path<i64>) -> Response<impl Responder> {
     let id = path.into_inner();
-    let item = call_db(&db_pool, move |db| db.get_item(id)).await?;
 
-    Ok(Json(item))
+    call_db(&db_pool, move |db| db.get_item(id))
+        .await
+        .map(Json)
+        .map_err(Into::into)
 }
 
 #[get("/api/items")]
 async fn get_items(db_pool: Data<Pool>, filter: Query<ItemFilter>) -> Response<impl Responder> {
     let filter = filter.into_inner();
-    let items = call_db(&db_pool, move |db| db.get_items(&filter)).await?;
 
-    Ok(Json(items))
-}
-
-fn map_to_anyhow_error(error: InteractError) -> Error {
-    anyhow!(match error {
-        InteractError::Panic(_) => "panic",
-        InteractError::Aborted => "aborted",
-    })
+    call_db(&db_pool, move |db| db.get_items(&filter))
+        .await
+        .map(Json)
+        .map_err(Into::into)
 }
 
 #[actix_web::main]
 pub async fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> {
     let db_pool = Config::new(db).create_pool(Runtime::Tokio1)?;
 
-    db_pool
-        .get()
-        .await?
-        .interact(|db| db.prepare_schema())
+    call_db(&db_pool, |db| db.prepare_schema())
         .await
-        .map_err(map_to_anyhow_error)?
         .with_context(|| format!("cannot prepare database schema in {}", db.display()))?;
 
     HttpServer::new(move || {
@@ -164,7 +149,8 @@ async fn submit_item(
 
     item.update_metadata();
 
-    let id = call_db(&db_pool, move |db| db.insert_item(&item)).await?;
-
-    Ok(Json(id))
+    call_db(&db_pool, move |db| db.insert_item(&item))
+        .await
+        .map(Json)
+        .map_err(Into::into)
 }

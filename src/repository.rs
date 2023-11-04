@@ -45,7 +45,6 @@ impl<T: Debug + ToSql> Parameter for T {}
 pub trait Repository {
     fn get_item(&self, id: i64) -> Result<Item>;
     fn get_items(&self, filter: &ItemFilter) -> Result<ItemSearchResult>;
-    fn get_last_item_id(&self) -> Result<Option<i64>>;
 
     fn init(&self) -> Result<()>;
 
@@ -287,14 +286,6 @@ impl Repository for Connection {
         tx.commit()?;
 
         debug!("insert_item END");
-
-        Ok(id)
-    }
-
-    fn get_last_item_id(&self) -> Result<Option<i64>> {
-        debug!("get_last_item_id START");
-        let id = self.query_row("SELECT MAX(id) FROM item", [], |row| row.get(0))?;
-        debug!("get_last_item_id END");
 
         Ok(id)
     }
