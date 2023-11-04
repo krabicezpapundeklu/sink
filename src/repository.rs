@@ -36,7 +36,7 @@ store_as_sql_text! {
     ItemType
 }
 
-const REGEX_PREFIX: &'static str = "regex:";
+const REGEX_PREFIX: &str = "regex:";
 
 trait Parameter: Debug + ToSql {}
 

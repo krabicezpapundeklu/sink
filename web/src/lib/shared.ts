@@ -3,7 +3,7 @@ import json from 'highlight.js/lib/languages/json';
 import plaintext from 'highlight.js/lib/languages/plaintext';
 import xml from 'highlight.js/lib/languages/xml';
 
-import type { Item, ItemSearchResult, ItemType, ItemWithHighlighting } from './model';
+import type { Item, ItemSearchResult, ItemSummary, ItemType, ItemWithHighlighting } from './model';
 import { error } from '@sveltejs/kit';
 
 export const BATCH_SIZE = 100;
@@ -60,40 +60,7 @@ function formatJson(json: string): string {
 }
 
 export function formatNumber(value: number): string {
-	const input = value.toString();
-	const length = input.length;
-
-	if (length < 4) {
-		return input;
-	}
-
-	if (length < 7) {
-		return input.substring(0, length - 3) + ',' + input.substring(length - 3);
-	}
-
-	if (length < 10) {
-		return (
-			input.substring(0, length - 6) +
-			',' +
-			input.substring(length - 6, length - 3) +
-			',' +
-			input.substring(length - 3)
-		);
-	}
-
-	if (length < 13) {
-		return (
-			input.substring(0, length - 9) +
-			',' +
-			input.substring(length - 9, length - 6) +
-			',' +
-			input.substring(length - 6, length - 3) +
-			',' +
-			input.substring(length - 3)
-		);
-	}
-
-	return input;
+	return value.toLocaleString('en-us');
 }
 
 function formatSubmitDates(items: ItemSummary[], detail = false) {

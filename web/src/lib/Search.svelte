@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
-	import { env } from '$env/dynamic/public';
 	import { ITEM_TYPES, localDateToString, MILLISECONDS_IN_HOUR } from '$lib/shared';
 
 	export let query: string;
@@ -160,7 +159,7 @@
 		}
 	];
 
-	const version = env.PUBLIC_VERSION;
+	const version = '1.1.0';
 
 	let form: HTMLFormElement;
 	let filterButton: HTMLElement;

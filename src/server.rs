@@ -67,10 +67,7 @@ where
 }
 
 #[get("/api/item/{id}")]
-async fn get_item(
-    db_pool: Data<Pool>,
-    path: Path<i64>,
-) -> Response<impl Responder> {
+async fn get_item(db_pool: Data<Pool>, path: Path<i64>) -> Response<impl Responder> {
     let id = path.into_inner();
     let item = call_db(&db_pool, move |db| db.get_item(id)).await?;
 
@@ -78,10 +75,7 @@ async fn get_item(
 }
 
 #[get("/api/items")]
-async fn get_items(
-    db_pool: Data<Pool>,
-    filter: Query<ItemFilter>,
-) -> Response<impl Responder> {
+async fn get_items(db_pool: Data<Pool>, filter: Query<ItemFilter>) -> Response<impl Responder> {
     let filter = filter.into_inner();
     let items = call_db(&db_pool, move |db| db.get_items(&filter)).await?;
 
