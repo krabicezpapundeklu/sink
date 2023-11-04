@@ -1,5 +1,4 @@
 use std::{
-    cmp::max,
     fmt::{self, Display, Formatter},
     path,
 };
@@ -10,19 +9,16 @@ use actix_web::{
     http::header::{HeaderValue, CACHE_CONTROL},
     middleware::{Compress, Logger, NormalizePath, TrailingSlash},
     post,
-    rt::System,
     web::{Bytes, Data, Json, Path, Query},
     App, HttpRequest, HttpServer, Responder, ResponseError,
 };
 
 use actix_web_static_files::ResourceFiles;
-use anyhow::{Error, Result};
+use anyhow::{anyhow, Context, Error, Result};
 use chrono::{DateTime, Datelike, Locale, NaiveDateTime, Utc};
 use chrono_tz::Tz;
-use deadpool::unmanaged::{Pool as UnmanagedPool, PoolError};
-use log::info;
+use deadpool_sqlite::{Config, InteractError, Pool, Runtime};
 use rusqlite::Connection;
-use tokio::runtime::Builder;
 
 use crate::{
     repository::Repository,
@@ -31,7 +27,6 @@ use crate::{
 
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
-type DbPool = UnmanagedPool<Connection>;
 type Response<T> = Result<T, ServerError>;
 
 #[derive(Debug)]
@@ -49,13 +44,28 @@ impl From<Error> for ServerError {
     }
 }
 
-impl From<PoolError> for ServerError {
-    fn from(value: PoolError) -> Self {
-        Self(Error::new(value))
+impl From<InteractError> for ServerError {
+    fn from(value: InteractError) -> Self {
+        Self(map_to_anyhow_error(value))
     }
 }
 
 impl ResponseError for ServerError {}
+
+async fn call_db<F, T, E>(db_pool: &Pool, f: F) -> Response<T>
+where
+    F: FnOnce(&mut Connection) -> Result<T, E> + Send + 'static,
+    T: Send + 'static,
+    E: Send + Into<Error> + 'static,
+{
+    db_pool
+        .get()
+        .await
+        .map_err(Error::new)?
+        .interact(f)
+        .await?
+        .map_err(|err| ServerError(err.into()))
+}
 
 fn format_submit_date(item: &mut Item, tz: &str) -> Result<()> {
     let tz: Tz = tz.parse().unwrap_or(Tz::UTC);
@@ -101,13 +111,13 @@ fn format_submit_dates(items: &mut [ItemSummary], tz: &str) -> Result<()> {
 
 #[get("/api/item/{id}")]
 async fn get_item(
-    db_pool: Data<DbPool>,
+    db_pool: Data<Pool>,
     path: Path<i64>,
     request: HttpRequest,
 ) -> Response<impl Responder> {
     let id = path.into_inner();
     let tz = get_tz(&request).unwrap_or_default();
-    let mut item = db_pool.get().await?.get_item(id)?;
+    let mut item = call_db(&db_pool, move |db| db.get_item(id)).await?;
 
     format_submit_date(&mut item, &tz)?;
 
@@ -116,13 +126,13 @@ async fn get_item(
 
 #[get("/api/items")]
 async fn get_items(
-    db_pool: Data<DbPool>,
+    db_pool: Data<Pool>,
     filter: Query<ItemFilter>,
     request: HttpRequest,
 ) -> Response<impl Responder> {
     let filter = filter.into_inner();
     let tz = get_tz(&request).unwrap_or_default();
-    let mut items = db_pool.get().await?.get_items(&filter)?;
+    let mut items = call_db(&db_pool, move |db| db.get_items(&filter)).await?;
 
     format_submit_dates(items.items.as_mut_slice(), &tz)?;
 
@@ -133,70 +143,62 @@ fn get_tz(request: &HttpRequest) -> Option<String> {
     request.cookie("tz").map(|tz| tz.value().to_string())
 }
 
-pub fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> {
-    System::with_tokio_rt(|| {
-        Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .expect("cannot init tokio runtime")
+fn map_to_anyhow_error(error: InteractError) -> Error {
+    anyhow!(match error {
+        InteractError::Panic(_) => "panic",
+        InteractError::Aborted => "aborted",
     })
-    .block_on(async move {
-        let pool_size = max(2, num_cpus::get());
+}
 
-        let mut connections = Vec::with_capacity(pool_size);
+#[actix_web::main]
+pub async fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> {
+    let db_pool = Config::new(db).create_pool(Runtime::Tokio1)?;
 
-        for i in 0..pool_size {
-            info!("creating db connection ({} of {pool_size})", i + 1);
-
-            let connection = Connection::open(db)?;
-
-            connection.init()?;
-            connections.push(connection);
-        }
-
-        let db_pool = UnmanagedPool::from(connections);
-        let db = db_pool.get().await?;
-
-        db.prepare_schema()?;
-
-        HttpServer::new(move || {
-            App::new()
-                .app_data(Data::new(db_pool.clone()))
-                .service(get_item)
-                .service(get_items)
-                .service(submit_item)
-                .service(ResourceFiles::new("/", generate()).resolve_not_found_to_root())
-                .wrap(Compress::default())
-                .wrap(Logger::default())
-                .wrap(NormalizePath::new(TrailingSlash::Trim))
-                .wrap_fn(|request, service| {
-                    let is_immutable = request.path().starts_with("/_app/immutable/");
-                    let response = service.call(request);
-
-                    async move {
-                        let mut response = response.await?;
-
-                        if is_immutable {
-                            response.headers_mut().insert(
-                                CACHE_CONTROL,
-                                HeaderValue::from_static("public, max-age=31536000, immutable"),
-                            );
-                        }
-
-                        Ok(response)
-                    }
-                })
-        })
-        .bind((host, port))?
-        .run()
+    db_pool
+        .get()
+        .await?
+        .interact(|db| db.prepare_schema())
         .await
-        .map_err(Into::into)
+        .map_err(map_to_anyhow_error)?
+        .with_context(|| format!("cannot prepare database schema in {}", db.display()))?;
+
+    HttpServer::new(move || {
+        App::new()
+            .app_data(Data::new(db_pool.clone()))
+            .service(get_item)
+            .service(get_items)
+            .service(submit_item)
+            .service(ResourceFiles::new("/", generate()).resolve_not_found_to_root())
+            .wrap(Compress::default())
+            .wrap(Logger::default())
+            .wrap(NormalizePath::new(TrailingSlash::Trim))
+            .wrap_fn(|request, service| {
+                let is_immutable = request.path().starts_with("/_app/immutable/");
+                let response = service.call(request);
+
+                async move {
+                    let mut response = response.await?;
+
+                    if is_immutable {
+                        response.headers_mut().insert(
+                            CACHE_CONTROL,
+                            HeaderValue::from_static("public, max-age=31536000, immutable"),
+                        );
+                    }
+
+                    Ok(response)
+                }
+            })
     })
+    .bind((host, port))?
+    .run()
+    .await
+    .map_err(Into::into)
 }
 
 #[post("/item")]
 async fn submit_item(
-    db_pool: Data<DbPool>,
+    db_pool: Data<Pool>,
     request: HttpRequest,
     body: Bytes,
 ) -> Response<impl Responder> {
@@ -223,7 +225,7 @@ async fn submit_item(
 
     item.update_metadata();
 
-    let id = db_pool.get().await?.insert_item(&item)?;
+    let id = call_db(&db_pool, move |db| db.insert_item(&item)).await?;
 
     Ok(Json(id))
 }
