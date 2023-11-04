@@ -159,7 +159,7 @@
 		}
 	];
 
-	const version = '1.1.0';
+	const version = import.meta.env.CARGO_PKG_VERSION;
 
 	let form: HTMLFormElement;
 	let filterButton: HTMLElement;

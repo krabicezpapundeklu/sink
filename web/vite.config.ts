@@ -2,10 +2,11 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import type { UserConfig } from 'vite';
 
 const config: UserConfig = {
+	envPrefix: 'CARGO_',
 	plugins: [sveltekit()],
 	server: {
 		proxy: {
-			'/api': 'http://localhost:8080'
+			'/api': 'http://127.0.0.1:8080',
 		}
 	}
 };

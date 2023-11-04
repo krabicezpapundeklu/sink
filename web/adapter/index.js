@@ -1,7 +1,6 @@
 import { writeFileSync } from 'node:fs';
 import { PurgeCSS } from 'purgecss';
 
-/** @type {import('.').default} */
 export default function () {
 	return {
 		name: 'adapter',
