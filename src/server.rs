@@ -65,27 +65,23 @@ where
         .map_err(|error| anyhow!("cannot call db: {error}"))?
 }
 
-async fn get_asset(uri: Uri) -> impl IntoResponse {
-    let mut path = uri.path().trim_start_matches('/');
+async fn get_asset(uri: Uri) -> Response {
+    let path = uri.path().trim_start_matches('/');
 
-    if path.is_empty() || !path.contains('.') {
-        path = "index.html";
-    }
-
-    if let Some(content) = Assets::get(path) {
-        let mime = mime_guess::from_path(path).first_or_octet_stream();
+    if let Some(content) = Assets::get(path).or_else(|| Assets::get("index.html")) {
+        let mime = content.metadata.mimetype();
 
         if path.starts_with("_app/immutable") {
             (
                 [
                     (CACHE_CONTROL, "public, max-age=31536000, immutable"),
-                    (CONTENT_TYPE, mime.as_ref()),
+                    (CONTENT_TYPE, mime),
                 ],
                 content.data,
             )
                 .into_response()
         } else {
-            ([(CONTENT_TYPE, mime.as_ref())], content.data).into_response()
+            ([(CONTENT_TYPE, mime)], content.data).into_response()
         }
     } else {
         StatusCode::NOT_FOUND.into_response()
