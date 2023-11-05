@@ -10,19 +10,17 @@ use axum::{
         HeaderMap, StatusCode, Uri,
     },
     response::{IntoResponse, Response},
-    routing::{get, post},
-    Json, Router, Server, ServiceExt,
+    routing::get,
+    Json, Router, Server,
 };
 
 use chrono::Utc;
 use deadpool_sqlite::{Config, Pool, Runtime};
 use rusqlite::Connection;
 use rust_embed::RustEmbed;
-use tower::{Layer, ServiceBuilder};
+use tower::ServiceBuilder;
 
-use tower_http::{
-    compression::CompressionLayer, normalize_path::NormalizePathLayer, trace::TraceLayer,
-};
+use tower_http::{compression::CompressionLayer, trace::TraceLayer};
 
 use tracing::info;
 
@@ -125,19 +123,16 @@ pub async fn start(host: &str, port: u16, db: &path::Path) -> Result<()> {
         .await
         .with_context(|| format!("cannot prepare database schema in {}", db.display()))?;
 
-    let app = NormalizePathLayer::trim_trailing_slash().layer(
-        Router::new()
-            .route("/api/item/:id", get(get_item))
-            .route("/api/items", get(get_items))
-            .route("/item", post(submit_item))
-            .fallback(get_asset)
-            .with_state(db_pool)
-            .layer(
-                ServiceBuilder::new()
-                    .layer(CompressionLayer::new())
-                    .layer(TraceLayer::new_for_http()),
-            ),
-    );
+    let app = Router::new()
+        .route("/api/item/:id", get(get_item))
+        .route("/api/items", get(get_items))
+        .fallback(get(get_asset).post(submit_item))
+        .with_state(db_pool)
+        .layer(
+            ServiceBuilder::new()
+                .layer(CompressionLayer::new())
+                .layer(TraceLayer::new_for_http()),
+        );
 
     Server::bind(&format!("{host}:{port}").parse()?)
         .serve(app.into_make_service())
