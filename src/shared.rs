@@ -205,6 +205,7 @@ pub struct ItemFilter {
     pub first_item_id: Option<i64>,
     pub last_item_id: Option<i64>,
     pub batch_size: Option<u32>,
+    pub load_first_item: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -221,6 +222,7 @@ pub struct ItemSearchResult {
     pub items: Vec<ItemSummary>,
     pub systems: Vec<String>,
     pub total_items: i32,
+    pub first_item: Option<Item>,
 }
 
 #[derive(Serialize)]

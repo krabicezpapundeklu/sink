@@ -99,10 +99,18 @@ async fn get_items(
     State(db_pool): State<Pool>,
     filter: Query<ItemFilter>,
 ) -> JsonResponse<ItemSearchResult> {
-    call_db(&db_pool, move |db| db.get_items(&filter))
-        .await
-        .map(Json)
-        .map_err(Into::into)
+    call_db(&db_pool, move |db| {
+        let mut items = db.get_items(&filter)?;
+
+        if filter.load_first_item.unwrap_or_default() && !items.items.is_empty() {
+            items.first_item = Some(db.get_item(items.items[0].id)?);
+        }
+
+        Ok(items)
+    })
+    .await
+    .map(Json)
+    .map_err(Into::into)
 }
 
 #[tokio::main]

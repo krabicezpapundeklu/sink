@@ -12,6 +12,7 @@ export interface ItemSearchResult {
 	items: ItemSummary[];
 	systems: string[];
 	totalItems: number;
+	firstItem: Item | null;
 }
 
 export interface ItemSummary {

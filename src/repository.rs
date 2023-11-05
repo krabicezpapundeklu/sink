@@ -205,6 +205,7 @@ impl Repository for Connection {
             items: Vec::new(),
             systems: Vec::new(),
             total_items: 0,
+            first_item: None,
         };
 
         while let Some(row) = rows.next()? {

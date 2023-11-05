@@ -4,7 +4,6 @@ import plaintext from 'highlight.js/lib/languages/plaintext';
 import xml from 'highlight.js/lib/languages/xml';
 
 import type { Item, ItemSearchResult, ItemSummary, ItemType, ItemWithHighlighting } from './model';
-import { error } from '@sveltejs/kit';
 
 export const BATCH_SIZE = 100;
 export const MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
@@ -189,7 +188,8 @@ export async function loadItems(
 	params: URLSearchParams,
 	firstItemId: number,
 	lastItemId: number,
-	batchSize?: number
+	batchSize?: number,
+	loadFirstItem?: boolean
 ): Promise<ItemSearchResult> {
 	let url = `/api/items?firstItemId=${firstItemId}&lastItemId=${lastItemId}`;
 
@@ -197,17 +197,20 @@ export async function loadItems(
 		url += `&batchSize=${batchSize}`;
 	}
 
+	if (loadFirstItem) {
+		url += '&loadFirstItem=true';
+	}
+
 	url += `&${params}`;
 
 	const response = await fetch(url);
-
-	if (!response.ok) {
-		throw error(response.status, await response.text());
-	}
-
 	const items = await response.json();
 
 	formatSubmitDates(items.items);
+
+	if (items.firstItem) {
+		formatSubmitDates([items.firstItem]);
+	}
 
 	return items;
 }
