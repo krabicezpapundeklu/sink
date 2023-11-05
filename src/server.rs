@@ -1,49 +1,56 @@
-use std::{
-    fmt::{self, Display, Formatter},
-    path,
-};
+use std::path;
 
-use actix_web::{
-    dev::Service,
-    get,
-    http::header::{HeaderValue, CACHE_CONTROL},
-    middleware::{Compress, Logger, NormalizePath, TrailingSlash},
-    post,
-    web::{Bytes, Data, Json, Path, Query},
-    App, HttpRequest, HttpServer, Responder, ResponseError,
-};
-
-use actix_web_static_files::ResourceFiles;
 use anyhow::{anyhow, Context, Error, Result};
+
+use axum::{
+    body::Bytes,
+    extract::{Path, Query, State},
+    http::{
+        header::{CACHE_CONTROL, CONTENT_TYPE},
+        HeaderMap, StatusCode, Uri,
+    },
+    response::{IntoResponse, Response},
+    routing::{get, post},
+    Json, Router, Server, ServiceExt,
+};
+
 use chrono::Utc;
 use deadpool_sqlite::{Config, Pool, Runtime};
 use rusqlite::Connection;
+use rust_embed::RustEmbed;
+use tower::{Layer, ServiceBuilder};
+
+use tower_http::{
+    compression::CompressionLayer, normalize_path::NormalizePathLayer, trace::TraceLayer,
+};
 
 use crate::{
     repository::Repository,
-    shared::{Item, ItemFilter, ItemHeader},
+    shared::{Item, ItemFilter, ItemHeader, ItemSearchResult},
 };
 
-include!(concat!(env!("OUT_DIR"), "/generated.rs"));
+struct AppError(Error);
 
-type Response<T> = Result<T, ServerError>;
-
-#[derive(Debug)]
-struct ServerError(Error);
-
-impl Display for ServerError {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        self.0.fmt(f)
+impl<E> From<E> for AppError
+where
+    E: Into<Error>,
+{
+    fn from(error: E) -> Self {
+        Self(error.into())
     }
 }
 
-impl From<Error> for ServerError {
-    fn from(value: Error) -> Self {
-        Self(value)
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("{}", self.0)).into_response()
     }
 }
 
-impl ResponseError for ServerError {}
+#[derive(RustEmbed)]
+#[folder = "web/build/client"]
+struct Assets;
+
+type JsonResponse<T> = Result<Json<T>, AppError>;
 
 async fn call_db<F, T>(db_pool: &Pool, f: F) -> Result<T>
 where
@@ -58,80 +65,88 @@ where
         .map_err(|error| anyhow!("cannot call db: {error}"))?
 }
 
-#[get("/api/item/{id}")]
-async fn get_item(db_pool: Data<Pool>, path: Path<i64>) -> Response<impl Responder> {
-    let id = path.into_inner();
+async fn get_asset(uri: Uri) -> impl IntoResponse {
+    let mut path = uri.path().trim_start_matches('/');
 
+    if path.is_empty() || !path.contains('.') {
+        path = "index.html";
+    }
+
+    if let Some(content) = Assets::get(path) {
+        let mime = mime_guess::from_path(path).first_or_octet_stream();
+
+        if path.starts_with("_app/immutable") {
+            (
+                [
+                    (CACHE_CONTROL, "public, max-age=31536000, immutable"),
+                    (CONTENT_TYPE, mime.as_ref()),
+                ],
+                content.data,
+            )
+                .into_response()
+        } else {
+            ([(CONTENT_TYPE, mime.as_ref())], content.data).into_response()
+        }
+    } else {
+        StatusCode::NOT_FOUND.into_response()
+    }
+}
+
+async fn get_item(State(db_pool): State<Pool>, Path(id): Path<i64>) -> JsonResponse<Item> {
     call_db(&db_pool, move |db| db.get_item(id))
         .await
         .map(Json)
         .map_err(Into::into)
 }
 
-#[get("/api/items")]
-async fn get_items(db_pool: Data<Pool>, filter: Query<ItemFilter>) -> Response<impl Responder> {
-    let filter = filter.into_inner();
-
+async fn get_items(
+    State(db_pool): State<Pool>,
+    filter: Query<ItemFilter>,
+) -> JsonResponse<ItemSearchResult> {
     call_db(&db_pool, move |db| db.get_items(&filter))
         .await
         .map(Json)
         .map_err(Into::into)
 }
 
-#[actix_web::main]
-pub async fn start_server(host: &str, port: u16, db: &path::Path) -> Result<()> {
+#[tokio::main]
+pub async fn start(host: &str, port: u16, db: &path::Path) -> Result<()> {
     let db_pool = Config::new(db).create_pool(Runtime::Tokio1)?;
 
     call_db(&db_pool, |db| db.prepare_schema())
         .await
         .with_context(|| format!("cannot prepare database schema in {}", db.display()))?;
 
-    HttpServer::new(move || {
-        App::new()
-            .app_data(Data::new(db_pool.clone()))
-            .service(get_item)
-            .service(get_items)
-            .service(submit_item)
-            .service(ResourceFiles::new("/", generate()).resolve_not_found_to_root())
-            .wrap(Compress::default())
-            .wrap(Logger::default())
-            .wrap(NormalizePath::new(TrailingSlash::Trim))
-            .wrap_fn(|request, service| {
-                let is_immutable = request.path().starts_with("/_app/immutable/");
-                let response = service.call(request);
+    let app = NormalizePathLayer::trim_trailing_slash().layer(
+        Router::new()
+            .route("/api/item/:id", get(get_item))
+            .route("/api/items", get(get_items))
+            .route("/item", post(submit_item))
+            .fallback(get_asset)
+            .with_state(db_pool)
+            .layer(
+                ServiceBuilder::new()
+                    .layer(CompressionLayer::new())
+                    .layer(TraceLayer::new_for_http()),
+            ),
+    );
 
-                async move {
-                    let mut response = response.await?;
-
-                    if is_immutable {
-                        response.headers_mut().insert(
-                            CACHE_CONTROL,
-                            HeaderValue::from_static("public, max-age=31536000, immutable"),
-                        );
-                    }
-
-                    Ok(response)
-                }
-            })
-    })
-    .bind((host, port))?
-    .run()
-    .await
-    .map_err(Into::into)
+    Server::bind(&format!("{host}:{port}").parse()?)
+        .serve(app.into_make_service())
+        .await
+        .map_err(Into::into)
 }
 
-#[post("/item")]
 async fn submit_item(
-    db_pool: Data<Pool>,
-    request: HttpRequest,
+    State(db_pool): State<Pool>,
+    headers: HeaderMap,
     body: Bytes,
-) -> Response<impl Responder> {
-    let headers: Vec<ItemHeader> = request
-        .headers()
+) -> JsonResponse<i64> {
+    let headers: Vec<ItemHeader> = headers
         .iter()
         .map(|(name, value)| ItemHeader {
             name: name.to_string(),
-            value: value.as_bytes().to_vec(),
+            value: value.as_bytes().into(),
         })
         .collect();
 

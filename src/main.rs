@@ -9,7 +9,6 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use env_logger::Env;
 use libc::c_int;
-use server::start_server;
 
 mod repository;
 mod server;
@@ -54,7 +53,7 @@ fn main() -> Result<()> {
 
     env_logger::builder()
         .format_timestamp_micros()
-        .parse_env(Env::default().default_filter_or("info"))
+        .parse_env(Env::default().default_filter_or("tower_http::trace=debug"))
         .init();
 
     match &args.command {
@@ -73,7 +72,7 @@ fn main() -> Result<()> {
             exit(result);
         },
         Command::StartServer { host, port, db } => {
-            start_server(host, *port, db).context("error running server")
+            server::start(host, *port, db).context("error running server")
         }
     }
 }
