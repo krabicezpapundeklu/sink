@@ -1,8 +1,6 @@
 use std::{fmt::Debug, mem::take, str::FromStr, string::ToString, sync::Arc};
 
 use anyhow::Result;
-use log::debug;
-
 use regex::bytes::Regex;
 
 use rusqlite::{
@@ -11,6 +9,8 @@ use rusqlite::{
     types::{FromSql, FromSqlError, FromSqlResult, ToSqlOutput, Value, ValueRef},
     Connection, Error, ToSql,
 };
+
+use tracing::{debug, instrument};
 
 use crate::shared::{Item, ItemFilter, ItemHeader, ItemSearchResult, ItemSummary, ItemType};
 
@@ -54,8 +54,9 @@ pub trait Repository {
 }
 
 impl Repository for Connection {
+    #[instrument(level = "debug")]
     fn get_item(&self, id: i64) -> Result<Item> {
-        debug!("get_item START");
+        debug!("start");
 
         let mut item = self.query_row("SELECT i.id, i.submit_date, i.system, i.type, ib.body FROM item i JOIN item_body ib ON ib.item_id = i.id WHERE i.id = ?", [id], |row| {
             Ok(Item {
@@ -83,13 +84,14 @@ impl Repository for Connection {
             item.headers.push(header);
         }
 
-        debug!("get_item END");
+        debug!("end");
 
         Ok(item)
     }
 
+    #[instrument(level = "debug", skip(self))]
     fn get_items(&self, filter: &ItemFilter) -> Result<ItemSearchResult> {
-        debug!("get_items START");
+        debug!("start");
 
         let mut params: Vec<&dyn Parameter> = Vec::new();
 
@@ -196,7 +198,7 @@ impl Repository for Connection {
             sql.push_str(" LIMIT ? + 1");
         }
 
-        debug!("sql: {sql}, params: {params:?}");
+        debug!(sql, ?params);
 
         let mut stmt = self.prepare(&sql)?;
         let mut rows = stmt.query(params_from_iter(params.iter()))?;
@@ -229,7 +231,7 @@ impl Repository for Connection {
             result.systems.push(row.get(0)?);
         }
 
-        debug!("get_items END");
+        debug!("end");
 
         Ok(result)
     }
@@ -260,8 +262,9 @@ impl Repository for Connection {
         Ok(())
     }
 
+    #[instrument(level = "debug", ret, skip_all)]
     fn insert_item(&mut self, item: &Item) -> Result<i64> {
-        debug!("insert_item START");
+        debug!("start");
 
         let tx = self.transaction()?;
 
@@ -286,13 +289,14 @@ impl Repository for Connection {
 
         tx.commit()?;
 
-        debug!("insert_item END");
+        debug!("end");
 
         Ok(id)
     }
 
+    #[instrument(level = "debug", skip(self))]
     fn prepare_schema(&self) -> Result<()> {
-        debug!("prepare_schema START");
+        debug!("start");
 
         self.execute_batch("
             PRAGMA foreign_keys = ON;
@@ -308,7 +312,7 @@ impl Repository for Connection {
             CREATE INDEX IF NOT EXISTS idx_item_header_item_id ON item_header (item_id);
         ")?;
 
-        debug!("prepare_schema END");
+        debug!("end");
 
         Ok(())
     }

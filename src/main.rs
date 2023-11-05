@@ -7,8 +7,8 @@ use std::{
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use env_logger::Env;
 use libc::c_int;
+use tracing_subscriber::EnvFilter;
 
 mod repository;
 mod server;
@@ -51,9 +51,11 @@ enum Command {
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    env_logger::builder()
-        .format_timestamp_micros()
-        .parse_env(Env::default().default_filter_or("tower_http::trace=debug"))
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| EnvFilter::new("tower_http::trace=debug,info")),
+        )
         .init();
 
     match &args.command {

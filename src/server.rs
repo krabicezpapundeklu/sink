@@ -24,6 +24,8 @@ use tower_http::{
     compression::CompressionLayer, normalize_path::NormalizePathLayer, trace::TraceLayer,
 };
 
+use tracing::info;
+
 use crate::{
     repository::Repository,
     shared::{Item, ItemFilter, ItemHeader, ItemSearchResult},
@@ -115,6 +117,8 @@ async fn get_items(
 
 #[tokio::main]
 pub async fn start(host: &str, port: u16, db: &path::Path) -> Result<()> {
+    info!(host, port, ?db, "starting server");
+
     let db_pool = Config::new(db).create_pool(Runtime::Tokio1)?;
 
     call_db(&db_pool, |db| db.prepare_schema())
@@ -137,8 +141,11 @@ pub async fn start(host: &str, port: u16, db: &path::Path) -> Result<()> {
 
     Server::bind(&format!("{host}:{port}").parse()?)
         .serve(app.into_make_service())
-        .await
-        .map_err(Into::into)
+        .await?;
+
+    info!("bye!");
+
+    Ok(())
 }
 
 async fn submit_item(
