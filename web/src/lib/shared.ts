@@ -220,7 +220,7 @@ export async function loadItems(
 	formatSubmitDates(items.items);
 
 	if (items.firstItem) {
-		formatSubmitDates([items.firstItem]);
+		formatSubmitDates([items.firstItem], true);
 	}
 
 	return items;
