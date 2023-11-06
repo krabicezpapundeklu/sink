@@ -19,10 +19,8 @@ use deadpool_sqlite::{Config, Pool, Runtime};
 use rusqlite::Connection;
 use rust_embed::RustEmbed;
 use tower::ServiceBuilder;
-
 use tower_http::{compression::CompressionLayer, trace::TraceLayer};
-
-use tracing::info;
+use tracing::{error, info};
 
 use crate::{
     repository::Repository,
@@ -42,7 +40,9 @@ where
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("{}", self.0)).into_response()
+        let error = format!("{}", self.0);
+        error!(error);
+        (StatusCode::INTERNAL_SERVER_ERROR, error).into_response()
     }
 }
 
