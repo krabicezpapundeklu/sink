@@ -119,9 +119,12 @@ pub async fn start(host: &str, port: u16, db: &path::Path) -> Result<()> {
 
     let db_pool = Config::new(db).create_pool(Runtime::Tokio1)?;
 
-    call_db(&db_pool, |db| db.prepare_schema())
-        .await
-        .with_context(|| format!("cannot prepare database schema in {}", db.display()))?;
+    call_db(&db_pool, |db| {
+        db.prepare_schema()?;
+        db.init()
+    })
+    .await
+    .with_context(|| format!("cannot prepare database schema in {}", db.display()))?;
 
     let app = Router::new()
         .route("/api/item/:id", get(get_item))
