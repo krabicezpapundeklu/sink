@@ -47,7 +47,7 @@ impl IntoResponse for AppError {
 }
 
 #[derive(RustEmbed)]
-#[folder = "web/build/client"]
+#[folder = "web/build"]
 struct Assets;
 
 type JsonResponse<T> = Result<Json<T>, AppError>;

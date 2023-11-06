@@ -17,11 +17,9 @@ fn build_sqlite_shell() {
 fn main() -> Result<()> {
     build_sqlite_shell();
 
-    println!("cargo:rerun-if-changed=web/adapter");
+    println!("cargo:rerun-if-changed=web/package.json");
     println!("cargo:rerun-if-changed=web/src");
     println!("cargo:rerun-if-changed=web/static");
-    println!("cargo:rerun-if-changed=web/package.json");
-    println!("cargo:rerun-if-changed=web/purgecss.config.cjs");
     println!("cargo:rerun-if-changed=web/svelte.config.js");
     println!("cargo:rerun-if-changed=web/tsconfig.json");
     println!("cargo:rerun-if-changed=web/vite.config.ts");
@@ -29,7 +27,7 @@ fn main() -> Result<()> {
     NpmBuild::new("web")
         .install()?
         .run("build")?
-        .target("web/build/client")
+        .target("web/build")
         .to_resource_dir()
         .build()
 }

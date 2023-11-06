@@ -36,8 +36,16 @@ $nav-link-color: #0a58ca;
 	--bs-dropdown-bg: white;
 }
 
+.mw-0 {
+	min-width: 0;
+}
+
 .table {
 	--bs-table-bg: white;
+}
+
+.w-fc {
+	width: fit-content;
 }
 
 .event_notification {

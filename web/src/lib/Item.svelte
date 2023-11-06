@@ -101,7 +101,7 @@
 				</tbody>
 			</table>
 		{:else}
-			<pre class="mb-0 overflow-hidden p-2" style="width: fit-content"><code
+			<pre class="mb-0 overflow-hidden p-2 w-fc"><code
 					>{@html activeTab === 0 ? item.highlightedBodyPreview : item.higlightedBody}</code
 				></pre>
 		{/if}
