@@ -33,77 +33,77 @@
 	$: base = `/item/${item.id}?view=`;
 </script>
 
-<div>
-	<span class="fs-3 me-3">#{formatNumber(item.id)}</span>
-	<span>{item.submitDate}</span>
+<div class="d-flex flex-column mh-100 p-2">
 	<div>
-		{#if item.system}
-			<span class="badge bg-secondary">{item.system}</span>
-		{/if}
-		{#if item.type}
-			<span class="badge {item.type}">{itemTypeToName(item.type)}</span>
-		{/if}
+		<span class="fs-3 me-3">#{formatNumber(item.id)}</span>
+		<span>{item.submitDate}</span>
+		<div>
+			{#if item.system}
+				<span class="badge bg-secondary">{item.system}</span>
+			{/if}
+			{#if item.type}
+				<span class="badge {item.type}">{itemTypeToName(item.type)}</span>
+			{/if}
+		</div>
 	</div>
-</div>
-<div class="d-flex mt-3">
-	<ul class="d-inline-flex nav nav-underline">
-		<li class="nav-item">
-			<a
-				class="nav-link"
-				class:active={activeTab === 0}
-				data-sveltekit-preload-data="off"
-				href="{base}{tabs[0]}"
-				on:click={(e) => selectTab(e, 0)}>Body Preview</a
+	<div class="d-flex mt-3">
+		<ul class="d-inline-flex nav nav-underline">
+			<li class="nav-item">
+				<a
+					class="nav-link"
+					class:active={activeTab === 0}
+					data-sveltekit-preload-data="off"
+					href="{base}{tabs[0]}"
+					on:click={(e) => selectTab(e, 0)}>Body Preview</a
+				>
+			</li>
+			<li class="nav-item">
+				<a
+					class="nav-link"
+					class:active={activeTab === 1}
+					data-sveltekit-preload-data="off"
+					href="{base}{tabs[1]}"
+					on:click={(e) => selectTab(e, 1)}>Original Body</a
+				>
+			</li>
+			<li class="nav-item">
+				<a
+					class="nav-link"
+					class:active={activeTab === 2}
+					data-sveltekit-preload-data="off"
+					href="{base}{tabs[2]}"
+					on:click={(e) => selectTab(e, 2)}>Headers</a
+				>
+			</li>
+		</ul>
+		<div class="align-self-center flex-fill">
+			<button class="btn btn-outline-secondary btn-sm float-end" on:click={copyTab}
+				>Copy to Clipboard</button
 			>
-		</li>
-		<li class="nav-item">
-			<a
-				class="nav-link"
-				class:active={activeTab === 1}
-				data-sveltekit-preload-data="off"
-				href="{base}{tabs[1]}"
-				on:click={(e) => selectTab(e, 1)}>Original Body</a
-			>
-		</li>
-		<li class="nav-item">
-			<a
-				class="nav-link"
-				class:active={activeTab === 2}
-				data-sveltekit-preload-data="off"
-				href="{base}{tabs[2]}"
-				on:click={(e) => selectTab(e, 2)}>Headers</a
-			>
-		</li>
-	</ul>
-	<div class="align-self-center flex-fill">
-		<button class="btn btn-outline-secondary btn-sm float-end" on:click={copyTab}
-			>Copy to Clipboard</button
-		>
+		</div>
 	</div>
-</div>
-<div class="mt-1 white-bg" bind:this={tab}>
-	{#if activeTab === 2}
-		<table class="m-0 table table-bordered table-sm">
-			<thead>
-				<tr>
-					<th scope="col">Name</th>
-					<th scope="col">Value</th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each item.headers as header}
+	<div class="border mt-1 overflow-auto white-bg" bind:this={tab}>
+		{#if activeTab === 2}
+			<table class="m-0 table table-sm">
+				<thead>
 					<tr>
-						<td>{header.name}</td>
-						<td>{header.value}</td>
+						<th scope="col">Name</th>
+						<th class="border-start" scope="col">Value</th>
 					</tr>
-				{/each}
-			</tbody>
-		</table>
-	{:else}
-		<div class="border p-2">
-			<pre class="mb-0"><code
+				</thead>
+				<tbody>
+					{#each item.headers as header}
+						<tr>
+							<td class="border-bottom-0 border-top">{header.name}</td>
+							<td class="border-bottom-0 border-start border-top">{header.value}</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		{:else}
+			<pre class="mb-0 overflow-hidden p-2" style="width: fit-content"><code
 					>{@html activeTab === 0 ? item.highlightedBodyPreview : item.higlightedBody}</code
 				></pre>
-		</div>
-	{/if}
+		{/if}
+	</div>
 </div>

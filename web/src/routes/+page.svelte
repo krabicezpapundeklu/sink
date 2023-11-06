@@ -258,8 +258,8 @@
 		</div>
 		{#if activeItem}
 			<div
-				class="border-start flex-fill overflow-auto p-2 shadow"
-				style="background-color: #f5f5f5"
+				class="border-start d-flex flex-column flex-fill shadow"
+				style="background-color: #f5f5f5; min-width: 0"
 			>
 				<Item item={activeItem} />
 			</div>

@@ -10,6 +10,6 @@
 	<title>Sink - #{formatNumber(data.id)}</title>
 </svelte:head>
 
-<div class="container p-2">
+<div class="vh-100">
 	<Item item={highlightItem(data)} preventDefault={false} />
 </div>
