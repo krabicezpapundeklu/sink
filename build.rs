@@ -17,6 +17,8 @@ fn build_sqlite_shell() {
 fn main() -> Result<()> {
     build_sqlite_shell();
 
+    println!("cargo:rerun-if-changed=item.types.json");
+
     println!("cargo:rerun-if-changed=web/package.json");
     println!("cargo:rerun-if-changed=web/src");
     println!("cargo:rerun-if-changed=web/static");

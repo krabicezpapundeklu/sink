@@ -1,0 +1,125 @@
+[
+    {
+        "name": "Event Notification",
+        "key": "event_notification",
+        "color": "#084298"
+    },
+    {
+        "name": "Event Payload",
+        "key": "event_payload",
+        "color": "#0d6efd"
+    },
+    {
+        "name": "PC Folder CL",
+        "key": "folder_cl",
+        "color": "#842029",
+        "xmlPaths": {
+            "/Folder": {
+                "type": "CL"
+            }
+        }
+    },
+    {
+        "name": "PC Folder FS",
+        "key": "folder_fs",
+        "color": "#842029",
+        "xmlPaths": {
+            "/Folder": {
+                "type": "FS"
+            }
+        }
+    },
+    {
+        "name": "PC Folder IDPD",
+        "key": "folder_idpd",
+        "color": "#842029",
+        "xmlPaths": {
+            "/Folder": {
+                "type": "IDPD"
+            }
+        }
+    },
+    {
+        "name": "PC Folder SINGLEPD",
+        "key": "folder_pd",
+        "color": "#842029",
+        "xmlPaths": {
+            "/Folder": {
+                "type": "SINGLEPD"
+            }
+        }
+    },
+    {
+        "name": "SOAP Application Created",
+        "key": "application_created",
+        "color": "#984c0c",
+        "xmlPaths": {
+            "/Envelope/Body/createdApplication": {}
+        }
+    },
+    {
+        "name": "SOAP Application Updated",
+        "key": "application_updated",
+        "color": "#fd7e14",
+        "xmlPaths": {
+            "/Envelope/Body/updatedApplication": {}
+        }
+    },
+    {
+        "name": "SOAP Certificate Created",
+        "key": "certificate_created",
+        "color": "#664d03",
+        "xmlPaths": {
+            "/Envelope/Body/createdCertificate": {}
+        }
+    },
+    {
+        "name": "SOAP Certificate Updated",
+        "key": "certificate_updated",
+        "color": "#ffc107",
+        "xmlPaths": {
+            "/Envelope/Body/updatedCertificate": {}
+        }
+    },
+    {
+        "name": "SOAP Selectee Created",
+        "key": "selectee_created",
+        "color": "#0f5132",
+        "xmlPaths": {
+            "/Envelope/Body/createSelecteeRequest": {}
+        }
+    },
+    {
+        "name": "SOAP Selectee Updated",
+        "key": "selectee_updated",
+        "color": "#198754",
+        "xmlPaths": {
+            "/Envelope/Body/Update__CompIntfc__Z_USAS_LD_SELECTEE": {}
+        }
+    },
+    {
+        "name": "SOAP Status Updated",
+        "key": "status_updated",
+        "color": "#13795b",
+        "xmlPaths": {
+            "/Envelope/Body/Create__CompIntfc__Z_USAS_UPDT_STATUS": {},
+            "/Envelope/Body/updateStatusRequest": {}
+        }
+    },
+    {
+        "name": "SOAP Vacancy Created",
+        "key": "vacancy_created",
+        "color": "#087990",
+        "xmlPaths": {
+            "/Envelope/Body/createdVacancy": {}
+        }
+    },
+    {
+        "name": "SOAP Vacancy Updated",
+        "key": "vacancy_updated",
+        "color": "#0dcaf0",
+        "xmlPaths": {
+            "/Envelope/Body/updatedVacancy": {}
+        }
+    }
+]

@@ -1,40 +1,11 @@
-use std::{fmt::Debug, mem::take, str::FromStr, string::ToString, sync::Arc};
+use std::{fmt::Debug, mem::take, string::ToString, sync::Arc};
 
 use anyhow::Result;
 use regex::bytes::Regex;
-
-use rusqlite::{
-    functions::FunctionFlags,
-    params, params_from_iter,
-    types::{FromSql, FromSqlError, FromSqlResult, ToSqlOutput, Value, ValueRef},
-    Connection, Error, ToSql,
-};
-
+use rusqlite::{functions::FunctionFlags, params, params_from_iter, Connection, Error, ToSql};
 use tracing::{debug, instrument};
 
-use crate::shared::{Item, ItemFilter, ItemHeader, ItemSearchResult, ItemSummary, ItemType};
-
-macro_rules! store_as_sql_text {
-    ($($type:ty)+) => {
-        $(
-            impl FromSql for $type {
-                fn column_result(value: ValueRef) -> FromSqlResult<Self> {
-                    Self::from_str(value.as_str()?).map_err(|e| FromSqlError::Other(e.into()))
-                }
-            }
-
-            impl ToSql for $type {
-                fn to_sql(&self) -> Result<ToSqlOutput, Error> {
-                    Ok(ToSqlOutput::Owned(Value::Text(self.to_string())))
-                }
-            }
-        )+
-    }
-}
-
-store_as_sql_text! {
-    ItemType
-}
+use crate::shared::{Item, ItemFilter, ItemHeader, ItemSearchResult, ItemSummary};
 
 const REGEX_PREFIX: &str = "regex:";
 
