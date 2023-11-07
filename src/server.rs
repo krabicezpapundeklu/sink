@@ -16,7 +16,6 @@ use axum::{
 
 use chrono::Utc;
 use deadpool_sqlite::{Config, Pool, Runtime};
-use lazy_static::lazy_static;
 
 use quick_xml::{
     events::{
@@ -39,11 +38,6 @@ use crate::{
     shared::{Item, ItemFilter, ItemHeader, ItemSearchResult},
 };
 
-lazy_static! {
-    static ref ITEM_TYPES: Vec<ItemType> =
-        from_str(include_str!("../item.types.json")).expect("cannot parse item.types.json");
-}
-
 struct AppError(Error);
 
 impl<E> From<E> for AppError
@@ -63,11 +57,45 @@ impl IntoResponse for AppError {
     }
 }
 
+#[derive(Clone)]
+struct AppState {
+    db_pool: Pool,
+    item_types: Vec<ItemType>,
+}
+
+impl AppState {
+    fn get_xml_item_type(&self, path: &str, attributes: &Attributes) -> Option<&str> {
+        for item_type in self.item_types.iter() {
+            if let Some(path_attributes) = item_type.xml_paths.get(path) {
+                let mut matched_atributes = 0;
+
+                for attribute in attributes.clone().flatten() {
+                    let local_name = attribute.key.local_name();
+
+                    if let Some(value) =
+                        path_attributes.get(String::from_utf8_lossy(local_name.as_ref()).as_ref())
+                    {
+                        if attribute.value == value.as_bytes() {
+                            matched_atributes += 1;
+                        }
+                    }
+                }
+
+                if matched_atributes == path_attributes.len() {
+                    return Some(&item_type.key);
+                }
+            }
+        }
+
+        None
+    }
+}
+
 #[derive(RustEmbed)]
 #[folder = "web/build"]
 struct Assets;
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ItemType {
     key: String,
@@ -114,44 +142,18 @@ async fn get_asset(uri: Uri) -> Response {
     }
 }
 
-async fn get_item(State(db_pool): State<Pool>, Path(id): Path<i64>) -> JsonResponse<Item> {
-    call_db(&db_pool, move |db| db.get_item(id))
+async fn get_item(State(app_state): State<AppState>, Path(id): Path<i64>) -> JsonResponse<Item> {
+    call_db(&app_state.db_pool, move |db| db.get_item(id))
         .await
         .map(Json)
         .map_err(Into::into)
 }
 
-fn get_item_type(path: &str, attributes: &Attributes) -> Option<&'static str> {
-    for item_type in ITEM_TYPES.iter() {
-        if let Some(path_attributes) = item_type.xml_paths.get(path) {
-            let mut matched_atributes = 0;
-
-            for attribute in attributes.clone().flatten() {
-                let local_name = attribute.key.local_name();
-
-                if let Some(value) =
-                    path_attributes.get(String::from_utf8_lossy(local_name.as_ref()).as_ref())
-                {
-                    if attribute.value == value.as_bytes() {
-                        matched_atributes += 1;
-                    }
-                }
-            }
-
-            if matched_atributes == path_attributes.len() {
-                return Some(&item_type.key);
-            }
-        }
-    }
-
-    None
-}
-
 async fn get_items(
-    State(db_pool): State<Pool>,
+    State(app_state): State<AppState>,
     filter: Query<ItemFilter>,
 ) -> JsonResponse<ItemSearchResult> {
-    call_db(&db_pool, move |db| {
+    call_db(&app_state.db_pool, move |db| {
         let mut items = db.get_items(&filter)?;
 
         if filter.load_first_item.unwrap_or_default() && !items.items.is_empty() {
@@ -178,11 +180,17 @@ pub async fn start(host: &str, port: u16, db: &path::Path) -> Result<()> {
     .await
     .with_context(|| format!("cannot prepare database schema in {}", db.display()))?;
 
+    let item_types: Vec<ItemType> =
+        from_str(include_str!("../item.types.json")).context("cannot parse item.types.json")?;
+
     let app = Router::new()
         .route("/api/item/:id", get(get_item))
         .route("/api/items", get(get_items))
         .fallback(get(get_asset).post(submit_item))
-        .with_state(db_pool)
+        .with_state(AppState {
+            db_pool,
+            item_types,
+        })
         .layer(
             ServiceBuilder::new()
                 .layer(CompressionLayer::new())
@@ -199,7 +207,7 @@ pub async fn start(host: &str, port: u16, db: &path::Path) -> Result<()> {
 }
 
 async fn submit_item(
-    State(db_pool): State<Pool>,
+    State(app_state): State<AppState>,
     headers: HeaderMap,
     body: Bytes,
 ) -> JsonResponse<i64> {
@@ -246,7 +254,7 @@ async fn submit_item(
                         path.push_str(&String::from_utf8_lossy(element.local_name().as_ref()));
 
                         if item_type.is_none() {
-                            item_type = get_item_type(&path, &element.attributes());
+                            item_type = app_state.get_xml_item_type(&path, &element.attributes());
                         }
                     }
                     End(_) => {
@@ -280,7 +288,7 @@ async fn submit_item(
         body: body.to_vec(),
     };
 
-    call_db(&db_pool, move |db| db.insert_item(&item))
+    call_db(&app_state.db_pool, move |db| db.insert_item(&item))
         .await
         .map(Json)
         .map_err(Into::into)
