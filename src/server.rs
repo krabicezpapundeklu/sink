@@ -64,8 +64,21 @@ struct AppState {
 }
 
 impl AppState {
+    async fn call_db<F, T>(&self, f: F) -> Result<T>
+    where
+        F: FnOnce(&mut Connection) -> Result<T> + Send + 'static,
+        T: Send + 'static,
+    {
+        self.db_pool
+            .get()
+            .await?
+            .interact(f)
+            .await
+            .map_err(|error| anyhow!("cannot call db: {error}"))?
+    }
+
     fn get_xml_item_type(&self, path: &str, attributes: &Attributes) -> Option<&str> {
-        for item_type in self.item_types.iter() {
+        for item_type in &self.item_types {
             if let Some(path_attributes) = item_type.xml_paths.get(path) {
                 let mut matched_atributes = 0;
 
@@ -89,6 +102,18 @@ impl AppState {
 
         None
     }
+
+    fn new(db: &path::Path) -> Result<Self> {
+        let db_pool = Config::new(db).create_pool(Runtime::Tokio1)?;
+
+        let item_types: Vec<ItemType> =
+            from_str(include_str!("../item.types.json")).context("cannot parse item.types.json")?;
+
+        Ok(Self {
+            db_pool,
+            item_types,
+        })
+    }
 }
 
 #[derive(RustEmbed)]
@@ -105,19 +130,6 @@ struct ItemType {
 }
 
 type JsonResponse<T> = Result<Json<T>, AppError>;
-
-async fn call_db<F, T>(db_pool: &Pool, f: F) -> Result<T>
-where
-    F: FnOnce(&mut Connection) -> Result<T> + Send + 'static,
-    T: Send + 'static,
-{
-    db_pool
-        .get()
-        .await?
-        .interact(f)
-        .await
-        .map_err(|error| anyhow!("cannot call db: {error}"))?
-}
 
 async fn get_asset(uri: Uri) -> Response {
     let path = uri.path().trim_start_matches('/');
@@ -143,7 +155,8 @@ async fn get_asset(uri: Uri) -> Response {
 }
 
 async fn get_item(State(app_state): State<AppState>, Path(id): Path<i64>) -> JsonResponse<Item> {
-    call_db(&app_state.db_pool, move |db| db.get_item(id))
+    app_state
+        .call_db(move |db| db.get_item(id))
         .await
         .map(Json)
         .map_err(Into::into)
@@ -153,44 +166,40 @@ async fn get_items(
     State(app_state): State<AppState>,
     filter: Query<ItemFilter>,
 ) -> JsonResponse<ItemSearchResult> {
-    call_db(&app_state.db_pool, move |db| {
-        let mut items = db.get_items(&filter)?;
+    app_state
+        .call_db(move |db| {
+            let mut items = db.get_items(&filter)?;
 
-        if filter.load_first_item.unwrap_or_default() && !items.items.is_empty() {
-            items.first_item = Some(db.get_item(items.items[0].id)?);
-        }
+            if filter.load_first_item.unwrap_or_default() && !items.items.is_empty() {
+                items.first_item = Some(db.get_item(items.items[0].id)?);
+            }
 
-        Ok(items)
-    })
-    .await
-    .map(Json)
-    .map_err(Into::into)
+            Ok(items)
+        })
+        .await
+        .map(Json)
+        .map_err(Into::into)
 }
 
 #[tokio::main]
 pub async fn start(host: &str, port: u16, db: &path::Path) -> Result<()> {
     info!(host, port, ?db, "starting server");
 
-    let db_pool = Config::new(db).create_pool(Runtime::Tokio1)?;
+    let app_state = AppState::new(db)?;
 
-    call_db(&db_pool, |db| {
-        db.prepare_schema()?;
-        db.init()
-    })
-    .await
-    .with_context(|| format!("cannot prepare database schema in {}", db.display()))?;
-
-    let item_types: Vec<ItemType> =
-        from_str(include_str!("../item.types.json")).context("cannot parse item.types.json")?;
+    app_state
+        .call_db(|db| {
+            db.prepare_schema()?;
+            db.init()
+        })
+        .await
+        .with_context(|| format!("cannot prepare database schema in {}", db.display()))?;
 
     let app = Router::new()
         .route("/api/item/:id", get(get_item))
         .route("/api/items", get(get_items))
         .fallback(get(get_asset).post(submit_item))
-        .with_state(AppState {
-            db_pool,
-            item_types,
-        })
+        .with_state(app_state)
         .layer(
             ServiceBuilder::new()
                 .layer(CompressionLayer::new())
@@ -288,7 +297,8 @@ async fn submit_item(
         body: body.to_vec(),
     };
 
-    call_db(&app_state.db_pool, move |db| db.insert_item(&item))
+    app_state
+        .call_db(move |db| db.insert_item(&item))
         .await
         .map(Json)
         .map_err(Into::into)
