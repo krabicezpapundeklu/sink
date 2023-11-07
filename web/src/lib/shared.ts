@@ -1,3 +1,5 @@
+import ITEM_TYPES from '../../../item.types.json';
+
 import hljs from 'highlight.js/lib/core';
 import json from 'highlight.js/lib/languages/json';
 import plaintext from 'highlight.js/lib/languages/plaintext';
@@ -11,23 +13,7 @@ export const MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
 export const MILLISECONDS_IN_HOUR = 60 * 60 * 1000;
 export const MILLISECONDS_IN_MINUTE = 60 * 1000;
 
-export const ITEM_TYPES: ItemType[] = [
-	{ name: 'Event Notification', key: 'event_notification' },
-	{ name: 'Event Payload', key: 'event_payload' },
-	{ name: 'PC Folder CL', key: 'folder_cl' },
-	{ name: 'PC Folder FS', key: 'folder_fs' },
-	{ name: 'PC Folder IDPD', key: 'folder_idpd' },
-	{ name: 'PC Folder SINGLEPD', key: 'folder_pd' },
-	{ name: 'SOAP Application Created', key: 'application_created' },
-	{ name: 'SOAP Application Updated', key: 'application_updated' },
-	{ name: 'SOAP Certificate Created', key: 'certificate_created' },
-	{ name: 'SOAP Certificate Updated', key: 'certificate_updated' },
-	{ name: 'SOAP Selectee Created', key: 'selectee_created' },
-	{ name: 'SOAP Selectee Updated', key: 'selectee_updated' },
-	{ name: 'SOAP Status Updated', key: 'status_updated' },
-	{ name: 'SOAP Vacancy Created', key: 'vacancy_created' },
-	{ name: 'SOAP Vacancy Updated', key: 'vacancy_updated' }
-];
+export { ITEM_TYPES };
 
 hljs.registerLanguage('json', json);
 hljs.registerLanguage('plaintext', plaintext);
@@ -162,14 +148,14 @@ export function highlightItem(item: Item): ItemWithHighlighting {
 	};
 }
 
-export function itemTypeToName(key: string): string {
+export function itemTypeFromKey(key: string): ItemType | null {
 	for (const type of ITEM_TYPES) {
 		if (type.key === key) {
-			return type.name;
+			return type;
 		}
 	}
 
-	return '';
+	return null;
 }
 
 export async function loadItem(

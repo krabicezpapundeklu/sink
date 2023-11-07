@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatNumber, itemTypeToName } from '$lib/shared';
+	import { formatNumber, itemTypeFromKey } from '$lib/shared';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import type { ItemWithHighlighting } from '$lib/model';
@@ -42,7 +42,8 @@
 				<span class="badge bg-secondary">{item.system}</span>
 			{/if}
 			{#if item.type}
-				<span class="badge {item.type}">{itemTypeToName(item.type)}</span>
+				{@const itemType = itemTypeFromKey(item.type)}
+				<span class="badge" style="background-color: {itemType?.color}">{itemType?.name}</span>
 			{/if}
 		</div>
 	</div>

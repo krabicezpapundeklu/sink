@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
-	import { ITEM_TYPES, localDateToString, MILLISECONDS_IN_HOUR } from '$lib/shared';
+	import { localDateToString, ITEM_TYPES, MILLISECONDS_IN_HOUR } from '$lib/shared';
 
 	export let query: string;
 	export let system: string[];

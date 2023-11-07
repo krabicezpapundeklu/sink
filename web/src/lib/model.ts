@@ -25,6 +25,7 @@ export interface ItemSummary {
 export interface ItemType {
 	name: string;
 	key: string;
+	color: string;
 }
 
 export interface ItemWithHighlighting extends Item {

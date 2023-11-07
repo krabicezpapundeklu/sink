@@ -5,7 +5,7 @@
 		BATCH_SIZE,
 		formatNumber,
 		highlightItem,
-		itemTypeToName,
+		itemTypeFromKey,
 		loadItem,
 		loadItems,
 		MILLISECONDS_IN_MINUTE,
@@ -239,7 +239,10 @@
 										<span class="badge bg-secondary">{item.system}</span>
 									{/if}
 									{#if item.type}
-										<span class="badge {item.type}">{itemTypeToName(item.type)}</span>
+										{@const itemType = itemTypeFromKey(item.type)}
+										<span class="badge" style="background-color: {itemType?.color}"
+											>{itemType?.name}</span
+										>
 									{/if}
 								</div>
 							</a>
