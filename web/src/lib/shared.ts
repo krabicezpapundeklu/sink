@@ -148,14 +148,14 @@ export function highlightItem(item: Item): ItemWithHighlighting {
 	};
 }
 
-export function itemTypeFromKey(key: string): ItemType | null {
+export function itemTypeFromKey(key: string): ItemType {
 	for (const type of ITEM_TYPES) {
 		if (type.key === key) {
 			return type;
 		}
 	}
 
-	return null;
+	return { name: key, key, color: 'red' };
 }
 
 export async function loadItem(

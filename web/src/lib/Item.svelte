@@ -43,7 +43,7 @@
 			{/if}
 			{#if item.type}
 				{@const itemType = itemTypeFromKey(item.type)}
-				<span class="badge" style="background-color: {itemType?.color}">{itemType?.name}</span>
+				<span class="badge" style="background-color: {itemType.color}">{itemType.name}</span>
 			{/if}
 		</div>
 	</div>
