@@ -1,8 +1,8 @@
-use std::{fmt::Debug, mem::take, string::ToString, sync::Arc};
+use std::{fmt::Debug, mem::take, string::ToString};
 
 use anyhow::Result;
 use regex::bytes::Regex;
-use rusqlite::{functions::FunctionFlags, params, params_from_iter, Connection, Error, ToSql};
+use rusqlite::{functions::FunctionFlags, params, params_from_iter, Connection, ToSql};
 use tracing::{debug, instrument};
 
 use crate::shared::{Item, ItemFilter, ItemHeader, ItemSearchResult, ItemSummary};
@@ -209,28 +209,16 @@ impl Repository for Connection {
 
     fn init(&self) -> Result<()> {
         self.create_scalar_function("matches", 2, FunctionFlags::SQLITE_DETERMINISTIC, |ctx| {
-            type BoxError = Box<dyn std::error::Error + Send + Sync + 'static>;
-
-            let regex: Arc<Regex> = ctx.get_or_create_aux(0, |vr| -> Result<_, BoxError> {
+            let regex = ctx.get_or_create_aux(0, |vr| -> Result<_> {
                 let regex = vr.as_str()?;
-                Ok(Regex::new(
-                    regex.strip_prefix(REGEX_PREFIX).unwrap_or(regex),
-                )?)
+                Regex::new(regex.strip_prefix(REGEX_PREFIX).unwrap_or(regex)).map_err(Into::into)
             })?;
 
-            let is_match = {
-                let text = ctx
-                    .get_raw(1)
-                    .as_bytes()
-                    .map_err(|e| Error::UserFunctionError(e.into()))?;
+            let text = ctx.get_raw(1).as_bytes()?;
 
-                regex.is_match(text)
-            };
-
-            Ok(is_match)
-        })?;
-
-        Ok(())
+            Ok(regex.is_match(text))
+        })
+        .map_err(Into::into)
     }
 
     #[instrument(level = "debug", ret, skip_all)]
