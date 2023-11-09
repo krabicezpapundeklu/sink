@@ -14,7 +14,6 @@ use axum::{
     Json, Router, Server,
 };
 
-use chrono::Utc;
 use deadpool_sqlite::{Config, Pool, Runtime};
 
 use quick_xml::{
@@ -35,7 +34,7 @@ use tracing::{error, info};
 
 use crate::{
     repository::Repository,
-    shared::{Item, ItemFilter, ItemHeader, ItemSearchResult},
+    shared::{Item, ItemFilter, ItemHeader, ItemSearchResult, NewItem},
 };
 
 struct AppError(Error);
@@ -285,12 +284,7 @@ async fn submit_item(
         }
     }
 
-    let item = Item {
-        id: None,
-        submit_date: Utc::now()
-            .naive_utc()
-            .format("%Y-%m-%d %H:%M:%S")
-            .to_string(),
+    let item = NewItem {
         system,
         r#type: item_type.map(ToString::to_string),
         headers,

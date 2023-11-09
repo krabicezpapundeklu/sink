@@ -54,6 +54,13 @@ pub struct ItemSummary {
     pub r#type: Option<String>,
 }
 
+pub struct NewItem {
+    pub system: Option<String>,
+    pub r#type: Option<String>,
+    pub headers: Vec<ItemHeader>,
+    pub body: Vec<u8>,
+}
+
 fn bytes_as_string<S>(bytes: &[u8], s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,

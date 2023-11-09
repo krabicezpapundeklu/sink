@@ -5,7 +5,7 @@ use regex::bytes::Regex;
 use rusqlite::{functions::FunctionFlags, params, params_from_iter, Connection, ToSql};
 use tracing::{debug, instrument};
 
-use crate::shared::{Item, ItemFilter, ItemHeader, ItemSearchResult, ItemSummary};
+use crate::shared::{Item, ItemFilter, ItemHeader, ItemSearchResult, ItemSummary, NewItem};
 
 const REGEX_PREFIX: &str = "regex:";
 
@@ -19,7 +19,7 @@ pub trait Repository {
 
     fn init(&self) -> Result<()>;
 
-    fn insert_item(&mut self, item: &Item) -> Result<i64>;
+    fn insert_item(&mut self, item: &NewItem) -> Result<i64>;
 
     fn prepare_schema(&self) -> Result<()>;
 }
@@ -222,14 +222,14 @@ impl Repository for Connection {
     }
 
     #[instrument(level = "debug", ret, skip_all)]
-    fn insert_item(&mut self, item: &Item) -> Result<i64> {
+    fn insert_item(&mut self, item: &NewItem) -> Result<i64> {
         debug!("start");
 
         let tx = self.transaction()?;
 
         tx.execute(
-            "INSERT INTO item (id, submit_date, system, type) VALUES (?, ?, ?, ?)",
-            params![item.id, item.submit_date, item.system, item.r#type],
+            "INSERT INTO item (system, type) VALUES (?, ?)",
+            params![item.system, item.r#type],
         )?;
 
         let id = tx.last_insert_rowid();
