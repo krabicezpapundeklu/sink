@@ -27,7 +27,7 @@ use quick_xml::{
 
 use rusqlite::Connection;
 use rust_embed::RustEmbed;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{from_str, Value};
 use tower::ServiceBuilder;
 use tower_http::{compression::CompressionLayer, trace::TraceLayer};
@@ -37,25 +37,6 @@ use crate::{
     repository::Repository,
     shared::{Item, ItemFilter, ItemHeader, ItemSearchResult},
 };
-
-struct AppError(Error);
-
-impl<E> From<E> for AppError
-where
-    E: Into<Error>,
-{
-    fn from(error: E) -> Self {
-        Self(error.into())
-    }
-}
-
-impl IntoResponse for AppError {
-    fn into_response(self) -> Response {
-        let error = format!("{}", self.0);
-        error!(error);
-        (StatusCode::INTERNAL_SERVER_ERROR, error).into_response()
-    }
-}
 
 #[derive(Clone)]
 struct AppState {
@@ -129,7 +110,33 @@ struct ItemType {
     xml_paths: HashMap<String, HashMap<String, String>>,
 }
 
-type JsonResponse<T> = Result<Json<T>, AppError>;
+struct JsonResponse<T>(Result<T, Error>);
+
+impl<T, E> From<Result<T, E>> for JsonResponse<T>
+where
+    T: Serialize,
+    E: Into<Error>,
+{
+    fn from(value: Result<T, E>) -> Self {
+        Self(value.map_err(Into::into))
+    }
+}
+
+impl<T> IntoResponse for JsonResponse<T>
+where
+    T: Serialize,
+{
+    fn into_response(self) -> Response {
+        match self.0 {
+            Ok(value) => Json(value).into_response(),
+            Err(error) => {
+                let error = format!("{error}");
+                error!(error);
+                (StatusCode::INTERNAL_SERVER_ERROR, error).into_response()
+            }
+        }
+    }
+}
 
 async fn get_asset(uri: Uri) -> Response {
     let path = uri.path().trim_start_matches('/');
@@ -155,11 +162,7 @@ async fn get_asset(uri: Uri) -> Response {
 }
 
 async fn get_item(State(app_state): State<AppState>, Path(id): Path<i64>) -> JsonResponse<Item> {
-    app_state
-        .call_db(move |db| db.get_item(id))
-        .await
-        .map(Json)
-        .map_err(Into::into)
+    app_state.call_db(move |db| db.get_item(id)).await.into()
 }
 
 async fn get_items(
@@ -177,8 +180,7 @@ async fn get_items(
             Ok(items)
         })
         .await
-        .map(Json)
-        .map_err(Into::into)
+        .into()
 }
 
 #[tokio::main]
@@ -300,6 +302,5 @@ async fn submit_item(
     app_state
         .call_db(move |db| db.insert_item(&item))
         .await
-        .map(Json)
-        .map_err(Into::into)
+        .into()
 }
