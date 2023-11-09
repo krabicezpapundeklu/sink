@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path};
+use std::{collections::HashMap, path, sync::Arc};
 
 use anyhow::{anyhow, Context, Error, Result};
 
@@ -60,7 +60,7 @@ impl IntoResponse for AppError {
 #[derive(Clone)]
 struct AppState {
     db_pool: Pool,
-    item_types: Vec<ItemType>,
+    item_types: Arc<Vec<ItemType>>,
 }
 
 impl AppState {
@@ -78,7 +78,7 @@ impl AppState {
     }
 
     fn get_xml_item_type(&self, path: &str, attributes: &Attributes) -> Option<&str> {
-        for item_type in &self.item_types {
+        for item_type in self.item_types.iter() {
             if let Some(path_attributes) = item_type.xml_paths.get(path) {
                 let mut matched_atributes = 0;
 
@@ -111,7 +111,7 @@ impl AppState {
 
         Ok(Self {
             db_pool,
-            item_types,
+            item_types: Arc::new(item_types),
         })
     }
 }
@@ -120,7 +120,7 @@ impl AppState {
 #[folder = "web/build"]
 struct Assets;
 
-#[derive(Clone, Deserialize)]
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ItemType {
     key: String,
