@@ -1,3 +1,4 @@
+use axum::http::{HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize, Serializer};
 
 #[derive(Serialize)]
@@ -34,6 +35,21 @@ pub struct ItemHeader {
 
     #[serde(serialize_with = "bytes_as_string")]
     pub value: Vec<u8>,
+}
+
+impl ItemHeader {
+    pub fn is_mgs_system_header(&self) -> bool {
+        self.name == "mgs-system-id" || self.name == "mgssystem"
+    }
+}
+
+impl From<(&HeaderName, &HeaderValue)> for ItemHeader {
+    fn from((name, value): (&HeaderName, &HeaderValue)) -> Self {
+        Self {
+            name: name.to_string(),
+            value: value.as_bytes().into(),
+        }
+    }
 }
 
 #[derive(Serialize)]

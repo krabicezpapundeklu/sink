@@ -219,19 +219,12 @@ async fn submit_item(
     headers: HeaderMap,
     body: Bytes,
 ) -> JsonResponse<i64> {
-    let headers: Vec<ItemHeader> = headers
-        .iter()
-        .map(|(name, value)| ItemHeader {
-            name: name.to_string(),
-            value: value.as_bytes().into(),
-        })
-        .collect();
+    let headers: Vec<ItemHeader> = headers.iter().map(Into::into).collect();
 
     let mut system = headers
         .iter()
-        .filter(|header| header.name == "mgs-system-id" || header.name == "mgssystem")
-        .map(|header| String::from_utf8_lossy(&header.value).to_string())
-        .next();
+        .find(|header| header.is_mgs_system_header())
+        .map(|header| String::from_utf8_lossy(&header.value).to_string());
 
     let mut item_type = None;
 

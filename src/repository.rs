@@ -226,25 +226,25 @@ impl Repository for Connection {
         debug!("start");
 
         let tx = self.transaction()?;
+        let id;
 
-        tx.execute(
-            "INSERT INTO item (system, type) VALUES (?, ?)",
-            params![item.system, item.r#type],
-        )?;
+        {
+            let mut stmt = tx.prepare_cached("INSERT INTO item (system, type) VALUES (?, ?)")?;
+            id = stmt.insert([&item.system, &item.r#type])?;
 
-        let id = tx.last_insert_rowid();
-
-        for header in &item.headers {
-            tx.execute(
+            let mut stmt = tx.prepare_cached(
                 "INSERT INTO item_header (item_id, name, value) VALUES (?, ?, ?)",
-                params![id, header.name, header.value],
             )?;
-        }
 
-        tx.execute(
-            "INSERT INTO item_body (item_id, body) VALUES (?, ?)",
-            params![id, item.body],
-        )?;
+            for header in &item.headers {
+                stmt.execute(params![id, header.name, header.value])?;
+            }
+
+            let mut stmt =
+                tx.prepare_cached("INSERT INTO item_body (item_id, body) VALUES (?, ?)")?;
+
+            stmt.execute(params![id, item.body])?;
+        }
 
         tx.commit()?;
 
