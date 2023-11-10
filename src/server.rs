@@ -26,7 +26,7 @@ use quick_xml::{
 
 use rusqlite::Connection;
 use rust_embed::RustEmbed;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{from_str, Value};
 use tower::ServiceBuilder;
 use tower_http::{compression::CompressionLayer, trace::TraceLayer};
@@ -34,7 +34,7 @@ use tracing::{error, info};
 
 use crate::{
     repository::Repository,
-    shared::{Item, ItemFilter, ItemHeader, ItemSearchResult, NewItem},
+    shared::{Item, ItemFilter, ItemHeader, ItemSummary, NewItem},
 };
 
 struct AppError(Error);
@@ -119,6 +119,15 @@ impl AppState {
 #[folder = "web/build"]
 struct Assets;
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ItemSearchResult {
+    items: Vec<ItemSummary>,
+    systems: Vec<String>,
+    total_items: i32,
+    first_item: Option<Item>,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ItemType {
@@ -167,13 +176,22 @@ async fn get_items(
 ) -> JsonResponse<ItemSearchResult> {
     app_state
         .call_db(move |db| {
-            let mut items = db.get_items(&filter)?;
+            let (items, total_items) = db.get_items(&filter)?;
 
-            if filter.load_first_item.unwrap_or_default() && !items.items.is_empty() {
-                items.first_item = Some(db.get_item(items.items[0].id)?);
-            }
+            let first_item = if filter.load_first_item.unwrap_or_default() && !items.is_empty() {
+                Some(db.get_item(items[0].id)?)
+            } else {
+                None
+            };
 
-            Ok(items)
+            let systems = db.get_systems()?;
+
+            Ok(ItemSearchResult {
+                items,
+                systems,
+                total_items,
+                first_item,
+            })
         })
         .await
         .map(Json)

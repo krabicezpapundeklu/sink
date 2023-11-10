@@ -5,7 +5,7 @@ use regex::bytes::Regex;
 use rusqlite::{functions::FunctionFlags, params, params_from_iter, Connection, ToSql};
 use tracing::{debug, instrument};
 
-use crate::shared::{Item, ItemFilter, ItemHeader, ItemSearchResult, ItemSummary, NewItem};
+use crate::shared::{Item, ItemFilter, ItemHeader, ItemSummary, NewItem};
 
 const REGEX_PREFIX: &str = "regex:";
 
@@ -15,7 +15,8 @@ impl<T: Debug + ToSql> Parameter for T {}
 
 pub trait Repository {
     fn get_item(&self, id: i64) -> Result<Item>;
-    fn get_items(&self, filter: &ItemFilter) -> Result<ItemSearchResult>;
+    fn get_items(&self, filter: &ItemFilter) -> Result<(Vec<ItemSummary>, i32)>;
+    fn get_systems(&self) -> Result<Vec<String>>;
 
     fn init(&self) -> Result<()>;
 
@@ -61,7 +62,7 @@ impl Repository for Connection {
     }
 
     #[instrument(level = "debug", skip(self))]
-    fn get_items(&self, filter: &ItemFilter) -> Result<ItemSearchResult> {
+    fn get_items(&self, filter: &ItemFilter) -> Result<(Vec<ItemSummary>, i32)> {
         debug!("start");
 
         let mut params: Vec<&dyn Parameter> = Vec::new();
@@ -174,12 +175,8 @@ impl Repository for Connection {
         let mut stmt = self.prepare(&sql)?;
         let mut rows = stmt.query(params_from_iter(params.iter()))?;
 
-        let mut result = ItemSearchResult {
-            items: Vec::new(),
-            systems: Vec::new(),
-            total_items: 0,
-            first_item: None,
-        };
+        let mut items = Vec::new();
+        let mut total_items = 0;
 
         while let Some(row) = rows.next()? {
             let item = ItemSummary {
@@ -189,22 +186,28 @@ impl Repository for Connection {
                 r#type: row.get(3)?,
             };
 
-            result.items.push(item);
-            result.total_items = row.get(4)?;
-        }
-
-        let mut stmt = self
-            .prepare("SELECT DISTINCT system FROM item WHERE system IS NOT NULL ORDER BY system")?;
-
-        let mut rows = stmt.query([])?;
-
-        while let Some(row) = rows.next()? {
-            result.systems.push(row.get(0)?);
+            items.push(item);
+            total_items = row.get(4)?;
         }
 
         debug!("end");
 
-        Ok(result)
+        Ok((items, total_items))
+    }
+
+    fn get_systems(&self) -> Result<Vec<String>> {
+        let mut stmt = self.prepare_cached(
+            "SELECT DISTINCT system FROM item WHERE system IS NOT NULL ORDER BY system",
+        )?;
+
+        let mut rows = stmt.query([])?;
+        let mut systems = Vec::new();
+
+        while let Some(row) = rows.next()? {
+            systems.push(row.get(0)?);
+        }
+
+        Ok(systems)
     }
 
     fn init(&self) -> Result<()> {

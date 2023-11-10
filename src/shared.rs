@@ -54,15 +54,6 @@ impl From<(&HeaderName, &HeaderValue)> for ItemHeader {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ItemSearchResult {
-    pub items: Vec<ItemSummary>,
-    pub systems: Vec<String>,
-    pub total_items: i32,
-    pub first_item: Option<Item>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct ItemSummary {
     pub id: i64,
     pub submit_date: String,
