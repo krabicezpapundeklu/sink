@@ -1,17 +1,73 @@
-use std::{fmt::Debug, mem::take, string::ToString};
+use std::{mem::take, string::ToString};
 
 use anyhow::Result;
 use regex::bytes::Regex;
-use rusqlite::{functions::FunctionFlags, params, params_from_iter, Connection, ToSql};
-use tracing::{debug, instrument};
+use rusqlite::{functions::FunctionFlags, params, params_from_iter, Connection};
 
 use crate::shared::{Item, ItemFilter, ItemHeader, ItemSummary, NewItem};
 
 const REGEX_PREFIX: &str = "regex:";
 
-trait Parameter: Debug + ToSql {}
+struct QueryBuilder {
+    sql: String,
+    params: Vec<String>,
+}
 
-impl<T: Debug + ToSql> Parameter for T {}
+impl QueryBuilder {
+    fn append_sql(&mut self, sql: &str) -> &mut Self {
+        self.sql.push_str(sql);
+        self
+    }
+
+    fn append_param<T>(&mut self, item: &T) -> &mut Self
+    where
+        T: ToString,
+    {
+        self.params.push(item.to_string());
+        self
+    }
+
+    fn append_if_is_some<T>(&mut self, sql: &str, item: &Option<T>) -> &mut Self
+    where
+        T: ToString,
+    {
+        if let Some(item) = item {
+            self.append_sql(sql).append_param(item);
+        }
+
+        self
+    }
+
+    fn append_list<T>(&mut self, items: impl Iterator<Item = T>) -> &mut Self
+    where
+        T: ToString,
+    {
+        for (i, item) in items.enumerate() {
+            if i > 0 {
+                self.append_sql(", ");
+            }
+
+            self.append_sql("?").append_param(&item);
+        }
+
+        self
+    }
+
+    fn new(sql: String) -> Self {
+        Self {
+            sql,
+            params: Vec::new(),
+        }
+    }
+
+    fn params(&self) -> &[String] {
+        &self.params
+    }
+
+    fn sql(&self) -> &str {
+        &self.sql
+    }
+}
 
 pub trait Repository {
     fn get_item(&self, id: i64) -> Result<Item>;
@@ -26,10 +82,7 @@ pub trait Repository {
 }
 
 impl Repository for Connection {
-    #[instrument(level = "debug")]
     fn get_item(&self, id: i64) -> Result<Item> {
-        debug!("start");
-
         let mut stmt = self.prepare_cached(
             "SELECT i.id, i.submit_date, i.system, i.type, ib.body FROM item i JOIN item_body ib ON ib.item_id = i.id WHERE i.id = ?"
         )?;
@@ -41,7 +94,7 @@ impl Repository for Connection {
                 system: row.get(2)?,
                 r#type: row.get(3)?,
                 headers: Vec::new(),
-                body: row.get(4)?
+                body: row.get(4)?,
             })
         })?;
 
@@ -60,124 +113,67 @@ impl Repository for Connection {
             item.headers.push(header);
         }
 
-        debug!("end");
-
         Ok(item)
     }
 
-    #[instrument(level = "debug", skip(self))]
     fn get_items(&self, filter: &ItemFilter) -> Result<(Vec<ItemSummary>, i32)> {
-        debug!("start");
-
-        let mut params: Vec<&dyn Parameter> = Vec::new();
-
-        let mut sql = "
-            SELECT id, submit_date, system, type, total_items FROM (
-                SELECT id, submit_date, system, type, COUNT(1) OVER () total_items FROM item i
-                WHERE 1 = 1
-        "
-        .to_string();
-
-        let mut terms = Vec::new();
+        let mut builder = QueryBuilder::new(
+            "
+                SELECT id, submit_date, system, type, total_items FROM (
+                    SELECT id, submit_date, system, type, COUNT(1) OVER () total_items FROM item i
+                    WHERE 1 = 1
+            "
+            .to_string(),
+        );
 
         if let Some(query) = &filter.query {
-            sql.push_str(" AND EXISTS (SELECT 1 FROM item_body WHERE item_id = id");
+            builder.append_sql(" AND EXISTS (SELECT 1 FROM item_body WHERE item_id = id");
 
-            parse_query(query, &mut terms);
+            let terms = parse_query(query);
 
-            for term in &terms {
-                params.push(term);
-
+            for term in terms {
                 if term.starts_with(REGEX_PREFIX) {
-                    sql.push_str(" AND matches(?, body)");
+                    builder.append_sql(" AND matches(?, body)");
                 } else {
-                    sql.push_str(" AND body LIKE '%' || ? || '%'");
-                }
-            }
-
-            sql.push_str(") ");
-        }
-
-        let systems: Vec<String> = if let Some(system) = &filter.system {
-            system.split(',').map(ToString::to_string).collect()
-        } else {
-            vec![]
-        };
-
-        if !systems.is_empty() {
-            sql.push_str(" AND system IN (");
-
-            for (i, system) in systems.iter().enumerate() {
-                params.push(system);
-
-                if i > 0 {
-                    sql.push_str(", ");
+                    builder.append_sql(" AND body LIKE '%' || ? || '%'");
                 }
 
-                sql.push('?');
+                builder.append_param(&term);
             }
 
-            sql.push(')');
+            builder.append_sql(") ");
         }
 
-        let types: Vec<String> = if let Some(r#type) = &filter.r#type {
-            r#type.split(',').map(ToString::to_string).collect()
-        } else {
-            vec![]
-        };
-
-        if !types.is_empty() {
-            sql.push_str(" AND type IN (");
-
-            for (i, r#type) in types.iter().enumerate() {
-                params.push(r#type);
-
-                if i > 0 {
-                    sql.push_str(", ");
-                }
-
-                sql.push('?');
-            }
-
-            sql.push(')');
+        if let Some(system) = &filter.system {
+            builder
+                .append_sql(" AND system IN (")
+                .append_list(system.split(','))
+                .append_sql(")");
         }
 
-        if let Some(from) = &filter.from {
-            params.push(from);
-            sql.push_str(" AND submit_date >= ?");
+        if let Some(r#type) = &filter.r#type {
+            builder
+                .append_sql(" AND type IN (")
+                .append_list(r#type.split(','))
+                .append_sql(")");
         }
 
-        if let Some(to) = &filter.to {
-            params.push(to);
-            sql.push_str(" AND submit_date <= ?");
+        builder
+            .append_if_is_some(" AND submit_date >= ?", &filter.from)
+            .append_if_is_some(" AND submit_date <= ?", &filter.to)
+            .append_sql(") WHERE 1 = 1")
+            .append_if_is_some(" AND id >= ?", &filter.first_item_id)
+            .append_if_is_some(" AND id <= ?", &filter.last_item_id)
+            .append_sql(" ORDER BY id");
+
+        if !filter.asc.unwrap_or(false) {
+            builder.append_sql(" DESC");
         }
 
-        sql.push_str(") WHERE 1 = 1");
+        builder.append_if_is_some(" LIMIT ? + 1", &filter.batch_size);
 
-        if let Some(first_item_id) = &filter.first_item_id {
-            params.push(first_item_id);
-            sql.push_str(" AND id >= ?");
-        }
-
-        if let Some(last_item_id) = &filter.last_item_id {
-            params.push(last_item_id);
-            sql.push_str(" AND id <= ?");
-        }
-
-        let asc = filter.asc.unwrap_or(false);
-
-        sql.push_str(" ORDER BY id ");
-        sql.push_str(if asc { "ASC" } else { "DESC" });
-
-        if let Some(batch_size) = &filter.batch_size {
-            params.push(batch_size);
-            sql.push_str(" LIMIT ? + 1");
-        }
-
-        debug!(sql, ?params);
-
-        let mut stmt = self.prepare(&sql)?;
-        let mut rows = stmt.query(params_from_iter(params.iter()))?;
+        let mut stmt = self.prepare(builder.sql())?;
+        let mut rows = stmt.query(params_from_iter(builder.params()))?;
 
         let mut items = Vec::new();
         let mut total_items = 0;
@@ -193,8 +189,6 @@ impl Repository for Connection {
             items.push(item);
             total_items = row.get(4)?;
         }
-
-        debug!("end");
 
         Ok((items, total_items))
     }
@@ -228,10 +222,7 @@ impl Repository for Connection {
         .map_err(Into::into)
     }
 
-    #[instrument(level = "debug", ret, skip_all)]
     fn insert_item(&mut self, item: &NewItem) -> Result<i64> {
-        debug!("start");
-
         let tx = self.transaction()?;
         let id;
 
@@ -255,15 +246,10 @@ impl Repository for Connection {
 
         tx.commit()?;
 
-        debug!("end");
-
         Ok(id)
     }
 
-    #[instrument(level = "debug", skip(self))]
     fn prepare_schema(&self) -> Result<()> {
-        debug!("start");
-
         self.execute_batch("
             PRAGMA foreign_keys = ON;
             PRAGMA journal_mode = WAL;
@@ -276,15 +262,12 @@ impl Repository for Connection {
             CREATE INDEX IF NOT EXISTS idx_item_system ON item (system);
             CREATE INDEX IF NOT EXISTS idx_item_type ON item (type);
             CREATE INDEX IF NOT EXISTS idx_item_header_item_id ON item_header (item_id);
-        ")?;
-
-        debug!("end");
-
-        Ok(())
+        ").map_err(Into::into)
     }
 }
 
-fn parse_query(query: &str, terms: &mut Vec<String>) {
+fn parse_query(query: &str) -> Vec<String> {
+    let mut terms = Vec::new();
     let mut term = String::new();
 
     let mut escaping = false;
@@ -321,4 +304,6 @@ fn parse_query(query: &str, terms: &mut Vec<String>) {
     if !term.is_empty() {
         terms.push(term);
     }
+
+    terms
 }
