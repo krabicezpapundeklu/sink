@@ -6,8 +6,13 @@ use serde::{Deserialize, Serialize, Serializer};
 pub struct Item {
     pub id: Option<i64>,
     pub submit_date: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub system: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub r#type: Option<String>,
+
     pub headers: Vec<ItemHeader>,
 
     #[serde(serialize_with = "bytes_as_string")]
@@ -57,15 +62,19 @@ impl From<(&HeaderName, &HeaderValue)> for ItemHeader {
 pub struct ItemSummary {
     pub id: i64,
     pub submit_date: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub system: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub r#type: Option<String>,
 }
 
-pub struct NewItem {
+pub struct NewItem<'a> {
     pub system: Option<String>,
     pub r#type: Option<String>,
     pub headers: Vec<ItemHeader>,
-    pub body: Vec<u8>,
+    pub body: &'a [u8],
 }
 
 fn bytes_as_string<S>(bytes: &[u8], s: S) -> Result<S::Ok, S::Error>

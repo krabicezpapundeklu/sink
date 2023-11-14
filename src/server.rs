@@ -3,6 +3,7 @@ use std::{collections::HashMap, path, sync::Arc};
 use anyhow::{anyhow, Context, Error, Result};
 
 use axum::{
+    async_trait,
     body::Bytes,
     extract::{Path, Query, State},
     http::{
@@ -62,59 +63,6 @@ struct AppState {
     item_types: Arc<Vec<ItemType>>,
 }
 
-impl AppState {
-    async fn call_db<F, T>(&self, f: F) -> Result<T>
-    where
-        F: FnOnce(&mut Connection) -> Result<T> + Send + 'static,
-        T: Send + 'static,
-    {
-        self.db_pool
-            .get()
-            .await?
-            .interact(f)
-            .await
-            .map_err(|error| anyhow!("cannot call db: {error}"))?
-    }
-
-    fn get_xml_item_type(&self, path: &str, attributes: &Attributes) -> Option<&str> {
-        for item_type in self.item_types.iter() {
-            if let Some(path_attributes) = item_type.xml_paths.get(path) {
-                let mut matched_atributes = 0;
-
-                for attribute in attributes.clone().flatten() {
-                    let local_name = attribute.key.local_name();
-
-                    if let Some(value) =
-                        path_attributes.get(String::from_utf8_lossy(local_name.as_ref()).as_ref())
-                    {
-                        if attribute.value == value.as_bytes() {
-                            matched_atributes += 1;
-                        }
-                    }
-                }
-
-                if matched_atributes == path_attributes.len() {
-                    return Some(&item_type.key);
-                }
-            }
-        }
-
-        None
-    }
-
-    fn new(db: &path::Path) -> Result<Self> {
-        let db_pool = Config::new(db).create_pool(Runtime::Tokio1)?;
-
-        let item_types: Vec<ItemType> =
-            from_str(include_str!("../item.types.json")).context("cannot parse item.types.json")?;
-
-        Ok(Self {
-            db_pool,
-            item_types: Arc::new(item_types),
-        })
-    }
-}
-
 #[derive(RustEmbed)]
 #[folder = "web/build"]
 struct Assets;
@@ -123,8 +71,10 @@ struct Assets;
 #[serde(rename_all = "camelCase")]
 struct ItemSearchResult {
     items: Vec<ItemSummary>,
-    systems: Vec<String>,
     total_items: i32,
+    systems: Vec<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     first_item: Option<Item>,
 }
 
@@ -137,7 +87,49 @@ struct ItemType {
     xml_paths: HashMap<String, HashMap<String, String>>,
 }
 
-type JsonResponse<T> = Result<Json<T>, AppError>;
+struct JsonResponse<T>(Result<Json<T>, AppError>);
+
+impl<T, E> From<Result<T, E>> for JsonResponse<T>
+where
+    T: Serialize,
+    E: Into<AppError>,
+{
+    fn from(value: Result<T, E>) -> Self {
+        Self(value.map(Json).map_err(Into::into))
+    }
+}
+
+impl<T> IntoResponse for JsonResponse<T>
+where
+    T: Serialize,
+{
+    fn into_response(self) -> Response {
+        self.0.into_response()
+    }
+}
+
+#[async_trait]
+trait PoolExt {
+    async fn call_db<F, T>(&self, f: F) -> Result<T>
+    where
+        F: FnOnce(&mut Connection) -> Result<T> + Send + 'static,
+        T: Send + 'static;
+}
+
+#[async_trait]
+impl PoolExt for Pool {
+    async fn call_db<F, T>(&self, f: F) -> Result<T>
+    where
+        F: FnOnce(&mut Connection) -> Result<T> + Send + 'static,
+        T: Send + 'static,
+    {
+        self.get()
+            .await?
+            .interact(f)
+            .await
+            .map_err(|error| anyhow!("cannot call db: {error}"))?
+    }
+}
 
 async fn get_asset(uri: Uri) -> Response {
     let path = uri.path().trim_start_matches('/');
@@ -164,10 +156,71 @@ async fn get_asset(uri: Uri) -> Response {
 
 async fn get_item(State(app_state): State<AppState>, Path(id): Path<i64>) -> JsonResponse<Item> {
     app_state
+        .db_pool
         .call_db(move |db| db.get_item(id))
         .await
-        .map(Json)
-        .map_err(Into::into)
+        .into()
+}
+
+fn get_item_type_and_system(
+    item_types: &[ItemType],
+    body: &[u8],
+    mut system: Option<String>,
+) -> (Option<String>, Option<String>) {
+    if let Ok(json) = serde_json::from_slice::<Value>(body) {
+        if json.get("entityEventId").is_some() {
+            let item_type = if json.get("eventDesc").is_some() {
+                "event_payload"
+            } else {
+                "event_notification"
+            };
+
+            return (Some(item_type.to_string()), system);
+        }
+    }
+
+    let mut item_type = None;
+
+    let mut xml_reader = Reader::from_reader(body);
+    let mut buffer = Vec::new();
+    let mut path = String::new();
+
+    loop {
+        if system.is_some() && item_type.is_some() {
+            break;
+        }
+
+        buffer.clear();
+
+        if let Ok(event) = xml_reader.read_event_into(&mut buffer) {
+            match event {
+                Start(element) => {
+                    path.push('/');
+                    path.push_str(&String::from_utf8_lossy(element.local_name().as_ref()));
+
+                    if item_type.is_none() {
+                        item_type = get_xml_item_type(item_types, &path, &element.attributes());
+                    }
+                }
+                End(_) => {
+                    if let Some(idx) = path.rfind('/') {
+                        path.truncate(idx);
+                    }
+                }
+                Text(_) => {
+                    if system.is_none() && path.ends_with("/mgsSystem") {
+                        system = Some(String::from_utf8_lossy(&buffer).to_string());
+                    }
+                }
+                Eof => break,
+                _ => {}
+            }
+        } else {
+            break;
+        }
+    }
+
+    (item_type, system)
 }
 
 async fn get_items(
@@ -175,6 +228,7 @@ async fn get_items(
     filter: Query<ItemFilter>,
 ) -> JsonResponse<ItemSearchResult> {
     app_state
+        .db_pool
         .call_db(move |db| {
             let (items, total_items) = db.get_items(&filter)?;
 
@@ -188,29 +242,68 @@ async fn get_items(
 
             Ok(ItemSearchResult {
                 items,
-                systems,
                 total_items,
+                systems,
                 first_item,
             })
         })
         .await
-        .map(Json)
-        .map_err(Into::into)
+        .into()
+}
+
+fn get_xml_item_type(
+    item_types: &[ItemType],
+    path: &str,
+    attributes: &Attributes,
+) -> Option<String> {
+    for item_type in item_types {
+        if let Some(path_attributes) = item_type.xml_paths.get(path) {
+            let mut matched_atributes = 0;
+
+            if !path_attributes.is_empty() {
+                for attribute in attributes.clone().flatten() {
+                    let local_name = attribute.key.local_name();
+
+                    if let Some(value) =
+                        path_attributes.get(String::from_utf8_lossy(local_name.as_ref()).as_ref())
+                    {
+                        if attribute.value == value.as_bytes() {
+                            matched_atributes += 1;
+                        }
+                    }
+                }
+            }
+
+            if matched_atributes == path_attributes.len() {
+                return Some(item_type.key.to_string());
+            }
+        }
+    }
+
+    None
 }
 
 #[tokio::main]
 pub async fn start(host: &str, port: u16, db: &path::Path) -> Result<()> {
     info!(host, port, ?db, "starting server");
 
-    let app_state = AppState::new(db)?;
+    let db_pool = Config::new(db).create_pool(Runtime::Tokio1)?;
 
-    app_state
+    let item_types: Vec<ItemType> =
+        from_str(include_str!("../item.types.json")).context("cannot parse item.types.json")?;
+
+    db_pool
         .call_db(|db| {
             db.prepare_schema()?;
             db.init()
         })
         .await
         .with_context(|| format!("cannot prepare database schema in {}", db.display()))?;
+
+    let app_state = AppState {
+        db_pool,
+        item_types: Arc::new(item_types),
+    };
 
     let app = Router::new()
         .route("/api/item/:id", get(get_item))
@@ -239,72 +332,25 @@ async fn submit_item(
 ) -> JsonResponse<i64> {
     let headers: Vec<ItemHeader> = headers.iter().map(Into::into).collect();
 
-    let mut system = headers
+    let system = headers
         .iter()
         .find(|header| header.is_mgs_system_header())
         .map(|header| String::from_utf8_lossy(&header.value).to_string());
 
-    let mut item_type = None;
-
-    if let Ok(json) = serde_json::from_slice::<Value>(&body) {
-        if json.get("entityEventId").is_some() {
-            item_type = Some(if json.get("eventDesc").is_some() {
-                "event_payload"
-            } else {
-                "event_notification"
-            });
-        }
-    } else {
-        let mut xml_reader = Reader::from_reader(body.as_ref());
-        let mut buffer = Vec::new();
-        let mut path = String::new();
-
-        loop {
-            if system.is_some() && item_type.is_some() {
-                break;
-            }
-
-            buffer.clear();
-
-            if let Ok(event) = xml_reader.read_event_into(&mut buffer) {
-                match event {
-                    Start(element) => {
-                        path.push('/');
-                        path.push_str(&String::from_utf8_lossy(element.local_name().as_ref()));
-
-                        if item_type.is_none() {
-                            item_type = app_state.get_xml_item_type(&path, &element.attributes());
-                        }
-                    }
-                    End(_) => {
-                        if let Some(idx) = path.rfind('/') {
-                            path.truncate(idx);
-                        }
-                    }
-                    Text(_) => {
-                        if system.is_none() && path.ends_with("/mgsSystem") {
-                            system = Some(String::from_utf8_lossy(&buffer).to_string());
-                        }
-                    }
-                    Eof => break,
-                    _ => {}
-                }
-            } else {
-                break;
-            }
-        }
-    }
-
-    let item = NewItem {
-        system,
-        r#type: item_type.map(ToString::to_string),
-        headers,
-        body: body.to_vec(),
-    };
+    let (item_type, system) = get_item_type_and_system(&app_state.item_types, &body, system);
 
     app_state
-        .call_db(move |db| db.insert_item(&item))
+        .db_pool
+        .call_db(move |db| {
+            let item = NewItem {
+                system,
+                r#type: item_type,
+                headers,
+                body: &body,
+            };
+
+            db.insert_item(&item)
+        })
         .await
-        .map(Json)
-        .map_err(Into::into)
+        .into()
 }

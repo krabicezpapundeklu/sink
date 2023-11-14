@@ -30,7 +30,11 @@ impl Repository for Connection {
     fn get_item(&self, id: i64) -> Result<Item> {
         debug!("start");
 
-        let mut item = self.query_row("SELECT i.id, i.submit_date, i.system, i.type, ib.body FROM item i JOIN item_body ib ON ib.item_id = i.id WHERE i.id = ?", [id], |row| {
+        let mut stmt = self.prepare_cached(
+            "SELECT i.id, i.submit_date, i.system, i.type, ib.body FROM item i JOIN item_body ib ON ib.item_id = i.id WHERE i.id = ?"
+        )?;
+
+        let mut item = stmt.query_row([id], |row| {
             Ok(Item {
                 id: Some(row.get(0)?),
                 submit_date: row.get(1)?,
@@ -41,7 +45,7 @@ impl Repository for Connection {
             })
         })?;
 
-        let mut stmt = self.prepare(
+        let mut stmt = self.prepare_cached(
             "SELECT name, value FROM item_header WHERE item_id = ? ORDER BY name, value",
         )?;
 

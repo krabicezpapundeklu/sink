@@ -39,7 +39,7 @@
 	let systems = data.systems;
 	let totalItems = data.totalItems;
 	let hasMoreItems = data.items.length > BATCH_SIZE;
-	let activeItem = data.firstItem;
+	let activeItem = data.firstItem ? highlightItem(data.firstItem) : undefined;
 
 	const loadMore = async () => {
 		loading = true;
@@ -47,13 +47,7 @@
 		const firstItemId = asc ? items[items.length - 1].id + 1 : 0;
 		const lastItemId = asc ? Number.MAX_SAFE_INTEGER : items[items.length - 1].id - 1;
 
-		const result = await loadItems(
-			fetch,
-			$page.url.searchParams,
-			firstItemId,
-			lastItemId,
-			BATCH_SIZE
-		);
+		const result = await loadItems($page.url.searchParams, firstItemId, lastItemId, BATCH_SIZE);
 
 		items.push(...result.items.slice(0, BATCH_SIZE));
 		items = items;
@@ -121,7 +115,7 @@
 
 	const selectItem = async (itemId: number) => {
 		if (!activeItem || activeItem.id !== itemId) {
-			activeItem = highlightItem(await loadItem(fetch, itemId));
+			activeItem = highlightItem(await loadItem(itemId));
 		}
 	};
 
@@ -147,7 +141,7 @@
 		systems = data.systems;
 		totalItems = data.totalItems;
 		hasMoreItems = data.items.length > BATCH_SIZE;
-		activeItem = data.firstItem;
+		activeItem = data.firstItem ? highlightItem(data.firstItem) : undefined;
 
 		loading = false;
 	});
@@ -175,7 +169,7 @@
 				items.length === 0 ? 1 : asc ? items[items.length - 1].id + 1 : items[0].id + 1;
 
 			const lastItemId = Number.MAX_SAFE_INTEGER;
-			const result = await loadItems(fetch, $page.url.searchParams, firstItemId, lastItemId);
+			const result = await loadItems($page.url.searchParams, firstItemId, lastItemId);
 
 			if (asc) {
 				items = items.concat(result.items);

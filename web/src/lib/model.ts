@@ -10,16 +10,16 @@ export interface ItemHeader {
 
 export interface ItemSearchResult {
 	items: ItemSummary[];
-	systems: string[];
 	totalItems: number;
-	firstItem: Item | null;
+	systems: string[];
+	firstItem?: Item;
 }
 
 export interface ItemSummary {
 	id: number;
 	submitDate: string;
-	system: string | null;
-	type: string | null;
+	system?: string;
+	type?: string;
 }
 
 export interface ItemType {
