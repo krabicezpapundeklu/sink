@@ -19,7 +19,7 @@ pub struct Item {
     pub body: Vec<u8>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ItemFilter {
     pub query: Option<String>,

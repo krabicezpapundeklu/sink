@@ -185,9 +185,10 @@ async fn get_items(
     app_state
         .db_pool
         .call_db(move |db| {
-            let (items, total_items) = db.get_items(&filter)?;
+            let load_first_item = filter.load_first_item.unwrap_or_default();
+            let (items, total_items) = db.get_items(filter.0)?;
 
-            let first_item = if filter.load_first_item.unwrap_or_default() && !items.is_empty() {
+            let first_item = if load_first_item && !items.is_empty() {
                 Some(db.get_item(items[0].id)?)
             } else {
                 None

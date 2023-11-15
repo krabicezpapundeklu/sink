@@ -1,8 +1,8 @@
-use std::{mem::take, string::ToString};
+use std::mem::take;
 
 use anyhow::Result;
 use regex::bytes::Regex;
-use rusqlite::{functions::FunctionFlags, params, params_from_iter, Connection};
+use rusqlite::{functions::FunctionFlags, params, params_from_iter, types::Value, Connection};
 
 use crate::shared::{Item, ItemFilter, ItemHeader, ItemSummary, NewItem};
 
@@ -10,7 +10,7 @@ const REGEX_PREFIX: &str = "regex:";
 
 struct QueryBuilder {
     sql: String,
-    params: Vec<String>,
+    params: Vec<Value>,
 }
 
 impl QueryBuilder {
@@ -19,17 +19,17 @@ impl QueryBuilder {
         self
     }
 
-    fn append_param<T>(&mut self, item: &T) -> &mut Self
+    fn append_param<T>(&mut self, item: T) -> &mut Self
     where
-        T: ToString,
+        T: Into<Value>,
     {
-        self.params.push(item.to_string());
+        self.params.push(item.into());
         self
     }
 
-    fn append_if_is_some<T>(&mut self, sql: &str, item: &Option<T>) -> &mut Self
+    fn append_if_is_some<T>(&mut self, sql: &str, item: Option<T>) -> &mut Self
     where
-        T: ToString,
+        T: Into<Value>,
     {
         if let Some(item) = item {
             self.append_sql(sql).append_param(item);
@@ -40,14 +40,14 @@ impl QueryBuilder {
 
     fn append_list<T>(&mut self, items: impl Iterator<Item = T>) -> &mut Self
     where
-        T: ToString,
+        T: Into<Value>,
     {
         for (i, item) in items.enumerate() {
             if i > 0 {
                 self.append_sql(", ");
             }
 
-            self.append_sql("?").append_param(&item);
+            self.append_sql("?").append_param(item);
         }
 
         self
@@ -60,7 +60,7 @@ impl QueryBuilder {
         }
     }
 
-    fn params(&self) -> &[String] {
+    fn params(&self) -> &[Value] {
         &self.params
     }
 
@@ -71,7 +71,7 @@ impl QueryBuilder {
 
 pub trait Repository {
     fn get_item(&self, id: i64) -> Result<Item>;
-    fn get_items(&self, filter: &ItemFilter) -> Result<(Vec<ItemSummary>, i32)>;
+    fn get_items(&self, filter: ItemFilter) -> Result<(Vec<ItemSummary>, i32)>;
     fn get_systems(&self) -> Result<Vec<String>>;
 
     fn init(&self) -> Result<()>;
@@ -116,7 +116,7 @@ impl Repository for Connection {
         Ok(item)
     }
 
-    fn get_items(&self, filter: &ItemFilter) -> Result<(Vec<ItemSummary>, i32)> {
+    fn get_items(&self, filter: ItemFilter) -> Result<(Vec<ItemSummary>, i32)> {
         let mut builder = QueryBuilder::new(
             "
                 SELECT id, submit_date, system, type, total_items FROM (
@@ -138,7 +138,7 @@ impl Repository for Connection {
                     builder.append_sql(" AND body LIKE '%' || ? || '%'");
                 }
 
-                builder.append_param(&term);
+                builder.append_param(term);
             }
 
             builder.append_sql(") ");
@@ -147,30 +147,30 @@ impl Repository for Connection {
         if let Some(system) = &filter.system {
             builder
                 .append_sql(" AND system IN (")
-                .append_list(system.split(','))
+                .append_list(system.split(',').map(ToString::to_string))
                 .append_sql(")");
         }
 
         if let Some(r#type) = &filter.r#type {
             builder
                 .append_sql(" AND type IN (")
-                .append_list(r#type.split(','))
+                .append_list(r#type.split(',').map(ToString::to_string))
                 .append_sql(")");
         }
 
         builder
-            .append_if_is_some(" AND submit_date >= ?", &filter.from)
-            .append_if_is_some(" AND submit_date <= ?", &filter.to)
+            .append_if_is_some(" AND submit_date >= ?", filter.from)
+            .append_if_is_some(" AND submit_date <= ?", filter.to)
             .append_sql(") WHERE 1 = 1")
-            .append_if_is_some(" AND id >= ?", &filter.first_item_id)
-            .append_if_is_some(" AND id <= ?", &filter.last_item_id)
+            .append_if_is_some(" AND id >= ?", filter.first_item_id)
+            .append_if_is_some(" AND id <= ?", filter.last_item_id)
             .append_sql(" ORDER BY id");
 
         if !filter.asc.unwrap_or(false) {
             builder.append_sql(" DESC");
         }
 
-        builder.append_if_is_some(" LIMIT ? + 1", &filter.batch_size);
+        builder.append_if_is_some(" LIMIT ? + 1", filter.batch_size);
 
         let mut stmt = self.prepare(builder.sql())?;
         let mut rows = stmt.query(params_from_iter(builder.params()))?;
