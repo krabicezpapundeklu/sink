@@ -212,14 +212,14 @@ fn get_system(headers: &[ItemHeader], body: &[u8]) -> Result<Option<String>> {
     let mut system = headers
         .iter()
         .find(|header| header.is_mgs_system_header())
-        .map(|header| String::from_utf8_lossy(&header.value).to_string());
+        .map(|header| String::from_utf8_lossy(&header.value).into_owned());
 
     if system.is_none() {
         let regex = Regex::new("<mgsSystem>([^<]+)")?;
 
         if let Some(captures) = regex.captures(body) {
             if let Some(group) = captures.get(1) {
-                system = Some(String::from_utf8_lossy(group.as_bytes()).to_string());
+                system = Some(String::from_utf8_lossy(group.as_bytes()).into_owned());
             }
         }
     }
