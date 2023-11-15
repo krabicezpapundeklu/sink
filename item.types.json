@@ -1,125 +1,123 @@
 [
     {
-        "name": "Event Notification",
-        "key": "event_notification",
-        "color": "#084298"
-    },
-    {
         "name": "Event Payload",
         "key": "event_payload",
-        "color": "#0d6efd"
+        "color": "#0d6efd",
+        "matches": [
+            "\"entityEventId\"\\s*:\\s*\\d+",
+            "\"eventDesc\"\\s*:\\s*\"[^\"]*\""
+        ]
+    },
+    {
+        "name": "Event Notification",
+        "key": "event_notification",
+        "color": "#084298",
+        "matches": [
+            "\"entityEventId\"\\s*:\\s*\\d+"
+        ]
     },
     {
         "name": "PC Folder CL",
         "key": "folder_cl",
         "color": "#842029",
-        "xmlPaths": {
-            "/Folder": {
-                "type": "CL"
-            }
-        }
+        "matches": [
+            "<Folder\\s[^>]*type=\"CL\""
+        ]
     },
     {
         "name": "PC Folder FS",
         "key": "folder_fs",
         "color": "#842029",
-        "xmlPaths": {
-            "/Folder": {
-                "type": "FS"
-            }
-        }
+        "matches": [
+            "<Folder\\s[^>]*type=\"FS\""
+        ]
     },
     {
         "name": "PC Folder IDPD",
         "key": "folder_idpd",
         "color": "#842029",
-        "xmlPaths": {
-            "/Folder": {
-                "type": "IDPD"
-            }
-        }
+        "matches": [
+            "<Folder\\s[^>]*type=\"IDPD\""
+        ]
     },
     {
         "name": "PC Folder SINGLEPD",
         "key": "folder_pd",
         "color": "#842029",
-        "xmlPaths": {
-            "/Folder": {
-                "type": "SINGLEPD"
-            }
-        }
+        "matches": [
+            "<Folder\\s[^>]*type=\"SINGLEPD\""
+        ]
     },
     {
         "name": "SOAP Application Created",
         "key": "application_created",
         "color": "#984c0c",
-        "xmlPaths": {
-            "/Envelope/Body/createdApplication": {}
-        }
+        "matches": [
+            "<tns:createdApplication\\W"
+        ]
     },
     {
         "name": "SOAP Application Updated",
         "key": "application_updated",
         "color": "#fd7e14",
-        "xmlPaths": {
-            "/Envelope/Body/updatedApplication": {}
-        }
+        "matches": [
+            "<tns:updatedApplication\\W"
+        ]
     },
     {
         "name": "SOAP Certificate Created",
         "key": "certificate_created",
         "color": "#664d03",
-        "xmlPaths": {
-            "/Envelope/Body/createdCertificate": {}
-        }
+        "matches": [
+            "<tns:createdCertificate\\W"
+        ]
     },
     {
         "name": "SOAP Certificate Updated",
         "key": "certificate_updated",
         "color": "#ffc107",
-        "xmlPaths": {
-            "/Envelope/Body/updatedCertificate": {}
-        }
+        "matches": [
+            "<tns:updatedCertificate\\W"
+        ]
     },
     {
         "name": "SOAP Selectee Created",
         "key": "selectee_created",
         "color": "#0f5132",
-        "xmlPaths": {
-            "/Envelope/Body/createSelecteeRequest": {}
-        }
+        "matches": [
+            "<tns:createSelecteeRequest\\W"
+        ]
     },
     {
         "name": "SOAP Selectee Updated",
         "key": "selectee_updated",
         "color": "#198754",
-        "xmlPaths": {
-            "/Envelope/Body/Update__CompIntfc__Z_USAS_LD_SELECTEE": {}
-        }
+        "matches": [
+            "<tns:Update__CompIntfc__Z_USAS_LD_SELECTEE\\W"
+        ]
     },
     {
         "name": "SOAP Status Updated",
         "key": "status_updated",
         "color": "#13795b",
-        "xmlPaths": {
-            "/Envelope/Body/Create__CompIntfc__Z_USAS_UPDT_STATUS": {},
-            "/Envelope/Body/updateStatusRequest": {}
-        }
+        "matches": [
+            "<tns:Create__CompIntfc__Z_USAS_UPDT_STATUS\\W|<tns:updateStatusRequest\\W"
+        ]
     },
     {
         "name": "SOAP Vacancy Created",
         "key": "vacancy_created",
         "color": "#087990",
-        "xmlPaths": {
-            "/Envelope/Body/createdVacancy": {}
-        }
+        "matches": [
+            "<tns:createdVacancy\\W"
+        ]
     },
     {
         "name": "SOAP Vacancy Updated",
         "key": "vacancy_updated",
         "color": "#0dcaf0",
-        "xmlPaths": {
-            "/Envelope/Body/updatedVacancy": {}
-        }
+        "matches": [
+            "<tns:updatedVacancy\\W"
+        ]
     }
 ]

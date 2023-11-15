@@ -15,6 +15,8 @@ export const MILLISECONDS_IN_MINUTE = 60 * 1000;
 
 export { ITEM_TYPES };
 
+ITEM_TYPES.sort((x, y) => x.name.localeCompare(y.name));
+
 hljs.registerLanguage('json', json);
 hljs.registerLanguage('plaintext', plaintext);
 hljs.registerLanguage('xml', xml);

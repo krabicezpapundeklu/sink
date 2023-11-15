@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path, sync::Arc};
+use std::{path, sync::Arc};
 
 use anyhow::{anyhow, Context, Error, Result};
 
@@ -16,19 +16,11 @@ use axum::{
 };
 
 use deadpool_sqlite::{Config, Pool, Runtime};
-
-use quick_xml::{
-    events::{
-        attributes::Attributes,
-        Event::{End, Eof, Start, Text},
-    },
-    Reader,
-};
-
+use regex::bytes::Regex;
 use rusqlite::Connection;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
-use serde_json::{from_str, Value};
+use serde_json::from_str;
 use tower::ServiceBuilder;
 use tower_http::{compression::CompressionLayer, trace::TraceLayer};
 use tracing::{error, info};
@@ -78,35 +70,12 @@ struct ItemSearchResult {
     first_item: Option<Item>,
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct ItemType {
     key: String,
-
-    #[serde(default)]
-    xml_paths: HashMap<String, HashMap<String, String>>,
+    patterns: Vec<Regex>,
 }
 
-struct JsonResponse<T>(Result<Json<T>, AppError>);
-
-impl<T, E> From<Result<T, E>> for JsonResponse<T>
-where
-    T: Serialize,
-    E: Into<AppError>,
-{
-    fn from(value: Result<T, E>) -> Self {
-        Self(value.map(Json).map_err(Into::into))
-    }
-}
-
-impl<T> IntoResponse for JsonResponse<T>
-where
-    T: Serialize,
-{
-    fn into_response(self) -> Response {
-        self.0.into_response()
-    }
-}
+type JsonResponse<T> = Result<Json<T>, AppError>;
 
 #[async_trait]
 trait PoolExt {
@@ -159,68 +128,54 @@ async fn get_item(State(app_state): State<AppState>, Path(id): Path<i64>) -> Jso
         .db_pool
         .call_db(move |db| db.get_item(id))
         .await
-        .into()
+        .map(Json)
+        .map_err(Into::into)
 }
 
-fn get_item_type_and_system(
-    item_types: &[ItemType],
-    body: &[u8],
-    mut system: Option<String>,
-) -> (Option<String>, Option<String>) {
-    if let Ok(json) = serde_json::from_slice::<Value>(body) {
-        if json.get("entityEventId").is_some() {
-            let item_type = if json.get("eventDesc").is_some() {
-                "event_payload"
-            } else {
-                "event_notification"
-            };
-
-            return (Some(item_type.to_string()), system);
-        }
-    }
-
-    let mut item_type = None;
-
-    let mut xml_reader = Reader::from_reader(body);
-    let mut buffer = Vec::new();
-    let mut path = String::new();
-
-    loop {
-        if system.is_some() && item_type.is_some() {
-            break;
-        }
-
-        buffer.clear();
-
-        if let Ok(event) = xml_reader.read_event_into(&mut buffer) {
-            match event {
-                Start(element) => {
-                    path.push('/');
-                    path.push_str(&String::from_utf8_lossy(element.local_name().as_ref()));
-
-                    if item_type.is_none() {
-                        item_type = get_xml_item_type(item_types, &path, &element.attributes());
-                    }
-                }
-                End(_) => {
-                    if let Some(idx) = path.rfind('/') {
-                        path.truncate(idx);
-                    }
-                }
-                Text(_) => {
-                    if system.is_none() && path.ends_with("/mgsSystem") {
-                        system = Some(String::from_utf8_lossy(&buffer).to_string());
-                    }
-                }
-                Eof => break,
-                _ => {}
+fn get_item_type(item_types: &[ItemType], body: &[u8]) -> Option<String> {
+    'next_type: for item_type in item_types {
+        for pattern in &item_type.patterns {
+            if !pattern.is_match(body) {
+                continue 'next_type;
             }
-        } else {
-            break;
         }
+
+        return Some(item_type.key.to_string());
     }
 
-    (item_type, system)
+    None
+}
+
+fn get_item_types() -> Result<Vec<ItemType>> {
+    #[derive(Deserialize)]
+    struct ItemTypeConfig {
+        key: String,
+        matches: Vec<String>,
+    }
+
+    let configs: Vec<ItemTypeConfig> =
+        from_str(include_str!("../item.types.json")).context("cannot parse item.types.json")?;
+
+    let mut item_types = Vec::new();
+
+    for config in configs {
+        let mut item_type = ItemType {
+            key: config.key,
+            patterns: Vec::new(),
+        };
+
+        for pattern in config.matches {
+            item_type.patterns.push(
+                Regex::new(&pattern).with_context(|| {
+                    format!("wrong pattern {pattern} for key {}", &item_type.key)
+                })?,
+            );
+        }
+
+        item_types.push(item_type);
+    }
+
+    Ok(item_types)
 }
 
 async fn get_items(
@@ -248,39 +203,27 @@ async fn get_items(
             })
         })
         .await
-        .into()
+        .map(Json)
+        .map_err(Into::into)
 }
 
-fn get_xml_item_type(
-    item_types: &[ItemType],
-    path: &str,
-    attributes: &Attributes,
-) -> Option<String> {
-    for item_type in item_types {
-        if let Some(path_attributes) = item_type.xml_paths.get(path) {
-            let mut matched_atributes = 0;
+fn get_system(headers: &[ItemHeader], body: &[u8]) -> Result<Option<String>> {
+    let mut system = headers
+        .iter()
+        .find(|header| header.is_mgs_system_header())
+        .map(|header| String::from_utf8_lossy(&header.value).to_string());
 
-            if !path_attributes.is_empty() {
-                for attribute in attributes.clone().flatten() {
-                    let local_name = attribute.key.local_name();
+    if system.is_none() {
+        let regex = Regex::new("<mgsSystem>([^<]+)")?;
 
-                    if let Some(value) =
-                        path_attributes.get(String::from_utf8_lossy(local_name.as_ref()).as_ref())
-                    {
-                        if attribute.value == value.as_bytes() {
-                            matched_atributes += 1;
-                        }
-                    }
-                }
-            }
-
-            if matched_atributes == path_attributes.len() {
-                return Some(item_type.key.to_string());
+        if let Some(captures) = regex.captures(body) {
+            if let Some(group) = captures.get(1) {
+                system = Some(String::from_utf8_lossy(group.as_bytes()).to_string());
             }
         }
     }
 
-    None
+    Ok(system)
 }
 
 #[tokio::main]
@@ -288,9 +231,7 @@ pub async fn start(host: &str, port: u16, db: &path::Path) -> Result<()> {
     info!(host, port, ?db, "starting server");
 
     let db_pool = Config::new(db).create_pool(Runtime::Tokio1)?;
-
-    let item_types: Vec<ItemType> =
-        from_str(include_str!("../item.types.json")).context("cannot parse item.types.json")?;
+    let item_types = get_item_types()?;
 
     db_pool
         .call_db(|db| {
@@ -330,18 +271,13 @@ async fn submit_item(
     headers: HeaderMap,
     body: Bytes,
 ) -> JsonResponse<i64> {
-    let headers: Vec<ItemHeader> = headers.iter().map(Into::into).collect();
-
-    let system = headers
-        .iter()
-        .find(|header| header.is_mgs_system_header())
-        .map(|header| String::from_utf8_lossy(&header.value).to_string());
-
-    let (item_type, system) = get_item_type_and_system(&app_state.item_types, &body, system);
-
     app_state
         .db_pool
         .call_db(move |db| {
+            let headers: Vec<ItemHeader> = headers.iter().map(Into::into).collect();
+            let system = get_system(&headers, &body)?;
+            let item_type = get_item_type(&app_state.item_types, &body);
+
             let item = NewItem {
                 system,
                 r#type: item_type,
@@ -352,5 +288,6 @@ async fn submit_item(
             db.insert_item(&item)
         })
         .await
-        .into()
+        .map(Json)
+        .map_err(Into::into)
 }
