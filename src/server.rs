@@ -100,6 +100,16 @@ impl PoolExt for Pool {
     }
 }
 
+trait ResultExt<T> {
+    fn to_json_response(self) -> JsonResponse<T>;
+}
+
+impl<T> ResultExt<T> for Result<T> {
+    fn to_json_response(self) -> JsonResponse<T> {
+        self.map(Json).map_err(Into::into)
+    }
+}
+
 async fn get_asset(uri: Uri) -> Response {
     let path = uri.path().trim_start_matches('/');
 
@@ -128,8 +138,7 @@ async fn get_item(State(app_state): State<AppState>, Path(id): Path<i64>) -> Jso
         .db_pool
         .call_db(move |db| db.get_item(id))
         .await
-        .map(Json)
-        .map_err(Into::into)
+        .to_json_response()
 }
 
 fn get_item_type(item_types: &[ItemType], body: &[u8]) -> Option<String> {
@@ -204,8 +213,7 @@ async fn get_items(
             })
         })
         .await
-        .map(Json)
-        .map_err(Into::into)
+        .to_json_response()
 }
 
 fn get_system(headers: &[ItemHeader], body: &[u8]) -> Result<Option<String>> {
@@ -289,6 +297,5 @@ async fn submit_item(
             db.insert_item(&item)
         })
         .await
-        .map(Json)
-        .map_err(Into::into)
+        .to_json_response()
 }
