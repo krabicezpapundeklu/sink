@@ -1,4 +1,3 @@
-use axum::http::{HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize, Serializer};
 
 #[derive(Serialize)]
@@ -48,11 +47,15 @@ impl ItemHeader {
     }
 }
 
-impl From<(&HeaderName, &HeaderValue)> for ItemHeader {
-    fn from((name, value): (&HeaderName, &HeaderValue)) -> Self {
+impl<N, V> From<(N, V)> for ItemHeader
+where
+    N: AsRef<str>,
+    V: AsRef<[u8]>,
+{
+    fn from((name, value): (N, V)) -> Self {
         Self {
-            name: name.to_string(),
-            value: value.as_bytes().into(),
+            name: name.as_ref().to_string(),
+            value: value.as_ref().into(),
         }
     }
 }
