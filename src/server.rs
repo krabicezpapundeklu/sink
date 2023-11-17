@@ -1,9 +1,8 @@
-use std::{path, sync::Arc};
+use std::path;
 
 use anyhow::{anyhow, Context, Error, Result};
 
 use axum::{
-    async_trait,
     body::Bytes,
     extract::{Path, Query, State},
     http::{
@@ -16,7 +15,7 @@ use axum::{
 };
 
 use deadpool_sqlite::{Config, Pool, Runtime};
-use regex::bytes::Regex;
+use regex::bytes::{Regex, RegexSet};
 use rusqlite::Connection;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
@@ -50,9 +49,89 @@ impl IntoResponse for AppError {
 }
 
 #[derive(Clone)]
-struct AppState {
+struct AppContext {
     db_pool: Pool,
-    item_types: Arc<Vec<ItemType>>,
+    item_types: Vec<(String, usize)>,
+    item_type_patterns: RegexSet,
+    system_pattern: Regex,
+}
+
+impl AppContext {
+    async fn call_db<F, T>(&self, f: F) -> Result<T>
+    where
+        F: FnOnce(&mut Connection) -> Result<T> + Send + 'static,
+        T: Send + 'static,
+    {
+        self.db_pool
+            .get()
+            .await?
+            .interact(f)
+            .await
+            .map_err(|error| anyhow!("cannot call db: {error}"))?
+    }
+
+    fn get_item_type(&self, body: &[u8]) -> Option<String> {
+        let matches = self.item_type_patterns.matches(body);
+
+        if matches.matched_any() {
+            let mut i = 0;
+
+            'next_item_type: for (key, patterns) in &self.item_types {
+                for j in 0..*patterns {
+                    if !matches.matched(i + j) {
+                        i += patterns;
+                        continue 'next_item_type;
+                    }
+                }
+
+                return Some(key.to_string());
+            }
+        }
+
+        None
+    }
+
+    fn get_system(&self, headers: &[ItemHeader], body: &[u8]) -> Option<String> {
+        let mut system = headers
+            .iter()
+            .find(|header| header.is_mgs_system_header())
+            .map(|header| String::from_utf8_lossy(&header.value).into_owned());
+
+        if system.is_none() {
+            if let Some(captures) = self.system_pattern.captures(body) {
+                if let Some(group) = captures.get(1) {
+                    system = Some(String::from_utf8_lossy(group.as_bytes()).into_owned());
+                }
+            }
+        }
+
+        system
+    }
+
+    fn new(db: &path::Path) -> Result<Self> {
+        #[derive(Deserialize)]
+        struct ItemType {
+            key: String,
+            matches: Vec<String>,
+        }
+
+        let db_pool = Config::new(db).create_pool(Runtime::Tokio1)?;
+
+        let item_types: Vec<ItemType> =
+            from_str(include_str!("../item.types.json")).context("cannot parse item.types.json")?;
+
+        let app_context = Self {
+            db_pool,
+            item_types: item_types
+                .iter()
+                .map(|c| (c.key.to_string(), c.matches.len()))
+                .collect(),
+            item_type_patterns: RegexSet::new(item_types.iter().flat_map(|c| c.matches.iter()))?,
+            system_pattern: Regex::new("<mgsSystem>([^<]+)")?,
+        };
+
+        Ok(app_context)
+    }
 }
 
 #[derive(RustEmbed)]
@@ -70,35 +149,7 @@ struct ItemSearchResult {
     first_item: Option<Item>,
 }
 
-struct ItemType {
-    key: String,
-    patterns: Vec<Regex>,
-}
-
 type JsonResponse<T> = Result<Json<T>, AppError>;
-
-#[async_trait]
-trait PoolExt {
-    async fn call_db<F, T>(&self, f: F) -> Result<T>
-    where
-        F: FnOnce(&mut Connection) -> Result<T> + Send + 'static,
-        T: Send + 'static;
-}
-
-#[async_trait]
-impl PoolExt for Pool {
-    async fn call_db<F, T>(&self, f: F) -> Result<T>
-    where
-        F: FnOnce(&mut Connection) -> Result<T> + Send + 'static,
-        T: Send + 'static,
-    {
-        self.get()
-            .await?
-            .interact(f)
-            .await
-            .map_err(|error| anyhow!("cannot call db: {error}"))?
-    }
-}
 
 trait ResultExt<T> {
     fn to_json_response(self) -> JsonResponse<T>;
@@ -133,66 +184,21 @@ async fn get_asset(uri: Uri) -> Response {
     }
 }
 
-async fn get_item(State(app_state): State<AppState>, Path(id): Path<i64>) -> JsonResponse<Item> {
-    app_state
-        .db_pool
+async fn get_item(
+    State(app_context): State<AppContext>,
+    Path(id): Path<i64>,
+) -> JsonResponse<Item> {
+    app_context
         .call_db(move |db| db.get_item(id))
         .await
         .to_json_response()
 }
 
-fn get_item_type(item_types: &[ItemType], body: &[u8]) -> Option<String> {
-    'next_type: for item_type in item_types {
-        for pattern in &item_type.patterns {
-            if !pattern.is_match(body) {
-                continue 'next_type;
-            }
-        }
-
-        return Some(item_type.key.to_string());
-    }
-
-    None
-}
-
-fn get_item_types() -> Result<Vec<ItemType>> {
-    #[derive(Deserialize)]
-    struct ItemTypeConfig {
-        key: String,
-        matches: Vec<String>,
-    }
-
-    let configs: Vec<ItemTypeConfig> =
-        from_str(include_str!("../item.types.json")).context("cannot parse item.types.json")?;
-
-    let mut item_types = Vec::new();
-
-    for config in configs {
-        let mut item_type = ItemType {
-            key: config.key,
-            patterns: Vec::new(),
-        };
-
-        for pattern in config.matches {
-            item_type.patterns.push(
-                Regex::new(&pattern).with_context(|| {
-                    format!("wrong pattern {pattern} for key {}", &item_type.key)
-                })?,
-            );
-        }
-
-        item_types.push(item_type);
-    }
-
-    Ok(item_types)
-}
-
 async fn get_items(
-    State(app_state): State<AppState>,
+    State(app_context): State<AppContext>,
     filter: Query<ItemFilter>,
 ) -> JsonResponse<ItemSearchResult> {
-    app_state
-        .db_pool
+    app_context
         .call_db(move |db| {
             let load_first_item = filter.load_first_item.unwrap_or_default();
             let (items, total_items) = db.get_items(filter.0)?;
@@ -216,33 +222,13 @@ async fn get_items(
         .to_json_response()
 }
 
-fn get_system(headers: &[ItemHeader], body: &[u8]) -> Result<Option<String>> {
-    let mut system = headers
-        .iter()
-        .find(|header| header.is_mgs_system_header())
-        .map(|header| String::from_utf8_lossy(&header.value).into_owned());
-
-    if system.is_none() {
-        let regex = Regex::new("<mgsSystem>([^<]+)")?;
-
-        if let Some(captures) = regex.captures(body) {
-            if let Some(group) = captures.get(1) {
-                system = Some(String::from_utf8_lossy(group.as_bytes()).into_owned());
-            }
-        }
-    }
-
-    Ok(system)
-}
-
 #[tokio::main]
 pub async fn start(host: &str, port: u16, db: &path::Path) -> Result<()> {
     info!(host, port, ?db, "starting server");
 
-    let db_pool = Config::new(db).create_pool(Runtime::Tokio1)?;
-    let item_types = get_item_types()?;
+    let app_context = AppContext::new(db)?;
 
-    db_pool
+    app_context
         .call_db(|db| {
             db.prepare_schema()?;
             db.init()
@@ -250,16 +236,11 @@ pub async fn start(host: &str, port: u16, db: &path::Path) -> Result<()> {
         .await
         .with_context(|| format!("cannot prepare database schema in {}", db.display()))?;
 
-    let app_state = AppState {
-        db_pool,
-        item_types: Arc::new(item_types),
-    };
-
     let app = Router::new()
         .route("/api/item/:id", get(get_item))
         .route("/api/items", get(get_items))
         .fallback(get(get_asset).post(submit_item))
-        .with_state(app_state)
+        .with_state(app_context)
         .layer(
             ServiceBuilder::new()
                 .layer(CompressionLayer::new())
@@ -276,17 +257,16 @@ pub async fn start(host: &str, port: u16, db: &path::Path) -> Result<()> {
 }
 
 async fn submit_item(
-    State(app_state): State<AppState>,
+    State(app_context): State<AppContext>,
     headers: HeaderMap,
     body: Bytes,
 ) -> JsonResponse<i64> {
-    app_state
-        .db_pool
-        .call_db(move |db| {
-            let headers: Vec<ItemHeader> = headers.iter().map(Into::into).collect();
-            let system = get_system(&headers, &body)?;
-            let item_type = get_item_type(&app_state.item_types, &body);
+    let headers: Vec<ItemHeader> = headers.iter().map(Into::into).collect();
+    let system = app_context.get_system(&headers, &body);
+    let item_type = app_context.get_item_type(&body);
 
+    app_context
+        .call_db(move |db| {
             let item = NewItem {
                 system,
                 r#type: item_type,
