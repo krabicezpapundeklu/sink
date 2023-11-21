@@ -60,13 +60,13 @@ fn main() -> Result<()> {
         )
         .init();
 
-    match &args.command {
+    match args.command {
         Command::Shell { args } => unsafe {
             let mut c_strings = Vec::new();
 
             c_strings.push(to_cstring(current_exe()?.as_os_str())?);
 
-            for arg in args {
+            for arg in &args {
                 c_strings.push(to_cstring(arg)?);
             }
 
@@ -76,7 +76,7 @@ fn main() -> Result<()> {
             exit(result);
         },
         Command::StartServer { host, port, db } => {
-            server::start(host, *port, db).context("error running server")
+            server::start(&host, port, db).context("error running server")
         }
     }
 }

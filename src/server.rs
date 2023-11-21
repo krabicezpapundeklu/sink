@@ -1,8 +1,9 @@
-use std::path;
+use std::path::PathBuf;
 
 use anyhow::{anyhow, Context, Error, Result};
 
 use axum::{
+    async_trait,
     body::Bytes,
     extract::{Path, Query, State},
     http::{
@@ -14,12 +15,13 @@ use axum::{
     Json, Router, Server,
 };
 
-use deadpool_sqlite::{Config, Pool, Runtime};
+use deadpool::managed::{Manager, Metrics, Object, Pool, RecycleResult};
 use regex::bytes::{Regex, RegexSet};
 use rusqlite::Connection;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
+use tokio::task::spawn_blocking;
 use tower::ServiceBuilder;
 use tower_http::{compression::CompressionLayer, trace::TraceLayer};
 use tracing::{error, info};
@@ -50,7 +52,7 @@ impl IntoResponse for AppError {
 
 #[derive(Clone)]
 struct AppContext {
-    db_pool: Pool,
+    db_pool: DbPool,
     item_types: Vec<(String, usize)>,
     item_type_patterns: RegexSet,
     system_pattern: Regex,
@@ -62,12 +64,18 @@ impl AppContext {
         F: FnOnce(&mut Connection) -> Result<T> + Send + 'static,
         T: Send + 'static,
     {
+        let mut db = self.get_db().await?;
+
+        spawn_blocking(move || f(&mut db))
+            .await?
+            .map_err(Into::into)
+    }
+
+    async fn get_db(&self) -> Result<Object<DbManager>> {
         self.db_pool
             .get()
-            .await?
-            .interact(f)
             .await
-            .map_err(|error| anyhow!("cannot call db: {error}"))?
+            .map_err(|error| anyhow!("cannot get db: {error}"))
     }
 
     fn get_item_type(&self, body: &[u8]) -> Option<String> {
@@ -108,14 +116,15 @@ impl AppContext {
         system
     }
 
-    fn new(db: &path::Path) -> Result<Self> {
+    fn new(db: PathBuf) -> Result<Self> {
         #[derive(Deserialize)]
         struct ItemType {
             key: String,
             matches: Vec<String>,
         }
 
-        let db_pool = Config::new(db).create_pool(Runtime::Tokio1)?;
+        let db_manager = DbManager { db };
+        let db_pool = DbPool::builder(db_manager).build()?;
 
         let item_types: Vec<ItemType> =
             from_str(include_str!("../item.types.json")).context("cannot parse item.types.json")?;
@@ -141,6 +150,28 @@ impl AppContext {
 #[derive(RustEmbed)]
 #[folder = "web/build"]
 struct Assets;
+
+struct DbManager {
+    db: PathBuf,
+}
+
+#[async_trait]
+impl Manager for DbManager {
+    type Type = Connection;
+    type Error = Error;
+
+    async fn create(&self) -> Result<Connection, Error> {
+        let db = Connection::open(&self.db)?;
+        db.init()?;
+        Ok(db)
+    }
+
+    async fn recycle(&self, _: &mut Connection, _: &Metrics) -> RecycleResult<Error> {
+        Ok(())
+    }
+}
+
+type DbPool = Pool<DbManager>;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -227,18 +258,15 @@ async fn get_items(
 }
 
 #[tokio::main]
-pub async fn start(host: &str, port: u16, db: &path::Path) -> Result<()> {
+pub async fn start(host: &str, port: u16, db: PathBuf) -> Result<()> {
     info!(host, port, ?db, "starting server");
 
     let app_context = AppContext::new(db)?;
 
     app_context
-        .call_db(|db| {
-            db.prepare_schema()?;
-            db.init()
-        })
+        .call_db(|db| db.prepare_schema())
         .await
-        .with_context(|| format!("cannot prepare database schema in {}", db.display()))?;
+        .context("cannot prepare database schema")?;
 
     let app = Router::new()
         .route("/api/item/:id", get(get_item))

@@ -1,13 +1,13 @@
 [package]
 name = "sink"
-version = "1.1.5"
+version = "1.2.0"
 edition = "2021"
 
 [dependencies]
 anyhow = "1.0.75"
 axum = "0.6.20"
 clap = { version = "4.4.8", features = ["derive"] }
-deadpool-sqlite = "0.7.0"
+deadpool = "0.10.0"
 libc = "0.2.150"
 regex = "1.10.2"
 rusqlite = { version = "0.30.0", features = ["bundled", "functions"] }

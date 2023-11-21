@@ -165,7 +165,7 @@ impl Repository for Connection {
 
             builder.append_param(format!(
                 r#""entityEventId"\s*:\s*({})\D"#,
-                event_type.replace(",", "|")
+                event_type.replace(',', "|")
             ));
         }
 
