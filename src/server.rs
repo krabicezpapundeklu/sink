@@ -124,9 +124,13 @@ impl AppContext {
             db_pool,
             item_types: item_types
                 .iter()
-                .map(|c| (c.key.to_string(), c.matches.len()))
+                .map(|item_type| (item_type.key.to_string(), item_type.matches.len()))
                 .collect(),
-            item_type_patterns: RegexSet::new(item_types.iter().flat_map(|c| c.matches.iter()))?,
+            item_type_patterns: RegexSet::new(
+                item_types
+                    .iter()
+                    .flat_map(|item_type| item_type.matches.iter()),
+            )?,
             system_pattern: Regex::new("<mgsSystem>([^<]+)")?,
         };
 

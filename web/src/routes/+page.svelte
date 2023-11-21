@@ -47,7 +47,7 @@
 		const firstItemId = asc ? items[items.length - 1].id + 1 : 0;
 		const lastItemId = asc ? Number.MAX_SAFE_INTEGER : items[items.length - 1].id - 1;
 
-		const result = await loadItems($page.url.searchParams, firstItemId, lastItemId, BATCH_SIZE);
+		const result = await loadItems($page.url.searchParams, firstItemId, lastItemId, BATCH_SIZE + 1);
 
 		items.push(...result.items.slice(0, BATCH_SIZE));
 		items = items;

@@ -170,7 +170,7 @@ impl Repository for Connection {
             builder.append_sql(" DESC");
         }
 
-        builder.append_if_is_some(" LIMIT ? + 1", filter.batch_size);
+        builder.append_if_is_some(" LIMIT ?", filter.batch_size);
 
         let mut stmt = self.prepare(builder.sql())?;
         let mut rows = stmt.query(params_from_iter(builder.params()))?;

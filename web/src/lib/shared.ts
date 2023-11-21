@@ -8,7 +8,7 @@ import xml from 'highlight.js/lib/languages/xml';
 import type { Item, ItemSearchResult, ItemSummary, ItemType, ItemWithHighlighting } from './model';
 import { error } from '@sveltejs/kit';
 
-export const BATCH_SIZE = 100;
+export const BATCH_SIZE = 50;
 export const MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
 export const MILLISECONDS_IN_HOUR = 60 * 60 * 1000;
 export const MILLISECONDS_IN_MINUTE = 60 * 1000;
