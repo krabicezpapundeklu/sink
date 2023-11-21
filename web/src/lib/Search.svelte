@@ -2,6 +2,8 @@
 	import { createEventDispatcher, onMount } from 'svelte';
 	import { localDateToString, ITEM_TYPES, MILLISECONDS_IN_HOUR } from '$lib/shared';
 
+	import Dropdown from 'bootstrap/js/dist/dropdown.js';
+
 	export let query: string;
 	export let system: string[];
 	export let type: string[];
@@ -237,9 +239,7 @@
 		to = '';
 	};
 
-	onMount(async () => {
-		const Dropdown = (await import('bootstrap/js/dist/dropdown.js')).default;
-
+	onMount(() => {
 		filterDropDown = new Dropdown(filterButton);
 
 		filterButton.addEventListener('hide.bs.dropdown', () => {
