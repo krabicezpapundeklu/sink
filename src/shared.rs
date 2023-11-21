@@ -24,6 +24,7 @@ pub struct ItemFilter {
     pub query: Option<String>,
     pub system: Option<String>,
     pub r#type: Option<String>,
+    pub event_type: Option<String>,
     pub from: Option<String>,
     pub to: Option<String>,
     pub asc: Option<bool>,

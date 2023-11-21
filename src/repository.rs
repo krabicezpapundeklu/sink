@@ -158,6 +158,17 @@ impl Repository for Connection {
                 .append_sql(")");
         }
 
+        if let Some(event_type) = &filter.event_type {
+            builder.append_sql(
+                " AND EXISTS (SELECT 1 FROM item_body WHERE item_id = id AND matches(?, body))",
+            );
+
+            builder.append_param(format!(
+                r#""entityEventId"\s*:\s*({})\D"#,
+                event_type.replace(",", "|")
+            ));
+        }
+
         builder
             .append_if_is_some(" AND submit_date >= ?", filter.from)
             .append_if_is_some(" AND submit_date <= ?", filter.to)

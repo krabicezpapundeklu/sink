@@ -29,6 +29,7 @@
 	let query: string;
 	let system: string[];
 	let type: string[];
+	let eventType: number[];
 	let from: string;
 	let to: string;
 	let asc: boolean;
@@ -68,6 +69,10 @@
 		query = params.get('query') ?? '';
 		system = (params.get('system') ?? '').split(',').filter((s) => s.length);
 		type = (params.get('type') ?? '').split(',').filter((t) => t.length);
+		eventType = (params.get('eventType') ?? '')
+			.split(',')
+			.filter((t) => t.length)
+			.map((t) => +t);
 		from = utcDateStringToLocalString(params.get('from'));
 		to = utcDateStringToLocalString(params.get('to'));
 		asc = (params.get('asc') ?? 'false') === 'true';
@@ -192,7 +197,7 @@
 <div class="d-flex flex-column vh-100">
 	<nav class="navbar">
 		<div class="m-auto w-50">
-			<Search {query} {system} {type} {from} {to} {systems} on:search={search} />
+			<Search {query} {system} {type} {eventType} {from} {to} {systems} on:search={search} />
 		</div>
 	</nav>
 	<div class="border-top d-flex flex-fill overflow-hidden">
