@@ -320,13 +320,18 @@
 				<div class="col">
 					<label class="form-label" for="system">System</label>
 					{#if countSelected(system, systems)}
-						<small>({countSelected(system, systems)} selected)</small>
+						<!-- svelte-ignore a11y-invalid-attribute -->
+						<small
+							>({countSelected(system, systems)} selected,
+							<a href="javascript:void(0)" on:click={() => (system = [])}>unselect</a>)</small
+						>
 					{/if}
 					<select
 						class="form-select form-select-sm"
 						id="system"
 						multiple
 						name="system"
+						size="5"
 						bind:value={system}
 					>
 						{#each systems as system}
@@ -337,13 +342,18 @@
 				<div class="col">
 					<label class="form-label" for="type">Type</label>
 					{#if type.length}
-						<small>({type.length} selected)</small>
+						<!-- svelte-ignore a11y-invalid-attribute -->
+						<small
+							>({type.length} selected,
+							<a href="javascript:void(0)" on:click={() => (type = [])}>unselect</a>)</small
+						>
 					{/if}
 					<select
 						class="form-select form-select-sm"
 						id="type"
 						multiple
 						name="type"
+						size="5"
 						bind:value={type}
 					>
 						{#each ITEM_TYPES as type}
