@@ -83,7 +83,7 @@
 			>
 		</div>
 	</div>
-	<div class="border mt-1 overflow-auto white-bg" bind:this={tab}>
+	<div class="bg-white border mt-1 overflow-auto" bind:this={tab}>
 		{#if activeTab === 2}
 			<table class="m-0 table table-sm">
 				<thead>

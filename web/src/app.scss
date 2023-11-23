@@ -12,28 +12,23 @@ $nav-link-color: #0a58ca;
 @import 'bootstrap/scss/utilities';
 @import 'bootstrap/scss/root';
 @import 'bootstrap/scss/reboot';
-@import 'bootstrap/scss/containers';
 @import 'bootstrap/scss/grid';
 @import 'bootstrap/scss/tables';
 @import 'bootstrap/scss/forms';
 @import 'bootstrap/scss/buttons';
-@import 'bootstrap/scss/dropdown';
 @import 'bootstrap/scss/nav';
 @import 'bootstrap/scss/navbar';
 @import 'bootstrap/scss/badge';
 @import 'bootstrap/scss/list-group';
+@import 'bootstrap/scss/close';
+@import 'bootstrap/scss/modal';
 @import 'bootstrap/scss/spinners';
-@import 'bootstrap/scss/helpers';
 @import 'bootstrap/scss/utilities/api';
 
 @import 'highlight.js/scss/github.scss';
 
 :root {
 	--bs-body-bg: #f0f0f0;
-}
-
-.dropdown-menu {
-	--bs-dropdown-bg: white;
 }
 
 .mw-0 {
@@ -46,8 +41,4 @@ $nav-link-color: #0a58ca;
 
 .w-fc {
 	width: fit-content;
-}
-
-.white-bg {
-	background-color: white;
 }
