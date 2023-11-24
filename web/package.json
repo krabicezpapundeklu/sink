@@ -31,7 +31,6 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"@popperjs/core": "^2.11.8",
 		"bootstrap": "^5.3.2",
 		"copy-to-clipboard": "^3.3.3",
 		"highlight.js": "^11.9.0"
