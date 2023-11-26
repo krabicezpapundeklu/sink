@@ -201,7 +201,7 @@
 		</div>
 	</nav>
 	<div class="border-top d-flex flex-fill overflow-hidden">
-		<div class="d-flex flex-column" style="min-width: 25em">
+		<div class="d-flex flex-column mw-25em">
 			<div class="align-items-center border-bottom d-flex justify-content-between p-2">
 				<div>{formatNumber(totalItems)} Items</div>
 				<div class="d-flex">
