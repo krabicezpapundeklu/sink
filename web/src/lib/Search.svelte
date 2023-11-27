@@ -3,8 +3,10 @@
 
 	import EVENT_TYPES from '../../../event.types.json';
 
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, onMount } from 'svelte';
 	import { localDateToString, ITEM_TYPES, MILLISECONDS_IN_HOUR } from '$lib/shared';
+
+	import Modal from 'bootstrap/js/dist/modal.js';
 
 	export let query: string;
 	export let system: string[];
@@ -14,6 +16,9 @@
 	export let to: string;
 
 	export let systems: string[] = [];
+
+	let modal: Modal;
+	let modalElement: HTMLDivElement;
 
 	const version = import.meta.env.CARGO_PKG_VERSION;
 
@@ -41,6 +46,7 @@
 	};
 
 	const search = (e: SubmitEvent) => {
+		modal.hide();
 		dispatch('search', new FormData(e.target as HTMLFormElement));
 	};
 
@@ -54,6 +60,10 @@
 		from = localDateToString(fromDate);
 		to = '';
 	};
+
+	onMount(() => {
+		modal = new Modal(modalElement);
+	});
 </script>
 
 <form class="d-flex m-1" on:submit|preventDefault={search}>
@@ -86,6 +96,7 @@
 		tabindex="-1"
 		aria-labelledby="filters-modal-label"
 		aria-hidden="true"
+		bind:this={modalElement}
 	>
 		<div class="modal-dialog">
 			<div class="bg-white modal-content">
@@ -95,106 +106,112 @@
 					></button>
 				</div>
 				<div class="modal-body">
-					<div class="row">
-						<div class="col">
-							<label class="form-label" for="system">System</label>
-							{#if countSelected(system, systems)}
-								<!-- svelte-ignore a11y-invalid-attribute -->
-								<small
-									>({countSelected(system, systems)} selected,
-									<a href="javascript:void(0)" on:click={() => (system = [])}>unselect</a>)</small
+					<div class="container-fluid">
+						<div class="row">
+							<div class="col">
+								<label class="form-label" for="system">System</label>
+								{#if countSelected(system, systems)}
+									<!-- svelte-ignore a11y-invalid-attribute -->
+									<small
+										>({countSelected(system, systems)} selected,
+										<a href="javascript:void(0)" on:click={() => (system = [])}>unselect</a>)</small
+									>
+								{/if}
+								<select
+									class="form-select form-select-sm"
+									id="system"
+									multiple
+									name="system"
+									size="5"
+									bind:value={system}
 								>
-							{/if}
-							<select
-								class="form-select form-select-sm"
-								id="system"
-								multiple
-								name="system"
-								size="5"
-								bind:value={system}
-							>
-								{#each systems as system}
-									<option value={system}>{system}</option>
-								{/each}
-							</select>
-						</div>
-						<div class="col">
-							<label class="form-label" for="type">Type</label>
-							{#if type.length}
-								<!-- svelte-ignore a11y-invalid-attribute -->
-								<small
-									>({type.length} selected,
-									<a href="javascript:void(0)" on:click={() => (type = [])}>unselect</a>)</small
+									{#each systems as system}
+										<option value={system}>{system}</option>
+									{/each}
+								</select>
+							</div>
+							<div class="col">
+								<label class="form-label" for="type">Type</label>
+								{#if type.length}
+									<!-- svelte-ignore a11y-invalid-attribute -->
+									<small
+										>({type.length} selected,
+										<a href="javascript:void(0)" on:click={() => (type = [])}>unselect</a>)</small
+									>
+								{/if}
+								<select
+									class="form-select form-select-sm"
+									id="type"
+									multiple
+									name="type"
+									size="5"
+									bind:value={type}
 								>
-							{/if}
-							<select
-								class="form-select form-select-sm"
-								id="type"
-								multiple
-								name="type"
-								size="5"
-								bind:value={type}
-							>
-								{#each ITEM_TYPES as type}
-									<option value={type.key}>{type.name}</option>
-								{/each}
-							</select>
+									{#each ITEM_TYPES as type}
+										<option value={type.key}>{type.name}</option>
+									{/each}
+								</select>
+							</div>
 						</div>
-					</div>
-					<div class="mt-2 row">
-						<div class="col">
-							<label class="form-label" for="eventType">Event Type</label>
-							{#if eventType.length}
-								<!-- svelte-ignore a11y-invalid-attribute -->
-								<small
-									>({eventType.length} selected,
-									<a href="javascript:void(0)" on:click={() => (eventType = [])}>unselect</a
-									>)</small
+						<div class="mt-2 row">
+							<div class="col">
+								<label class="form-label" for="eventType">Event Type</label>
+								{#if eventType.length}
+									<!-- svelte-ignore a11y-invalid-attribute -->
+									<small
+										>({eventType.length} selected,
+										<a href="javascript:void(0)" on:click={() => (eventType = [])}>unselect</a
+										>)</small
+									>
+								{/if}
+								<select
+									class="form-select form-select-sm"
+									id="eventType"
+									multiple
+									name="eventType"
+									size="5"
+									bind:value={eventType}
 								>
-							{/if}
-							<select
-								class="form-select form-select-sm"
-								id="eventType"
-								multiple
-								name="eventType"
-								size="5"
-								bind:value={eventType}
+									{#each EVENT_TYPES as type}
+										<option value={type.id}>{type.name}</option>
+									{/each}
+								</select>
+							</div>
+						</div>
+						<div class="mt-2 row">
+							<div class="col">
+								<label class="form-label" for="from">Submitted From</label>
+								<input
+									class="form-control form-control-sm"
+									id="from"
+									name="from"
+									type="datetime-local"
+									value={from}
+								/>
+							</div>
+							<div class="col">
+								<label class="form-label" for="to">Submitted To</label>
+								<input
+									class="form-control form-control-sm"
+									id="to"
+									name="to"
+									type="datetime-local"
+									value={to}
+								/>
+							</div>
+						</div>
+						<div class="d-flex justify-content-end mt-2">
+							<button
+								class="btn btn-outline-secondary btn-sm me-2"
+								type="button"
+								on:click={lastHour}
 							>
-								{#each EVENT_TYPES as type}
-									<option value={type.id}>{type.name}</option>
-								{/each}
-							</select>
+								Last Hour
+							</button>
+							<button class="btn btn-outline-secondary btn-sm" type="button" on:click={today}
+								>Today</button
+							>
 						</div>
-					</div>
-					<div class="mt-2 row">
-						<div class="col">
-							<label class="form-label" for="from">Submitted From</label>
-							<input
-								class="form-control form-control-sm"
-								id="from"
-								name="from"
-								type="datetime-local"
-								value={from}
-							/>
-						</div>
-						<div class="col">
-							<label class="form-label" for="to">Submitted To</label>
-							<input
-								class="form-control form-control-sm"
-								id="to"
-								name="to"
-								type="datetime-local"
-								value={to}
-							/>
-						</div>
-					</div>
-					<div class="d-flex justify-content-end mt-2">
-						<button class="btn btn-outline-secondary btn-sm me-2" type="button" on:click={lastHour}>
-							Last Hour
-						</button>
-						<button class="btn btn-outline-secondary btn-sm" type="button" on:click={today}
-							>Today</button
-						>
 					</div>
 				</div>
 				<div class="modal-footer">
@@ -204,7 +221,7 @@
 						>
 					</div>
 					<button type="button" class="btn btn-link" data-bs-dismiss="modal">Cancel</button>
-					<button type="submit" class="btn btn-primary" data-bs-dismiss="modal">Apply</button>
+					<button type="submit" class="btn btn-primary">Apply</button>
 				</div>
 			</div>
 		</div>
