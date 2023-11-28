@@ -12,7 +12,7 @@ use axum::{
     },
     response::{IntoResponse, Response},
     routing::get,
-    Json, Router, Server,
+    serve, Json, Router,
 };
 
 use deadpool::managed::{Manager, Metrics, Object, Pool, RecycleResult};
@@ -21,7 +21,7 @@ use rusqlite::Connection;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
-use tokio::task::spawn_blocking;
+use tokio::{net::TcpListener, task::spawn_blocking};
 use tower::ServiceBuilder;
 use tower_http::{compression::CompressionLayer, trace::TraceLayer};
 use tracing::{error, info};
@@ -333,9 +333,9 @@ pub async fn start(host: &str, port: u16, db: PathBuf) -> Result<()> {
                 .layer(TraceLayer::new_for_http()),
         );
 
-    Server::bind(&format!("{host}:{port}").parse()?)
-        .serve(app.into_make_service())
-        .await?;
+    let listener = TcpListener::bind(&format!("{host}:{port}")).await?;
+
+    serve(listener, app).await?;
 
     info!("bye!");
 
