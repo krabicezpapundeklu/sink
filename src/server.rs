@@ -78,6 +78,10 @@ impl AppContext {
             .map_err(|error| anyhow!("cannot get db: {error}"))
     }
 
+    async fn get_item(&self, id: i64) -> Result<Item> {
+        self.call_db(move |db| db.get_item(id)).await
+    }
+
     fn get_item_type(&self, body: &[u8]) -> Option<String> {
         let matches = self.item_type_patterns.matches(body);
 
@@ -97,6 +101,29 @@ impl AppContext {
         }
 
         None
+    }
+
+    async fn get_items(&self, filter: ItemFilter) -> Result<ItemSearchResult> {
+        self.call_db(move |db| {
+            let load_first_item = filter.load_first_item.unwrap_or_default();
+            let (items, total_items) = db.get_items(filter)?;
+
+            let first_item = if load_first_item && !items.is_empty() {
+                Some(db.get_item(items[0].id)?)
+            } else {
+                None
+            };
+
+            let systems = db.get_systems()?;
+
+            Ok(ItemSearchResult {
+                items,
+                total_items,
+                systems,
+                first_item,
+            })
+        })
+        .await
     }
 
     fn get_system(&self, headers: &[ItemHeader], body: &[u8]) -> Option<String> {
@@ -144,6 +171,23 @@ impl AppContext {
         };
 
         Ok(app_context)
+    }
+
+    async fn submit_item(&self, headers: Vec<ItemHeader>, body: Bytes) -> Result<i64> {
+        let system = self.get_system(&headers, &body);
+        let item_type = self.get_item_type(&body);
+
+        self.call_db(move |db| {
+            let item = NewItem {
+                system,
+                r#type: item_type,
+                headers,
+                body: &body,
+            };
+
+            db.insert_item(&item)
+        })
+        .await
     }
 }
 
@@ -223,38 +267,14 @@ async fn get_item(
     State(app_context): State<AppContext>,
     Path(id): Path<i64>,
 ) -> JsonResponse<Item> {
-    app_context
-        .call_db(move |db| db.get_item(id))
-        .await
-        .to_json_response()
+    app_context.get_item(id).await.to_json_response()
 }
 
 async fn get_items(
     State(app_context): State<AppContext>,
     filter: Query<ItemFilter>,
 ) -> JsonResponse<ItemSearchResult> {
-    app_context
-        .call_db(move |db| {
-            let load_first_item = filter.load_first_item.unwrap_or_default();
-            let (items, total_items) = db.get_items(filter.0)?;
-
-            let first_item = if load_first_item && !items.is_empty() {
-                Some(db.get_item(items[0].id)?)
-            } else {
-                None
-            };
-
-            let systems = db.get_systems()?;
-
-            Ok(ItemSearchResult {
-                items,
-                total_items,
-                systems,
-                first_item,
-            })
-        })
-        .await
-        .to_json_response()
+    app_context.get_items(filter.0).await.to_json_response()
 }
 
 #[tokio::main]
@@ -294,20 +314,9 @@ async fn submit_item(
     body: Bytes,
 ) -> JsonResponse<i64> {
     let headers: Vec<ItemHeader> = headers.iter().map(Into::into).collect();
-    let system = app_context.get_system(&headers, &body);
-    let item_type = app_context.get_item_type(&body);
 
     app_context
-        .call_db(move |db| {
-            let item = NewItem {
-                system,
-                r#type: item_type,
-                headers,
-                body: &body,
-            };
-
-            db.insert_item(&item)
-        })
+        .submit_item(headers, body)
         .await
         .to_json_response()
 }
