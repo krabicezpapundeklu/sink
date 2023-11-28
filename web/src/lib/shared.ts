@@ -160,7 +160,10 @@ export function itemTypeFromKey(key: string): ItemType {
 	return { name: key, key, color: 'red' };
 }
 
-export async function loadItem(itemId: number): Promise<Item> {
+export async function loadItem(
+	fetch: (input: RequestInfo) => Promise<Response>,
+	itemId: number
+): Promise<Item> {
 	const response = await fetch(`/api/item/${itemId}`);
 
 	if (!response.ok) {

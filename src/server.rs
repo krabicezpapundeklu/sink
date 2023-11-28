@@ -56,6 +56,7 @@ struct AppContext {
     item_types: Vec<(String, usize)>,
     item_type_patterns: RegexSet,
     system_pattern: Regex,
+    initial_data_pattern: Regex,
 }
 
 impl AppContext {
@@ -76,6 +77,22 @@ impl AppContext {
             .get()
             .await
             .map_err(|error| anyhow!("cannot get db: {error}"))
+    }
+
+    async fn get_initial_data(&self, uri: &Uri) -> Result<Option<(String, String)>> {
+        let id = uri.path().strip_prefix("/item/");
+
+        if let Some(id) = id {
+            let id: i64 = id.parse()?;
+            let item = self.get_item(id).await?;
+
+            Ok(Some((
+                format!("/api/item/{id}"),
+                serde_json::to_string(&item)?,
+            )))
+        } else {
+            Ok(None)
+        }
     }
 
     async fn get_item(&self, id: i64) -> Result<Item> {
@@ -168,6 +185,7 @@ impl AppContext {
                     .flat_map(|item_type| item_type.matches.iter()),
             )?,
             system_pattern: Regex::new("<mgsSystem>([^<]+)")?,
+            initial_data_pattern: Regex::new(r"<!--\s*%INITIAL_DATA%\s*-->")?,
         };
 
         Ok(app_context)
@@ -240,10 +258,10 @@ impl<T> ResultExt<T> for Result<T> {
     }
 }
 
-async fn get_asset(uri: Uri) -> Response {
+async fn get_asset(State(app_context): State<AppContext>, uri: Uri) -> Result<Response, AppError> {
     let path = uri.path().trim_start_matches('/');
 
-    if let Some(content) = Assets::get(path).or_else(|| Assets::get("index.html")) {
+    let response = if let Some(content) = Assets::get(path).or_else(|| Assets::get("index.html")) {
         let mime = content.metadata.mimetype();
 
         if path.starts_with("_app/immutable") {
@@ -255,12 +273,28 @@ async fn get_asset(uri: Uri) -> Response {
                 content.data,
             )
                 .into_response()
+        } else if let Ok(Some((url, initial_data))) = app_context.get_initial_data(&uri).await {
+            let initial_data = format!(
+                r#"<script type="application/json" data-sveltekit-fetched data-url="{url}">
+                    {{"status": 200, "statusText": "OK", "headers": {{}}, "body": {}}}
+                    </script>"#,
+                serde_json::to_string(&initial_data)?
+            );
+
+            let body = app_context
+                .initial_data_pattern
+                .replace(&content.data, initial_data.as_bytes())
+                .to_vec();
+
+            ([(CONTENT_TYPE, mime)], body).into_response()
         } else {
             ([(CONTENT_TYPE, mime)], content.data).into_response()
         }
     } else {
         StatusCode::NOT_FOUND.into_response()
-    }
+    };
+
+    Ok(response)
 }
 
 async fn get_item(

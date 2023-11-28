@@ -120,7 +120,7 @@
 
 	const selectItem = async (itemId: number) => {
 		if (!activeItem || activeItem.id !== itemId) {
-			activeItem = highlightItem(await loadItem(itemId));
+			activeItem = highlightItem(await loadItem(fetch, itemId));
 		}
 	};
 
