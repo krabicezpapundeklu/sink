@@ -80,18 +80,34 @@ impl AppContext {
     }
 
     async fn get_initial_data(&self, uri: &Uri) -> Result<Option<(String, String)>> {
-        let id = uri.path().strip_prefix("/item/");
+        let path = uri.path();
 
-        if let Some(id) = id {
-            let id: i64 = id.parse()?;
-            let item = self.get_item(id).await?;
+        if path == "/" {
+            let mut url = "/api/items?batchSize=51&loadFirstItem=true".to_string();
 
-            Ok(Some((
-                format!("/api/item/{id}"),
-                serde_json::to_string(&item)?,
-            )))
+            if let Some(query) = uri.query() {
+                url.push('&');
+                url.push_str(query);
+            }
+
+            let filter: Query<ItemFilter> = Query::try_from_uri(&url.parse()?)?;
+            let items = self.get_items(filter.0).await?;
+
+            Ok(Some((url, serde_json::to_string(&items)?)))
         } else {
-            Ok(None)
+            let id = path.strip_prefix("/item/");
+
+            if let Some(id) = id {
+                let id: i64 = id.parse()?;
+                let item = self.get_item(id).await?;
+
+                Ok(Some((
+                    format!("/api/item/{id}"),
+                    serde_json::to_string(&item)?,
+                )))
+            } else {
+                Ok(None)
+            }
         }
     }
 
