@@ -106,7 +106,7 @@
 					></button>
 				</div>
 				<div class="modal-body">
-					<div class="container-fluid">
+					<div class="container-fluid p-0">
 						<div class="row">
 							<div class="col">
 								<label class="form-label" for="system">System</label>
