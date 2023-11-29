@@ -5,26 +5,7 @@ $list-group-active-bg: white;
 $list-group-active-color: black;
 $nav-link-color: #0a58ca;
 
-@import 'bootstrap/scss/functions';
-@import 'bootstrap/scss/variables';
-@import 'bootstrap/scss/maps';
-@import 'bootstrap/scss/mixins';
-@import 'bootstrap/scss/utilities';
-@import 'bootstrap/scss/root';
-@import 'bootstrap/scss/reboot';
-@import 'bootstrap/scss/grid';
-@import 'bootstrap/scss/tables';
-@import 'bootstrap/scss/forms';
-@import 'bootstrap/scss/buttons';
-@import 'bootstrap/scss/nav';
-@import 'bootstrap/scss/navbar';
-@import 'bootstrap/scss/badge';
-@import 'bootstrap/scss/list-group';
-@import 'bootstrap/scss/close';
-@import 'bootstrap/scss/modal';
-@import 'bootstrap/scss/spinners';
-@import 'bootstrap/scss/utilities/api';
-
+@import 'bootstrap/scss/bootstrap';
 @import 'highlight.js/scss/github.scss';
 
 :root {

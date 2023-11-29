@@ -28,7 +28,7 @@ const purgeCSSResult = await new PurgeCSS().purge({
 
 for (const purge of purgeCSSResult) {
 	const oldFile = purge.file;
-	const newFile = join(dirname(oldFile), new Date().getTime() + purgedFiles.length + '.css');
+	const newFile = join(dirname(oldFile), new Date().getTime() + '-' + purgedFiles.length + '.css');
 
 	writeFileSync(oldFile, purge.css);
 	renameSync(oldFile, newFile);
@@ -52,7 +52,7 @@ walkSync('./build', (file) => {
 
 		if (newData != data) {
 			writeFileSync(file, newData);
-			console.log(`fixed ${file}`);
+			console.log(`updated ${file}`);
 		}
 	}
 });
