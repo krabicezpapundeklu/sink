@@ -178,13 +178,22 @@ export async function loadItem(
 }
 
 export async function loadItems(
+	fetch: (input: RequestInfo) => Promise<Response>,
 	params: URLSearchParams,
-	firstItemId: number,
-	lastItemId: number,
+	firstItemId?: number,
+	lastItemId?: number,
 	batchSize?: number,
 	loadFirstItem?: boolean
 ): Promise<ItemSearchResult> {
-	let url = `/api/items?firstItemId=${firstItemId}&lastItemId=${lastItemId}`;
+	let url = '';
+
+	if (firstItemId) {
+		url += `&firstItemId=${firstItemId}`;
+	}
+
+	if (lastItemId) {
+		url += `&lastItemId=${lastItemId}`;
+	}
 
 	if (batchSize) {
 		url += `&batchSize=${batchSize}`;
@@ -194,9 +203,15 @@ export async function loadItems(
 		url += '&loadFirstItem=true';
 	}
 
-	url += `&${params}`;
+	if (params.size > 0) {
+		url += `&${params}`;
+	}
 
-	const response = await fetch(url);
+	if (url.length > 0) {
+		url = '?' + url.substring(1);
+	}
+
+	const response = await fetch(`/api/items${url}`);
 
 	if (!response.ok) {
 		throw error(response.status, await response.text());

@@ -46,9 +46,15 @@
 		loading = true;
 
 		const firstItemId = asc ? items[items.length - 1].id + 1 : 0;
-		const lastItemId = asc ? Number.MAX_SAFE_INTEGER : items[items.length - 1].id - 1;
+		const lastItemId = asc ? undefined : items[items.length - 1].id - 1;
 
-		const result = await loadItems($page.url.searchParams, firstItemId, lastItemId, BATCH_SIZE + 1);
+		const result = await loadItems(
+			fetch,
+			$page.url.searchParams,
+			firstItemId,
+			lastItemId,
+			BATCH_SIZE + 1
+		);
 
 		items.push(...result.items.slice(0, BATCH_SIZE));
 		items = items;
@@ -173,8 +179,7 @@
 			const firstItemId =
 				items.length === 0 ? 1 : asc ? items[items.length - 1].id + 1 : items[0].id + 1;
 
-			const lastItemId = Number.MAX_SAFE_INTEGER;
-			const result = await loadItems($page.url.searchParams, firstItemId, lastItemId);
+			const result = await loadItems(fetch, $page.url.searchParams, firstItemId);
 
 			if (asc) {
 				items = items.concat(result.items);
