@@ -4,13 +4,16 @@ use cc::Build;
 use static_files::NpmBuild;
 
 fn build_sqlite_shell() {
+    println!("cargo:rerun-if-changed=linenoise");
     println!("cargo:rerun-if-changed=sqlite-shell");
 
     Build::new()
-        .file("./sqlite-shell/shell.c")
+        .define("HAVE_LINENOISE", None)
+        .files(["./linenoise/linenoise.c", "./sqlite-shell/shell.c"])
         .flag_if_supported("-Wno-implicit-fallthrough")
         .flag_if_supported("-Wno-unused-function")
         .flag_if_supported("-Wno-sign-compare")
+        .include("./linenoise")
         .compile("sqlite-shell");
 }
 
