@@ -21,7 +21,7 @@
         "key": "folder_cl",
         "color": "#842029",
         "matches": [
-            "<Folder\\s[^>]*type=\"CL\""
+            "<(?:[^:]+:)?Folder\\s[^>]*type=\"CL\""
         ]
     },
     {
@@ -29,7 +29,7 @@
         "key": "folder_fs",
         "color": "#842029",
         "matches": [
-            "<Folder\\s[^>]*type=\"FS\""
+            "<(?:[^:]+:)?Folder\\s[^>]*type=\"FS\""
         ]
     },
     {
@@ -37,7 +37,7 @@
         "key": "folder_idpd",
         "color": "#842029",
         "matches": [
-            "<Folder\\s[^>]*type=\"IDPD\""
+            "<(?:[^:]+:)?Folder\\s[^>]*type=\"IDPD\""
         ]
     },
     {
@@ -45,7 +45,7 @@
         "key": "folder_pd",
         "color": "#842029",
         "matches": [
-            "<Folder\\s[^>]*type=\"SINGLEPD\""
+            "<(?:[^:]+:)?Folder\\s[^>]*type=\"SINGLEPD\""
         ]
     },
     {
@@ -53,7 +53,7 @@
         "key": "application_created",
         "color": "#984c0c",
         "matches": [
-            "<tns:createdApplication\\W"
+            "<(?:[^:]+:)?createdApplication\\W"
         ]
     },
     {
@@ -61,7 +61,7 @@
         "key": "application_updated",
         "color": "#fd7e14",
         "matches": [
-            "<tns:updatedApplication\\W"
+            "<(?:[^:]+:)?updatedApplication\\W"
         ]
     },
     {
@@ -69,7 +69,7 @@
         "key": "certificate_created",
         "color": "#664d03",
         "matches": [
-            "<tns:createdCertificate\\W"
+            "<(?:[^:]+:)?createdCertificate\\W"
         ]
     },
     {
@@ -77,7 +77,7 @@
         "key": "certificate_updated",
         "color": "#ffc107",
         "matches": [
-            "<tns:updatedCertificate\\W"
+            "<(?:[^:]+:)?updatedCertificate\\W"
         ]
     },
     {
@@ -85,7 +85,7 @@
         "key": "selectee_created",
         "color": "#0f5132",
         "matches": [
-            "<tns:createSelecteeRequest\\W"
+            "<(?:[^:]+:)?createSelecteeRequest\\W"
         ]
     },
     {
@@ -93,7 +93,7 @@
         "key": "selectee_updated",
         "color": "#198754",
         "matches": [
-            "<tns:Update__CompIntfc__Z_USAS_LD_SELECTEE\\W"
+            "<(?:[^:]+:)?Update__CompIntfc__Z_USAS_LD_SELECTEE\\W"
         ]
     },
     {
@@ -101,7 +101,7 @@
         "key": "status_updated",
         "color": "#13795b",
         "matches": [
-            "<tns:Create__CompIntfc__Z_USAS_UPDT_STATUS\\W|<tns:updateStatusRequest\\W"
+            "<(?:[^:]+:)?(?:Create__CompIntfc__Z_USAS_UPDT_STATUS|updateStatusRequest)\\W"
         ]
     },
     {
@@ -109,7 +109,7 @@
         "key": "vacancy_created",
         "color": "#087990",
         "matches": [
-            "<tns:createdVacancy\\W"
+            "<(?:[^:]+:)?createdVacancy\\W"
         ]
     },
     {
