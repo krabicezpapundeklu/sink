@@ -4,7 +4,7 @@ use anyhow::Result;
 use regex::bytes::Regex;
 use rusqlite::{functions::FunctionFlags, params, params_from_iter, types::Value, Connection};
 
-use crate::shared::{Item, ItemFilter, ItemHeader, ItemSummary, NewItem};
+use crate::shared::{Item, ItemFilter, ItemHeader, ItemSummary, NewItem, UpdatedItem};
 
 const REGEX_PREFIX: &str = "regex:";
 
@@ -70,6 +70,7 @@ impl QueryBuilder {
 }
 
 pub trait Repository {
+    fn get_all_item_ids(&self) -> Result<Vec<i64>>;
     fn get_item(&self, id: i64) -> Result<Item>;
     fn get_items(&self, filter: ItemFilter) -> Result<(Vec<ItemSummary>, i32)>;
     fn get_systems(&self) -> Result<Vec<String>>;
@@ -77,11 +78,25 @@ pub trait Repository {
     fn init(&self) -> Result<()>;
 
     fn insert_item(&mut self, item: &NewItem) -> Result<i64>;
+    fn update_item(&mut self, item: &UpdatedItem) -> Result<usize>;
 
     fn prepare_schema(&self) -> Result<()>;
 }
 
 impl Repository for Connection {
+    fn get_all_item_ids(&self) -> Result<Vec<i64>> {
+        let mut stmt = self.prepare_cached("SELECT id FROM item ORDER BY id")?;
+
+        let mut rows = stmt.query([])?;
+        let mut items = Vec::new();
+
+        while let Some(row) = rows.next()? {
+            items.push(row.get(0)?);
+        }
+
+        Ok(items)
+    }
+
     fn get_item(&self, id: i64) -> Result<Item> {
         let mut stmt = self.prepare_cached(
             "SELECT i.id, i.submit_date, i.system, i.type, ib.body FROM item i JOIN item_body ib ON ib.item_id = i.id WHERE i.id = ?"
@@ -274,6 +289,13 @@ impl Repository for Connection {
             CREATE INDEX IF NOT EXISTS idx_item_type ON item (type);
             CREATE INDEX IF NOT EXISTS idx_item_header_item_id ON item_header (item_id);
         ").map_err(Into::into)
+    }
+
+    fn update_item(&mut self, item: &UpdatedItem) -> Result<usize> {
+        let mut stmt = self.prepare_cached("UPDATE item SET type = ?, system = ? WHERE id = ?")?;
+
+        stmt.execute(params![item.r#type, item.system, item.id])
+            .map_err(Into::into)
     }
 }
 

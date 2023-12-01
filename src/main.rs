@@ -9,7 +9,10 @@ use std::{
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use libc::c_int;
+use shared::AppContext;
 use tracing_subscriber::EnvFilter;
+
+use crate::shared::UpdatedItem;
 
 mod repository;
 mod server;
@@ -28,6 +31,16 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Fix items
+    Fix {
+        /// Database file to use
+        #[arg(default_value = "sink.db", long, short)]
+        db: PathBuf,
+
+        /// Only log changes, don't do anything
+        #[arg(default_value_t = false, long)]
+        dry: bool,
+    },
     /// Enter SQL shell
     Shell {
         /// Arguments passed directly to the shell
@@ -49,7 +62,36 @@ enum Command {
     },
 }
 
-fn main() -> Result<()> {
+async fn fix_items(db: PathBuf, dry: bool) -> Result<()> {
+    let app_context = AppContext::new(db)?;
+
+    for id in app_context.get_all_item_ids().await? {
+        let item = app_context.get_item(id).await?;
+        let old_type = item.r#type;
+        let old_system = item.system;
+        let new_type = app_context.get_item_type(&item.body);
+        let new_system = app_context.get_system(&item.headers, &item.body);
+
+        if new_type != old_type || new_system != old_system {
+            println!("{id} type={old_type:?}, system={old_system:?} -> type={new_type:?}, system={new_system:?}");
+
+            if !dry {
+                app_context
+                    .update_item(UpdatedItem {
+                        id,
+                        r#type: new_type,
+                        system: new_system,
+                    })
+                    .await?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
     let args = Args::parse();
 
     tracing_subscriber::fmt()
@@ -61,6 +103,7 @@ fn main() -> Result<()> {
         .init();
 
     match args.command {
+        Command::Fix { db, dry } => fix_items(db, dry).await,
         Command::Shell { args } => unsafe {
             let mut c_strings = Vec::new();
 
@@ -75,9 +118,9 @@ fn main() -> Result<()> {
 
             exit(result);
         },
-        Command::StartServer { host, port, db } => {
-            server::start(&host, port, db).context("error running server")
-        }
+        Command::StartServer { host, port, db } => server::start(&host, port, db)
+            .await
+            .context("error running server"),
     }
 }
 
