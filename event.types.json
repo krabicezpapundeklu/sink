@@ -1,358 +1,403 @@
 [
     {
-        "name": "APPIAN_CASE > APPIAN_SEND_PAYLOAD",
+        "name": "APPIAN_CASE"
+    },
+    {
+        "name": "APPIAN_SEND_PAYLOAD",
         "id": 91
     },
     {
-        "name": "APPIAN_EIE > APPIAN_EIE_EVENT",
+        "name": "APPIAN_EIE"
+    },
+    {
+        "name": "APPIAN_EIE_EVENT",
         "id": 90
     },
     {
-        "name": "APPLICANT > RESUME_CREATED_UPDATED",
+        "name": "APPLICANT"
+    },
+    {
+        "name": "RESUME_CREATED_UPDATED",
         "id": 49
     },
     {
-        "name": "APPLICANT > RESUME_CREATED_UPDATED_DOC",
+        "name": "RESUME_CREATED_UPDATED_DOC",
         "id": 50
     },
     {
-        "name": "APPLICATION > CREATED",
+        "name": "APPLICATION"
+    },
+    {
+        "name": "CREATED",
         "id": 44
     },
     {
-        "name": "APPLICATION > FIRST_HIRED",
+        "name": "FIRST_HIRED",
         "id": 48
     },
     {
-        "name": "APPLICATION > HIRED",
+        "name": "HIRED",
         "id": 46
     },
     {
-        "name": "APPLICATION > UNHIRED",
+        "name": "UNHIRED",
         "id": 47
     },
     {
-        "name": "APPLICATION > UPDATED",
+        "name": "UPDATED",
         "id": 45
     },
     {
-        "name": "CERTIFICATE > CREATED",
+        "name": "CERTIFICATE"
+    },
+    {
+        "name": "CREATED",
         "id": 42
     },
     {
-        "name": "CERTIFICATE > EXPIRATION_UPDATED",
+        "name": "EXPIRATION_UPDATED",
         "id": 72
     },
     {
-        "name": "CERTIFICATE > STATUS_CHANGED",
+        "name": "STATUS_CHANGED",
         "id": 71
     },
     {
-        "name": "CERTIFICATE > UPDATED",
+        "name": "UPDATED",
         "id": 43
     },
     {
-        "name": "CERTIFICATE_APPLICANT > CREATED",
+        "name": "CERTIFICATE_APPLICANT"
+    },
+    {
+        "name": "CREATED",
         "id": 51
     },
     {
-        "name": "CERTIFICATE_APPLICATION > HIRED",
+        "name": "HIRED",
         "id": 64
     },
     {
-        "name": "CERTIFICATE_APPLICATION > SELECTED",
+        "name": "CERTIFICATE_APPLICATION"
+    },
+    {
+        "name": "SELECTED",
         "id": 73
     },
     {
-        "name": "CERTIFICATE_APPLICATION > UNHIRED",
+        "name": "UNHIRED",
         "id": 65
     },
     {
-        "name": "CERTIFICATE_APPLICATION > UNSELECTED",
+        "name": "UNSELECTED",
         "id": 74
     },
     {
-        "name": "CERTIFICATE_ASSIGNEE > SO_ASSIGN_CERTIFICATE",
+        "name": "CERTIFICATE_ASSIGNEE"
+    },
+    {
+        "name": "SO_ASSIGN_CERTIFICATE",
         "id": 75
     },
     {
-        "name": "CERTIFICATE_ASSIGNEE > SO_CERTIFICATE_ASSIGNEE_RETURNED",
+        "name": "SO_CERTIFICATE_ASSIGNEE_RETURNED",
         "id": 78
     },
     {
-        "name": "CERTIFICATE_ASSIGNEE > SO_CERTIFICATE_ASSIGNEE_VIEWED",
+        "name": "SO_CERTIFICATE_ASSIGNEE_VIEWED",
         "id": 76
     },
     {
-        "name": "CERTIFICATE_ASSIGNEE > SO_UNASSIGN_CERTIFICATE",
+        "name": "SO_UNASSIGN_CERTIFICATE",
         "id": 77
     },
     {
-        "name": "ONBOARDING_NEW_HIRE > UPDATED",
+        "name": "ONBOARDING_NEW_HIRE"
+    },
+    {
+        "name": "UPDATED",
         "id": 68
     },
     {
-        "name": "ONBOARDING_PROCESS > OB_COMPLETED",
+        "name": "ONBOARDING_PROCESS"
+    },
+    {
+        "name": "OB_COMPLETED",
         "id": 5
     },
     {
-        "name": "ONBOARDING_PROCESS > OB_REASSIGNED",
+        "name": "OB_REASSIGNED",
         "id": 67
     },
     {
-        "name": "ONBOARDING_PROCESS > OB_RESUMED",
+        "name": "OB_RESUMED",
         "id": 3
     },
     {
-        "name": "ONBOARDING_PROCESS > OB_STARTED",
+        "name": "OB_STARTED",
         "id": 1
     },
     {
-        "name": "ONBOARDING_PROCESS > OB_SUSPENDED",
+        "name": "OB_SUSPENDED",
         "id": 2
     },
     {
-        "name": "ONBOARDING_PROCESS > OB_TERMINATED",
+        "name": "OB_TERMINATED",
         "id": 4
     },
     {
-        "name": "ONBOARDING_TASK > OB_COMPLETED",
+        "name": "ONBOARDING_TASK"
+    },
+    {
+        "name": "OB_COMPLETED",
         "id": 69
     },
     {
-        "name": "ONBOARDING_TASK > OB_REASSIGNED",
+        "name": "OB_REASSIGNED",
         "id": 66
     },
     {
-        "name": "ONBOARDING_TASK > OB_STARTED",
+        "name": "OB_STARTED",
         "id": 70
     },
     {
-        "name": "POSITION_CLASSIFICATION > PC_CL_APPROVED",
+        "name": "POSITION_CLASSIFICATION"
+    },
+    {
+        "name": "PC_CL_APPROVED",
         "id": 16
     },
     {
-        "name": "POSITION_CLASSIFICATION > PC_CL_APPROVED_DELETED",
+        "name": "PC_CL_APPROVED_DELETED",
         "id": 18
     },
     {
-        "name": "POSITION_CLASSIFICATION > PC_CL_APPROVED_UPDATED",
+        "name": "PC_CL_APPROVED_UPDATED",
         "id": 17
     },
     {
-        "name": "POSITION_CLASSIFICATION > PC_CS_APPROVED",
+        "name": "PC_CS_APPROVED",
         "id": 13
     },
     {
-        "name": "POSITION_CLASSIFICATION > PC_CS_APPROVED_DELETED",
+        "name": "PC_CS_APPROVED_DELETED",
         "id": 14
     },
     {
-        "name": "POSITION_CLASSIFICATION > PC_CS_APPROVED_UPDATED",
+        "name": "PC_CS_APPROVED_UPDATED",
         "id": 15
     },
     {
-        "name": "POSITION_CLASSIFICATION > PC_FS_APPROVED",
+        "name": "PC_FS_APPROVED",
         "id": 84
     },
     {
-        "name": "POSITION_CLASSIFICATION > PC_FS_APPROVED_ACTIVATED",
+        "name": "PC_FS_APPROVED_ACTIVATED",
         "id": 88
     },
     {
-        "name": "POSITION_CLASSIFICATION > PC_FS_APPROVED_DEACTIVATED",
+        "name": "PC_FS_APPROVED_DEACTIVATED",
         "id": 87
     },
     {
-        "name": "POSITION_CLASSIFICATION > PC_FS_APPROVED_DELETED",
+        "name": "PC_FS_APPROVED_DELETED",
         "id": 85
     },
     {
-        "name": "POSITION_CLASSIFICATION > PC_FS_APPROVED_TERMINATED",
+        "name": "PC_FS_APPROVED_TERMINATED",
         "id": 86
     },
     {
-        "name": "POSITION_CLASSIFICATION > PC_FS_APPROVED_UPDATED",
+        "name": "PC_FS_APPROVED_UPDATED",
         "id": 83
     },
     {
-        "name": "POSITION_CLASSIFICATION > PC_IDPD_APPROVED",
+        "name": "PC_IDPD_APPROVED",
         "id": 19
     },
     {
-        "name": "POSITION_CLASSIFICATION > PC_IDPD_APPROVED_DELETED",
+        "name": "PC_IDPD_APPROVED_DELETED",
         "id": 21
     },
     {
-        "name": "POSITION_CLASSIFICATION > PC_IDPD_APPROVED_UPDATED",
+        "name": "PC_IDPD_APPROVED_UPDATED",
         "id": 20
     },
     {
-        "name": "POSITION_CLASSIFICATION > PC_PD_APPROVED",
+        "name": "PC_PD_APPROVED",
         "id": 8
     },
     {
-        "name": "POSITION_CLASSIFICATION > PC_PD_APPROVED_ACTIVATED",
+        "name": "PC_PD_APPROVED_ACTIVATED",
         "id": 12
     },
     {
-        "name": "POSITION_CLASSIFICATION > PC_PD_APPROVED_DEACTIVATED",
+        "name": "PC_PD_APPROVED_DEACTIVATED",
         "id": 11
     },
     {
-        "name": "POSITION_CLASSIFICATION > PC_PD_APPROVED_DELETED",
+        "name": "PC_PD_APPROVED_DELETED",
         "id": 9
     },
     {
-        "name": "POSITION_CLASSIFICATION > PC_PD_APPROVED_TERMINATED",
+        "name": "PC_PD_APPROVED_TERMINATED",
         "id": 10
     },
     {
-        "name": "POSITION_CLASSIFICATION > PC_PD_APPROVED_UPDATED",
+        "name": "PC_PD_APPROVED_UPDATED",
         "id": 7
     },
     {
-        "name": "VACANCY > ANNOUNCED",
+        "name": "VACANCY"
+    },
+    {
+        "name": "ANNOUNCED",
         "id": 35
     },
     {
-        "name": "VACANCY > ANNOUNCEMENT_UPDATED",
+        "name": "ANNOUNCEMENT_UPDATED",
         "id": 37
     },
     {
-        "name": "VACANCY > APPROVED",
+        "name": "APPROVED",
         "id": 53
     },
     {
-        "name": "VACANCY > CANCELLED",
+        "name": "CANCELLED",
         "id": 56
     },
     {
-        "name": "VACANCY > CERTIFICATE_CREATED",
+        "name": "CERTIFICATE_CREATED",
         "id": 36
     },
     {
-        "name": "VACANCY > CLOSED",
+        "name": "CLOSED",
         "id": 34
     },
     {
-        "name": "VACANCY > CREATED",
+        "name": "CREATED",
         "id": 41
     },
     {
-        "name": "VACANCY > DELETED",
+        "name": "DELETED",
         "id": 39
     },
     {
-        "name": "VACANCY > FILLED",
+        "name": "FILLED",
         "id": 55
     },
     {
-        "name": "VACANCY > FIRST_HIRED",
+        "name": "FIRST_HIRED",
         "id": 40
     },
     {
-        "name": "VACANCY > NOT_READY_FOR_APPROVAL",
+        "name": "NOT_READY_FOR_APPROVAL",
         "id": 80
     },
     {
-        "name": "VACANCY > OPENED",
+        "name": "OPENED",
         "id": 33
     },
     {
-        "name": "VACANCY > READY_FOR_APPROVAL",
+        "name": "READY_FOR_APPROVAL",
         "id": 52
     },
     {
-        "name": "VACANCY > UNAPPROVED",
+        "name": "UNAPPROVED",
         "id": 54
     },
     {
-        "name": "VACANCY > UNLINK",
+        "name": "UNLINK",
         "id": 38
     },
     {
-        "name": "VACANCY > UN_PUBLISHED",
+        "name": "UN_PUBLISHED",
         "id": 57
     },
     {
-        "name": "VACANCY_REVIEW > CREATED",
+        "name": "VACANCY_REVIEW"
+    },
+    {
+        "name": "CREATED",
         "id": 81
     },
     {
-        "name": "VACANCY_REVIEW > STATUS_CHANGED",
+        "name": "STATUS_CHANGED",
         "id": 82
     },
     {
-        "name": "VAC_DATA_TX > ANNOUNCED",
+        "name": "VAC_DATA_TX"
+    },
+    {
+        "name": "ANNOUNCED",
         "id": 26
     },
     {
-        "name": "VAC_DATA_TX > ANNOUNCEMENT_UPDATED",
+        "name": "ANNOUNCEMENT_UPDATED",
         "id": 28
     },
     {
-        "name": "VAC_DATA_TX > APPROVED",
+        "name": "APPROVED",
         "id": 59
     },
     {
-        "name": "VAC_DATA_TX > CANCELLED",
+        "name": "CANCELLED",
         "id": 62
     },
     {
-        "name": "VAC_DATA_TX > CERTIFICATE_CREATED",
+        "name": "CERTIFICATE_CREATED",
         "id": 27
     },
     {
-        "name": "VAC_DATA_TX > CLOSED",
+        "name": "CLOSED",
         "id": 23
     },
     {
-        "name": "VAC_DATA_TX > CREATED",
+        "name": "CREATED",
         "id": 32
     },
     {
-        "name": "VAC_DATA_TX > DELETED",
+        "name": "DELETED",
         "id": 30
     },
     {
-        "name": "VAC_DATA_TX > FILLED",
+        "name": "FILLED",
         "id": 61
     },
     {
-        "name": "VAC_DATA_TX > FIRST_HIRED",
+        "name": "FIRST_HIRED",
         "id": 31
     },
     {
-        "name": "VAC_DATA_TX > HIRED",
+        "name": "HIRED",
         "id": 24
     },
     {
-        "name": "VAC_DATA_TX > NOT_READY_FOR_APPROVAL",
+        "name": "NOT_READY_FOR_APPROVAL",
         "id": 79
     },
     {
-        "name": "VAC_DATA_TX > OPENED",
+        "name": "OPENED",
         "id": 22
     },
     {
-        "name": "VAC_DATA_TX > READY_FOR_APPROVAL",
+        "name": "READY_FOR_APPROVAL",
         "id": 58
     },
     {
-        "name": "VAC_DATA_TX > UNAPPROVED",
+        "name": "UNAPPROVED",
         "id": 60
     },
     {
-        "name": "VAC_DATA_TX > UNHIRED",
+        "name": "UNHIRED",
         "id": 25
     },
     {
-        "name": "VAC_DATA_TX > UNLINK",
+        "name": "UNLINK",
         "id": 29
     },
     {
-        "name": "VAC_DATA_TX > UN_PUBLISHED",
+        "name": "UN_PUBLISHED",
         "id": 63
     }
 ]

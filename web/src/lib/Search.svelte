@@ -153,8 +153,8 @@
 								</select>
 							</div>
 						</div>
-						<div class="mt-2 row">
-							<div class="col">
+						<div class="row">
+							<div class="col mt-2">
 								<label class="form-label" for="eventType">Event Type</label>
 								{#if eventType.length}
 									<!-- svelte-ignore a11y-invalid-attribute -->
@@ -169,17 +169,23 @@
 									id="eventType"
 									multiple
 									name="eventType"
-									size="5"
+									size="7"
 									bind:value={eventType}
 								>
-									{#each EVENT_TYPES as type}
-										<option value={type.id}>{type.name}</option>
+									{#each EVENT_TYPES as type, index}
+										{#if type.id}
+											<option value={type.id}>{type.name}</option>
+										{:else}
+											<option class="border-bottom" class:mt-2={index > 0} disabled
+												>{type.name}</option
+											>
+										{/if}
 									{/each}
 								</select>
 							</div>
 						</div>
-						<div class="mt-2 row">
-							<div class="col">
+						<div class="row">
+							<div class="col mt-2">
 								<label class="form-label" for="from">Submitted From</label>
 								<input
 									class="form-control form-control-sm"
@@ -189,7 +195,7 @@
 									value={from}
 								/>
 							</div>
-							<div class="col">
+							<div class="col mt-2">
 								<label class="form-label" for="to">Submitted To</label>
 								<input
 									class="form-control form-control-sm"
