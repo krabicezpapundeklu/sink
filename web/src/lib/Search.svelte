@@ -1,6 +1,4 @@
 <script lang="ts">
-	import 'bootstrap/js/dist/modal.js';
-
 	import EVENT_TYPES from '../../../event.types.json';
 
 	import { createEventDispatcher, onMount } from 'svelte';
