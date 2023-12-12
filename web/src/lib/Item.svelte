@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { formatNumber, itemTypeFromKey } from '$lib/shared';
-	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import copy from 'copy-to-clipboard';
 	import type { ItemWithHighlighting } from '$lib/model';
 
 	export let item: ItemWithHighlighting;
@@ -11,7 +11,6 @@
 
 	let activeTab = Math.max(0, tabs.indexOf($page.url.searchParams.get('view') ?? ''));
 	let base: string;
-	let copy: (text: string) => boolean;
 	let tab: HTMLElement;
 
 	const copyTab = () => {
@@ -25,10 +24,6 @@
 
 		activeTab = tab;
 	};
-
-	onMount(async () => {
-		copy = (await import('copy-to-clipboard')).default;
-	});
 
 	$: base = `/item/${item.id}?view=`;
 </script>
