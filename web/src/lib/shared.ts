@@ -167,7 +167,7 @@ export async function loadItem(
 	const response = await fetch(`/api/item/${itemId}`);
 
 	if (!response.ok) {
-		throw error(response.status, await response.text());
+		error(500, await response.text());
 	}
 
 	const item = await response.json();
@@ -214,7 +214,7 @@ export async function loadItems(
 	const response = await fetch(`/api/items${url}`);
 
 	if (!response.ok) {
-		throw error(response.status, await response.text());
+		error(500, await response.text());
 	}
 
 	const items = await response.json();
