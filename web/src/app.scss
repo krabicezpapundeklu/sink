@@ -8,8 +8,17 @@ $nav-link-color: #0a58ca;
 @import 'bootstrap/scss/bootstrap';
 @import 'highlight.js/scss/github.scss';
 
+::backdrop {
+	background-color: black;
+	opacity: 0.5;
+}
+
 :root {
 	--bs-body-bg: #f0f0f0;
+}
+
+hr {
+	color: rgb(128, 128, 128);
 }
 
 .mw-0 {
