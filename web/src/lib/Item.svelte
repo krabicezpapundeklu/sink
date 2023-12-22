@@ -1,17 +1,20 @@
 <script lang="ts">
-	import { formatNumber, itemTypeFromKey } from '$lib/shared';
+	import { formatBody, formatNumber, itemTypeFromKey } from '$lib/shared';
 	import { page } from '$app/stores';
 	import copy from 'copy-to-clipboard';
-	import type { ItemWithHighlighting } from '$lib/model';
+	import Highlighted from './Highlighted.svelte';
+	import type { Item } from './model';
 
-	export let item: ItemWithHighlighting;
+	export let item: Item;
 	export let preventDefault = true;
 
 	const tabs = ['body-preview', 'original-body', 'headers'];
 
 	let activeTab = Math.max(0, tabs.indexOf($page.url.searchParams.get('view') ?? ''));
-	let base: string;
+	let base = `/item/${item.id}?view=`;
 	let tab: HTMLElement;
+
+	let formattedBody = formatBody(item);
 
 	const copyTab = () => {
 		copy(tab.innerText);
@@ -24,8 +27,6 @@
 
 		activeTab = tab;
 	};
-
-	$: base = `/item/${item.id}?view=`;
 </script>
 
 <div class="d-flex flex-column mh-100 p-2">
@@ -79,7 +80,11 @@
 		</div>
 	</div>
 	<div class="bg-white border mt-1 overflow-auto" bind:this={tab}>
-		{#if activeTab === 2}
+		{#if activeTab === 0}
+			<Highlighted body={formattedBody} />
+		{:else if activeTab === 1}
+			<Highlighted body={item.body} />
+		{:else if activeTab === 2}
 			<table class="m-0 table table-sm">
 				<thead>
 					<tr>
@@ -96,10 +101,6 @@
 					{/each}
 				</tbody>
 			</table>
-		{:else}
-			<pre class="mb-0 overflow-hidden p-2 w-fc"><code
-					>{@html activeTab === 0 ? item.highlightedBodyPreview : item.higlightedBody}</code
-				></pre>
 		{/if}
 	</div>
 </div>

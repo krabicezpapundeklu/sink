@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatNumber, highlightItem } from '$lib/shared';
+	import { formatNumber } from '$lib/shared';
 	import Item from '$lib/Item.svelte';
 	import type { PageData } from './$types';
 
@@ -11,5 +11,5 @@
 </svelte:head>
 
 <div class="vh-100">
-	<Item item={highlightItem(data)} preventDefault={false} />
+	<Item item={data} preventDefault={false} />
 </div>

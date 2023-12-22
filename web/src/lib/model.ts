@@ -27,8 +27,3 @@ export interface ItemType {
 	key: string;
 	color: string;
 }
-
-export interface ItemWithHighlighting extends Item {
-	higlightedBody: string;
-	highlightedBodyPreview: string;
-}

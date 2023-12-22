@@ -4,7 +4,6 @@
 	import {
 		BATCH_SIZE,
 		formatNumber,
-		highlightItem,
 		itemTypeFromKey,
 		loadItem,
 		loadItems,
@@ -40,7 +39,7 @@
 	let systems = data.systems;
 	let totalItems = data.totalItems;
 	let hasMoreItems = data.items.length > BATCH_SIZE;
-	let activeItem = data.firstItem ? highlightItem(data.firstItem) : undefined;
+	let activeItem = data.firstItem;
 
 	const loadMore = async () => {
 		loading = true;
@@ -75,10 +74,12 @@
 		query = params.get('query') ?? '';
 		system = (params.get('system') ?? '').split(',').filter((s) => s.length);
 		type = (params.get('type') ?? '').split(',').filter((t) => t.length);
+
 		eventType = (params.get('eventType') ?? '')
 			.split(',')
 			.filter((t) => t.length)
 			.map((t) => +t);
+
 		from = utcDateStringToLocalString(params.get('from'));
 		to = utcDateStringToLocalString(params.get('to'));
 		asc = (params.get('asc') ?? 'false') === 'true';
@@ -126,7 +127,7 @@
 
 	const selectItem = async (itemId: number) => {
 		if (!activeItem || activeItem.id !== itemId) {
-			activeItem = highlightItem(await loadItem(fetch, itemId));
+			activeItem = await loadItem(fetch, itemId);
 		}
 	};
 
@@ -152,7 +153,7 @@
 		systems = data.systems;
 		totalItems = data.totalItems;
 		hasMoreItems = data.items.length > BATCH_SIZE;
-		activeItem = data.firstItem ? highlightItem(data.firstItem) : undefined;
+		activeItem = data.firstItem;
 
 		loading = false;
 	});
@@ -264,12 +265,16 @@
 			</div>
 		</div>
 		{#if activeItem}
-			<div
-				class="border-start d-flex flex-column flex-fill mw-0 shadow"
-				style="background-color: #f5f5f5"
-			>
-				<Item item={activeItem} />
-			</div>
+			{#key activeItem}
+				<div
+					class="border-start d-flex flex-column flex-fill mw-0 shadow"
+					style="background-color: #f5f5f5"
+				>
+					{#key activeItem}
+						<Item item={activeItem} />
+					{/key}
+				</div>
+			{/key}
 		{:else}
 			<div class="border-start d-flex flex-fill shadow" style="background-color: #f5f5f5">
 				<div class="m-auto opacity-25 w-25">

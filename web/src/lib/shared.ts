@@ -5,7 +5,7 @@ import json from 'highlight.js/lib/languages/json';
 import plaintext from 'highlight.js/lib/languages/plaintext';
 import xml from 'highlight.js/lib/languages/xml';
 
-import type { Item, ItemSearchResult, ItemSummary, ItemType, ItemWithHighlighting } from './model';
+import type { Item, ItemSearchResult, ItemSummary, ItemType } from './model';
 import { error } from '@sveltejs/kit';
 
 export const BATCH_SIZE = 50;
@@ -33,6 +33,22 @@ function dateToString(
 		`${year}-${pad(month + 1)}-${pad(day)} ${pad(hours)}:${pad(minutes)}` +
 		(seconds === 0 ? '' : `:${pad(seconds)}`)
 	);
+}
+
+export function formatBody(item: Item): string {
+	for (const header of item.headers) {
+		if (header.name === 'content-type') {
+			if (header.value.indexOf('json') !== -1) {
+				return formatJson(item.body);
+			} else if (header.value.indexOf('xml') !== -1) {
+				return formatXml(item.body);
+			}
+
+			break;
+		}
+	}
+
+	return item.body;
 }
 
 function formatJson(json: string): string {
@@ -122,32 +138,8 @@ function formatXml(xml: string): string {
 	return formatted;
 }
 
-export function highlightItem(item: Item): ItemWithHighlighting {
-	let language = 'plaintext';
-	let formattedBody = item.body;
-
-	for (const header of item.headers) {
-		if (header.name === 'content-type') {
-			if (header.value.indexOf('json') !== -1) {
-				language = 'json';
-				formattedBody = formatJson(item.body);
-			} else if (header.value.indexOf('xml') !== -1) {
-				language = 'xml';
-				formattedBody = formatXml(item.body);
-			}
-
-			break;
-		}
-	}
-
-	const higlightedBody = hljs.highlight(item.body, { language }).value;
-	const highlightedBodyPreview = hljs.highlight(formattedBody, { language }).value;
-
-	return {
-		...item,
-		higlightedBody,
-		highlightedBodyPreview
-	};
+export function highlightElement(e: HTMLElement): void {
+	hljs.highlightElement(e);
 }
 
 export function itemTypeFromKey(key: string): ItemType {
