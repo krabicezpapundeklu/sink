@@ -207,7 +207,7 @@
 				Version:
 				<a href="https://github.com/krabicezpapundeklu/sink/releases/tag/{version}">{version}</a>
 			</div>
-			<button type="button" class="btn btn-link" on:click={closeDialog}>Cancel</button>
+			<button type="button" class="btn btn-link me-2" on:click={closeDialog}>Cancel</button>
 			<button type="submit" class="btn btn-primary" on:click={closeDialog}>Apply</button>
 		</div>
 	</dialog>
