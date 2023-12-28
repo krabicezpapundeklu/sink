@@ -1,13 +1,23 @@
+<script context="module" lang="ts">
+	import hljs from 'highlight.js/lib/core';
+	import json from 'highlight.js/lib/languages/json';
+	import plaintext from 'highlight.js/lib/languages/plaintext';
+	import xml from 'highlight.js/lib/languages/xml';
+
+	hljs.registerLanguage('json', json);
+	hljs.registerLanguage('plaintext', plaintext);
+	hljs.registerLanguage('xml', xml);
+</script>
+
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { highlightElement } from './shared';
 
 	export let body: string;
 
 	let code: HTMLElement;
 
 	onMount(() => {
-		highlightElement(code);
+		hljs.highlightElement(code);
 	});
 </script>
 

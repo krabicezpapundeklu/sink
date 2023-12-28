@@ -265,16 +265,12 @@
 			</div>
 		</div>
 		{#if activeItem}
-			{#key activeItem}
-				<div
-					class="border-start d-flex flex-column flex-fill mw-0 shadow"
-					style="background-color: #f5f5f5"
-				>
-					{#key activeItem}
-						<Item item={activeItem} />
-					{/key}
-				</div>
-			{/key}
+			<div
+				class="border-start d-flex flex-column flex-fill mw-0 shadow"
+				style="background-color: #f5f5f5"
+			>
+				<Item item={activeItem} />
+			</div>
 		{:else}
 			<div class="border-start d-flex flex-fill shadow" style="background-color: #f5f5f5">
 				<div class="m-auto opacity-25 w-25">

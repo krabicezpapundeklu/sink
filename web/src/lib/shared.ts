@@ -1,10 +1,5 @@
 import ITEM_TYPES from '../../../item.types.json';
 
-import hljs from 'highlight.js/lib/core';
-import json from 'highlight.js/lib/languages/json';
-import plaintext from 'highlight.js/lib/languages/plaintext';
-import xml from 'highlight.js/lib/languages/xml';
-
 import type { Item, ItemSearchResult, ItemSummary, ItemType } from './model';
 import { error } from '@sveltejs/kit';
 
@@ -16,10 +11,6 @@ export const MILLISECONDS_IN_MINUTE = 60 * 1000;
 export { ITEM_TYPES };
 
 ITEM_TYPES.sort((x, y) => x.name.localeCompare(y.name));
-
-hljs.registerLanguage('json', json);
-hljs.registerLanguage('plaintext', plaintext);
-hljs.registerLanguage('xml', xml);
 
 function dateToString(
 	year: number,
@@ -136,10 +127,6 @@ function formatXml(xml: string): string {
 	formatted = formatted.substring(1, formatted.length - 3);
 
 	return formatted;
-}
-
-export function highlightElement(e: HTMLElement): void {
-	hljs.highlightElement(e);
 }
 
 export function itemTypeFromKey(key: string): ItemType {

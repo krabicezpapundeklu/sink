@@ -14,7 +14,8 @@
 	let base = `/item/${item.id}?view=`;
 	let tab: HTMLElement;
 
-	let formattedBody = formatBody(item);
+	let formattedBody: string;
+	let formattedItemId: number;
 
 	const copyTab = () => {
 		copy(tab.innerText);
@@ -27,6 +28,13 @@
 
 		activeTab = tab;
 	};
+
+	$: {
+		if (item.id !== formattedItemId) {
+			formattedBody = formatBody(item);
+			formattedItemId = item.id;
+		}
+	}
 </script>
 
 <div class="d-flex flex-column mh-100 p-2">
@@ -81,9 +89,13 @@
 	</div>
 	<div class="bg-white border mt-1 overflow-auto" bind:this={tab}>
 		{#if activeTab === 0}
-			<Highlighted body={formattedBody} />
+			{#key item}
+				<Highlighted body={formattedBody} />
+			{/key}
 		{:else if activeTab === 1}
-			<Highlighted body={item.body} />
+			{#key item}
+				<Highlighted body={item.body} />
+			{/key}
 		{:else if activeTab === 2}
 			<table class="m-0 table table-sm">
 				<thead>
