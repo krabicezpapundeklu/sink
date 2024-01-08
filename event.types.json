@@ -74,11 +74,11 @@
         "id": 51
     },
     {
-        "name": "HIRED",
-        "id": 64
+        "name": "CERTIFICATE_APPLICATION"
     },
     {
-        "name": "CERTIFICATE_APPLICATION"
+        "name": "HIRED",
+        "id": 64
     },
     {
         "name": "SELECTED",
