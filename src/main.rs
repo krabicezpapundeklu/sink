@@ -1,7 +1,6 @@
 use std::{
     env::current_exe,
     ffi::{c_char, CString, OsStr, OsString},
-    io::{stdout, IsTerminal},
     path::PathBuf,
     process::exit,
 };
@@ -95,7 +94,7 @@ async fn main() -> Result<()> {
     let args = Args::parse();
 
     tracing_subscriber::fmt()
-        .with_ansi(stdout().is_terminal())
+        .with_ansi(false)
         .with_env_filter(
             EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| EnvFilter::new("tower_http::trace=debug,info")),
