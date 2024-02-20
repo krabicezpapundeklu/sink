@@ -313,9 +313,10 @@ impl Repository for Connection {
     }
 
     fn update_item(&mut self, item: &UpdatedItem) -> Result<usize> {
-        let mut stmt = self.prepare_cached("UPDATE item SET type = ?, system = ? WHERE id = ?")?;
+        let mut stmt =
+            self.prepare_cached("UPDATE item SET type = ?, system = ?, event_id = ? WHERE id = ?")?;
 
-        stmt.execute(params![item.r#type, item.system, item.id])
+        stmt.execute(params![item.r#type, item.system, item.event_id, item.id])
             .map_err(Into::into)
     }
 }
