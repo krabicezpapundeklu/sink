@@ -20,6 +20,7 @@ export interface ItemSummary {
 	submitDate: string;
 	system?: string;
 	type?: string;
+	eventId?: number;
 }
 
 export interface ItemType {

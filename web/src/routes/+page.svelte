@@ -236,7 +236,12 @@
 								on:click|preventDefault={() => selectItem(item.id)}
 							>
 								<div class="d-flex justify-content-between">
-									<span>#{formatNumber(item.id)}</span>
+									<span
+										>#{formatNumber(item.id)}
+										{#if item.eventId}
+											<small title="WS_EVENT.ID">({item.eventId})</small>
+										{/if}
+									</span>
 									<span>{item.submitDate}</span>
 								</div>
 								<div>

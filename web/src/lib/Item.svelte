@@ -39,8 +39,11 @@
 
 <div class="d-flex flex-column mh-100 p-2">
 	<div>
-		<span class="fs-3 me-3">#{formatNumber(item.id)}</span>
-		<span>{item.submitDate}</span>
+		<span class="fs-3">#{formatNumber(item.id)}</span>
+		{#if item.eventId}
+			<span title="WS_EVENT.ID">({item.eventId})</span>
+		{/if}
+		<span class="ms-3">{item.submitDate}</span>
 		<div>
 			{#if item.system}
 				<span class="badge bg-secondary">{item.system}</span>
