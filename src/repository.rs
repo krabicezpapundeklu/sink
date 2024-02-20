@@ -6,6 +6,7 @@ use rusqlite::{functions::FunctionFlags, params, params_from_iter, types::Value,
 
 use crate::shared::{Item, ItemFilter, ItemHeader, ItemSummary, NewItem, UpdatedItem};
 
+const EVENT_ID_PREFIX: &str = "event-id:";
 const REGEX_PREFIX: &str = "regex:";
 
 struct QueryBuilder {
@@ -142,12 +143,19 @@ impl Repository for Connection {
             .to_string(),
         );
 
+        let mut event_id = None;
+
         if let Some(query) = &filter.query {
             builder.append_sql(" AND EXISTS (SELECT 1 FROM item_body WHERE item_id = id");
 
             let terms = parse_query(query);
 
             for term in terms {
+                if term.starts_with(EVENT_ID_PREFIX) {
+                    event_id = term.strip_prefix(EVENT_ID_PREFIX).map(ToOwned::to_owned);
+                    continue;
+                }
+
                 if term.starts_with(REGEX_PREFIX) {
                     builder.append_sql(" AND matches(?, body)");
                 } else {
@@ -173,6 +181,8 @@ impl Repository for Connection {
                 .append_list(r#type.split(',').map(ToString::to_string))
                 .append_sql(")");
         }
+
+        builder.append_if_is_some(" AND event_id = ?", event_id);
 
         if let Some(event_type) = &filter.event_type {
             builder.append_sql(
@@ -329,7 +339,7 @@ fn parse_query(query: &str) -> Vec<String> {
     let mut in_quotes = false;
 
     for c in query.chars() {
-        if c == '"' && !term.starts_with(REGEX_PREFIX) {
+        if c == '"' && !term.starts_with(EVENT_ID_PREFIX) && !term.starts_with(REGEX_PREFIX) {
             if escaping {
                 escaping = false;
                 term.push('"');
