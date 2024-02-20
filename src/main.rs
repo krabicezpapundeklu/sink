@@ -68,11 +68,13 @@ async fn fix_items(db: PathBuf, dry: bool) -> Result<()> {
         let item = app_context.get_item(id).await?;
         let old_type = item.r#type;
         let old_system = item.system;
+        let old_event_id = item.event_id;
         let new_type = app_context.get_item_type(&item.body);
         let new_system = app_context.get_system(&item.headers, &item.body);
+        let new_event_id = AppContext::get_event_id(&item.headers);
 
-        if new_type != old_type || new_system != old_system {
-            println!("{id} type={old_type:?}, system={old_system:?} -> type={new_type:?}, system={new_system:?}");
+        if new_type != old_type || new_system != old_system || new_event_id != old_event_id {
+            println!("{id} type={old_type:?}, system={old_system:?}, event_id={old_event_id:?} -> type={new_type:?}, system={new_system:?}, event_id={new_event_id:?}");
 
             if !dry {
                 app_context
@@ -80,6 +82,7 @@ async fn fix_items(db: PathBuf, dry: bool) -> Result<()> {
                         id,
                         r#type: new_type,
                         system: new_system,
+                        event_id: new_event_id,
                     })
                     .await?;
             }

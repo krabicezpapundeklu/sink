@@ -99,7 +99,7 @@ impl Repository for Connection {
 
     fn get_item(&self, id: i64) -> Result<Item> {
         let mut stmt = self.prepare_cached(
-            "SELECT i.id, i.submit_date, i.system, i.type, ib.body FROM item i JOIN item_body ib ON ib.item_id = i.id WHERE i.id = ?"
+            "SELECT i.id, i.submit_date, i.system, i.type, i.event_id, ib.body FROM item i JOIN item_body ib ON ib.item_id = i.id WHERE i.id = ?"
         )?;
 
         let mut item = stmt.query_row([id], |row| {
@@ -108,8 +108,9 @@ impl Repository for Connection {
                 submit_date: row.get(1)?,
                 system: row.get(2)?,
                 r#type: row.get(3)?,
+                event_id: row.get(4)?,
                 headers: Vec::new(),
-                body: row.get(4)?,
+                body: row.get(5)?,
             })
         })?;
 
@@ -134,8 +135,8 @@ impl Repository for Connection {
     fn get_items(&self, filter: ItemFilter) -> Result<(Vec<ItemSummary>, i32)> {
         let mut builder = QueryBuilder::new(
             "
-                SELECT id, submit_date, system, type, total_items FROM (
-                    SELECT id, submit_date, system, type, COUNT(1) OVER () total_items FROM item i
+                SELECT id, submit_date, system, type, event_id, total_items FROM (
+                    SELECT id, submit_date, system, type, event_id, COUNT(1) OVER () total_items FROM item i
                     WHERE 1 = 1
             "
             .to_string(),
@@ -210,10 +211,11 @@ impl Repository for Connection {
                 submit_date: row.get(1)?,
                 system: row.get(2)?,
                 r#type: row.get(3)?,
+                event_id: row.get(4)?,
             };
 
             items.push(item);
-            total_items = row.get(4)?;
+            total_items = row.get(5)?;
         }
 
         Ok((items, total_items))
@@ -253,8 +255,10 @@ impl Repository for Connection {
         let id;
 
         {
-            let mut stmt = tx.prepare_cached("INSERT INTO item (system, type) VALUES (?, ?)")?;
-            id = stmt.insert([&item.system, &item.r#type])?;
+            let mut stmt =
+                tx.prepare_cached("INSERT INTO item (system, type, event_id) VALUES (?, ?, ?)")?;
+
+            id = stmt.insert(params![&item.system, &item.r#type, &item.event_id])?;
 
             let mut stmt = tx.prepare_cached(
                 "INSERT INTO item_header (item_id, name, value) VALUES (?, ?, ?)",
@@ -288,7 +292,24 @@ impl Repository for Connection {
             CREATE INDEX IF NOT EXISTS idx_item_system ON item (system);
             CREATE INDEX IF NOT EXISTS idx_item_type ON item (type);
             CREATE INDEX IF NOT EXISTS idx_item_header_item_id ON item_header (item_id);
-        ").map_err(Into::into)
+        ")?;
+
+        let event_id_exists: i32 = self.query_row(
+            "SELECT COUNT(1) FROM pragma_table_info('item') WHERE name = 'event_id'",
+            [],
+            |row| row.get(0),
+        )?;
+
+        if event_id_exists == 0 {
+            self.execute("ALTER TABLE item ADD COLUMN event_id INTEGER;", [])?;
+        }
+
+        self.execute(
+            "CREATE INDEX IF NOT EXISTS idx_item_event_id ON item (event_id);",
+            [],
+        )?;
+
+        Ok(())
     }
 
     fn update_item(&mut self, item: &UpdatedItem) -> Result<usize> {

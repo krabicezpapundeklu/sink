@@ -43,6 +43,20 @@ impl AppContext {
             .map_err(|error| anyhow!("cannot get db: {error}"))
     }
 
+    pub fn get_event_id(headers: &[ItemHeader]) -> Option<i64> {
+        for header in headers {
+            if header.name == "mgs-event-id" {
+                let event_id = String::from_utf8_lossy(&header.value);
+
+                if let Ok(event_id) = event_id.parse::<i64>() {
+                    return Some(event_id);
+                }
+            }
+        }
+
+        None
+    }
+
     pub async fn get_initial_data(&self, uri: &Uri) -> Result<Option<(String, String)>> {
         let path = uri.path();
 
@@ -174,11 +188,13 @@ impl AppContext {
     pub async fn submit_item(&self, headers: Vec<ItemHeader>, body: Bytes) -> Result<i64> {
         let system = self.get_system(&headers, &body);
         let item_type = self.get_item_type(&body);
+        let event_id = Self::get_event_id(&headers);
 
         self.call_db(move |db| {
             let item = NewItem {
                 system,
                 r#type: item_type,
+                event_id,
                 headers,
                 body: &body,
             };
@@ -226,6 +242,9 @@ pub struct Item {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub r#type: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub event_id: Option<i64>,
 
     pub headers: Vec<ItemHeader>,
 
@@ -298,11 +317,15 @@ pub struct ItemSummary {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub r#type: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub event_id: Option<i64>,
 }
 
 pub struct NewItem<'a> {
     pub system: Option<String>,
     pub r#type: Option<String>,
+    pub event_id: Option<i64>,
     pub headers: Vec<ItemHeader>,
     pub body: &'a [u8],
 }
@@ -311,6 +334,7 @@ pub struct UpdatedItem {
     pub id: i64,
     pub system: Option<String>,
     pub r#type: Option<String>,
+    pub event_id: Option<i64>,
 }
 
 fn bytes_as_string<S>(bytes: &[u8], s: S) -> Result<S::Ok, S::Error>
