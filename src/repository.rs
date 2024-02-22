@@ -4,7 +4,7 @@ use anyhow::Result;
 use regex::bytes::Regex;
 use rusqlite::{functions::FunctionFlags, params, params_from_iter, types::Value, Connection};
 
-use crate::shared::{Item, ItemFilter, ItemHeader, ItemSummary, NewItem, UpdatedItem};
+use crate::shared::{Item, ItemFilter, ItemHeader, ItemSummary, NewItem};
 
 const EVENT_ID_PREFIX: &str = "event-id:";
 const REGEX_PREFIX: &str = "regex:";
@@ -79,7 +79,7 @@ pub trait Repository {
     fn init(&self) -> Result<()>;
 
     fn insert_item(&mut self, item: &NewItem) -> Result<i64>;
-    fn update_item(&mut self, item: &UpdatedItem) -> Result<usize>;
+    fn update_item(&mut self, item: &ItemSummary) -> Result<usize>;
 
     fn prepare_schema(&self) -> Result<()>;
 }
@@ -104,12 +104,16 @@ impl Repository for Connection {
         )?;
 
         let mut item = stmt.query_row([id], |row| {
-            Ok(Item {
-                id: Some(row.get(0)?),
+            let summary = ItemSummary {
+                id: row.get(0)?,
                 submit_date: row.get(1)?,
                 system: row.get(2)?,
                 r#type: row.get(3)?,
                 event_id: row.get(4)?,
+            };
+
+            Ok(Item {
+                summary,
                 headers: Vec::new(),
                 body: row.get(5)?,
             })
@@ -322,12 +326,19 @@ impl Repository for Connection {
         Ok(())
     }
 
-    fn update_item(&mut self, item: &UpdatedItem) -> Result<usize> {
-        let mut stmt =
-            self.prepare_cached("UPDATE item SET type = ?, system = ?, event_id = ? WHERE id = ?")?;
+    fn update_item(&mut self, item: &ItemSummary) -> Result<usize> {
+        let mut stmt = self.prepare_cached(
+            "UPDATE item SET submit_date = ?, type = ?, system = ?, event_id = ? WHERE id = ?",
+        )?;
 
-        stmt.execute(params![item.r#type, item.system, item.event_id, item.id])
-            .map_err(Into::into)
+        stmt.execute(params![
+            item.submit_date,
+            item.r#type,
+            item.system,
+            item.event_id,
+            item.id
+        ])
+        .map_err(Into::into)
     }
 }
 

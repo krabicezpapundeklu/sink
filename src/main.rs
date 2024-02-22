@@ -11,8 +11,6 @@ use libc::c_int;
 use shared::AppContext;
 use tracing_subscriber::EnvFilter;
 
-use crate::shared::UpdatedItem;
-
 mod repository;
 mod server;
 mod shared;
@@ -62,29 +60,21 @@ enum Command {
 }
 
 async fn fix_items(db: PathBuf, dry: bool) -> Result<()> {
-    let app_context = AppContext::new(db)?;
+    let app_context = AppContext::new(db).await?;
 
     for id in app_context.get_all_item_ids().await? {
         let item = app_context.get_item(id).await?;
-        let old_type = item.r#type;
-        let old_system = item.system;
-        let old_event_id = item.event_id;
-        let new_type = app_context.get_item_type(&item.body);
-        let new_system = app_context.get_system(&item.headers, &item.body);
-        let new_event_id = AppContext::get_event_id(&item.headers);
+        let old_item_summary = item.summary;
+        let mut new_item_summary = old_item_summary.clone();
+        new_item_summary.r#type = app_context.get_item_type(&item.body);
+        new_item_summary.system = app_context.get_system(&item.headers, &item.body);
+        new_item_summary.event_id = AppContext::get_event_id(&item.headers);
 
-        if new_type != old_type || new_system != old_system || new_event_id != old_event_id {
-            println!("{id} type={old_type:?}, system={old_system:?}, event_id={old_event_id:?} -> type={new_type:?}, system={new_system:?}, event_id={new_event_id:?}");
+        if new_item_summary != old_item_summary {
+            println!("{old_item_summary:?} -> {new_item_summary:?}");
 
             if !dry {
-                app_context
-                    .update_item(UpdatedItem {
-                        id,
-                        r#type: new_type,
-                        system: new_system,
-                        event_id: new_event_id,
-                    })
-                    .await?;
+                app_context.update_item(new_item_summary).await?;
             }
         }
     }

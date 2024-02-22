@@ -154,7 +154,7 @@ impl AppContext {
         system
     }
 
-    pub fn new(db: PathBuf) -> Result<Self> {
+    pub async fn new(db: PathBuf) -> Result<Self> {
         #[derive(Deserialize)]
         struct ItemType {
             key: String,
@@ -182,6 +182,11 @@ impl AppContext {
             initial_data_pattern: Regex::new(r"<!--\s*%INITIAL_DATA%\s*-->")?,
         };
 
+        app_context
+            .call_db(|db| db.prepare_schema())
+            .await
+            .context("cannot prepare database schema")?;
+
         Ok(app_context)
     }
 
@@ -204,7 +209,7 @@ impl AppContext {
         .await
     }
 
-    pub async fn update_item(&self, item: UpdatedItem) -> Result<usize> {
+    pub async fn update_item(&self, item: ItemSummary) -> Result<usize> {
         self.call_db(move |db| db.update_item(&item)).await
     }
 }
@@ -234,18 +239,8 @@ type DbPool = Pool<DbManager>;
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Item {
-    pub id: Option<i64>,
-    pub submit_date: String,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub system: Option<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub r#type: Option<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub event_id: Option<i64>,
-
+    #[serde(flatten)]
+    pub summary: ItemSummary,
     pub headers: Vec<ItemHeader>,
 
     #[serde(serialize_with = "bytes_as_string")]
@@ -306,7 +301,7 @@ pub struct ItemSearchResult {
     pub first_item: Option<Item>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ItemSummary {
     pub id: i64,
@@ -328,13 +323,6 @@ pub struct NewItem<'a> {
     pub event_id: Option<i64>,
     pub headers: Vec<ItemHeader>,
     pub body: &'a [u8],
-}
-
-pub struct UpdatedItem {
-    pub id: i64,
-    pub system: Option<String>,
-    pub r#type: Option<String>,
-    pub event_id: Option<i64>,
 }
 
 fn bytes_as_string<S>(bytes: &[u8], s: S) -> Result<S::Ok, S::Error>

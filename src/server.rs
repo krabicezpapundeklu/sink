@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use anyhow::{Context, Error, Result};
+use anyhow::{Error, Result};
 
 use axum::{
     body::Bytes,
@@ -20,10 +20,7 @@ use tower::ServiceBuilder;
 use tower_http::{compression::CompressionLayer, trace::TraceLayer};
 use tracing::{error, info};
 
-use crate::{
-    repository::Repository,
-    shared::{AppContext, Item, ItemFilter, ItemHeader, ItemSearchResult},
-};
+use crate::shared::{AppContext, Item, ItemFilter, ItemHeader, ItemSearchResult};
 
 struct AppError(Error);
 
@@ -116,12 +113,7 @@ async fn get_items(
 pub async fn start(host: &str, port: u16, db: PathBuf) -> Result<()> {
     info!(host, port, ?db, "starting server");
 
-    let app_context = AppContext::new(db)?;
-
-    app_context
-        .call_db(|db| db.prepare_schema())
-        .await
-        .context("cannot prepare database schema")?;
+    let app_context = AppContext::new(db).await?;
 
     let app = Router::new()
         .route("/api/item/:id", get(get_item))
