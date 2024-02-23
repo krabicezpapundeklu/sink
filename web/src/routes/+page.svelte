@@ -201,10 +201,8 @@
 </svelte:head>
 
 <div class="d-flex flex-column vh-100">
-	<nav class="navbar">
-		<div class="m-auto w-50">
-			<Search {query} {system} {type} {eventType} {from} {to} {systems} on:search={search} />
-		</div>
+	<nav class="navbar p-2">
+		<Search {query} {system} {type} {eventType} {from} {to} {systems} on:search={search} />
 	</nav>
 	<div class="border-top d-flex flex-fill overflow-hidden">
 		<div class="d-flex flex-column mw-25em">

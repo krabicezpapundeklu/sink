@@ -1,8 +1,16 @@
 <script lang="ts">
 	import EVENT_TYPES from '../../../event.types.json';
 
+	import 'bootstrap/dist/js/bootstrap';
+
 	import { createEventDispatcher } from 'svelte';
-	import { localDateToString, ITEM_TYPES, MILLISECONDS_IN_HOUR } from '$lib/shared';
+
+	import {
+		localDateToString,
+		ITEM_TYPES,
+		MILLISECONDS_IN_HOUR,
+		itemTypeFromKey
+	} from '$lib/shared';
 
 	export let query: string;
 	export let system: string[];
@@ -12,26 +20,31 @@
 	export let to: string;
 	export let systems: string[] = [];
 
-	let dialog: HTMLDialogElement;
+	let form: HTMLFormElement;
+	let dateFilter = '';
 
 	const version = import.meta.env.CARGO_PKG_VERSION;
 
 	const dispatch = createEventDispatcher();
 
-	const closeDialog = () => {
-		dialog.close();
-	};
+	const formatDateFilter = (from: string, to: string) => {
+		if (from) {
+			const fromDate = new Date(from).toLocaleString();
 
-	const countSelected = (selected: string[], available: string[]): number => {
-		let count = 0;
-
-		for (const item of selected) {
-			if (available.indexOf(item) !== -1) {
-				++count;
+			if (to) {
+				const toDate = new Date(to).toLocaleString();
+				return `${fromDate} - ${toDate}`;
+			} else {
+				return `From ${fromDate}`;
 			}
 		}
 
-		return count;
+		if (to) {
+			const toDate = new Date(to).toLocaleString();
+			return `To ${toDate}`;
+		}
+
+		return 'Any';
 	};
 
 	const lastHour = (): void => {
@@ -43,12 +56,8 @@
 		to = '';
 	};
 
-	const search = (e: SubmitEvent) => {
-		dispatch('search', new FormData(e.target as HTMLFormElement));
-	};
-
-	const showDialog = () => {
-		dialog.showModal();
+	const search = () => {
+		dispatch('search', new FormData(form));
 	};
 
 	const today = (): void => {
@@ -61,154 +70,167 @@
 		from = localDateToString(fromDate);
 		to = '';
 	};
+
+	$: dateFilter = formatDateFilter(from, to);
 </script>
 
-<form class="d-flex m-1" on:submit|preventDefault={search}>
+<form class="d-flex w-100" on:submit|preventDefault={search} bind:this={form}>
 	<input
-		autocomplete="off"
 		class="form-control"
 		id="query"
 		name="query"
 		placeholder="Search"
 		type="search"
 		value={query}
+		style="width: 24em"
 	/>
-	<button
-		class="align-items-center border btn btn-light btn-sm d-flex ms-2"
-		title="Filters"
-		type="button"
-		on:click={showDialog}
-	>
-		<svg xmlns="http://www.w3.org/2000/svg" height="1.3em" viewBox="0 -960 960 960"
-			><path
-				style="fill: #6c757d"
-				d="M427-120v-225h60v83h353v60H487v82h-60Zm-307-82v-60h247v60H120Zm187-166v-82H120v-60h187v-84h60v226h-60Zm120-82v-60h413v60H427Zm166-165v-225h60v82h187v60H653v83h-60Zm-473-83v-60h413v60H120Z"
-			/></svg
+	<div class="dropdown ms-2">
+		<button
+			class="btn btn-secondary dropdown-toggle"
+			type="button"
+			data-bs-toggle="dropdown"
+			data-bs-auto-close="outside"
+			aria-expanded="false"
 		>
-	</button>
-	<dialog class="border p-0 rounded-3 w-50 z-3" bind:this={dialog}>
-		<div class="modal-header m-2 p-1">
-			<h1 class="modal-title fs-5" id="filters-modal-label">Filters</h1>
-			<button type="button" class="btn-close p-2" aria-label="Close" on:click={closeDialog}
-			></button>
-		</div>
-		<hr class="m-0" />
-		<div class="modal-body m-2 p-1">
-			<div class="container-fluid p-0">
-				<div class="row">
-					<div class="col">
-						<label class="form-label" for="system">System</label>
-						{#if countSelected(system, systems)}
-							<!-- svelte-ignore a11y-invalid-attribute -->
-							<small
-								>({countSelected(system, systems)} selected,
-								<a href="javascript:void(0)" on:click={() => (system = [])}>unselect</a>)</small
-							>
-						{/if}
-						<select
-							class="form-select form-select-sm"
-							id="system"
-							multiple
-							name="system"
-							size="5"
-							bind:value={system}
-						>
-							{#each systems as system}
-								<option value={system}>{system}</option>
-							{/each}
-						</select>
-					</div>
-					<div class="col">
-						<label class="form-label" for="type">Type</label>
-						{#if type.length}
-							<!-- svelte-ignore a11y-invalid-attribute -->
-							<small
-								>({type.length} selected,
-								<a href="javascript:void(0)" on:click={() => (type = [])}>unselect</a>)</small
-							>
-						{/if}
-						<select
-							class="form-select form-select-sm"
-							id="type"
-							multiple
-							name="type"
-							size="5"
-							bind:value={type}
-						>
-							{#each ITEM_TYPES as type}
-								<option value={type.key}>{type.name}</option>
-							{/each}
-						</select>
-					</div>
+			<span class="text-nowrap me-1"
+				><b>System:</b>
+				{system.length === 0 ? 'All' : system.length === 1 ? system[0] : 'Multiple'}</span
+			>
+		</button>
+		<div class="dropdown-menu bg-white p-2">
+			{#each systems as s, i}
+				<div class="form-check">
+					<input
+						class="form-check-input"
+						id="system-{i}"
+						name="system"
+						type="checkbox"
+						value={s}
+						bind:group={system}
+						on:change={search}
+					/>
+					<label class="form-check-label text-nowrap" for="system-{i}">{s}</label>
 				</div>
-				<div class="row">
-					<div class="col mt-2">
-						<label class="form-label" for="eventType">Event Type</label>
-						{#if eventType.length}
-							<!-- svelte-ignore a11y-invalid-attribute -->
-							<small
-								>({eventType.length} selected,
-								<a href="javascript:void(0)" on:click={() => (eventType = [])}>unselect</a>)</small
-							>
-						{/if}
-						<select
-							class="form-select form-select-sm"
-							id="eventType"
-							multiple
-							name="eventType"
-							size="7"
-							bind:value={eventType}
-						>
-							{#each EVENT_TYPES as type, index}
-								{#if type.id}
-									<option value={type.id}>{type.name}</option>
+			{/each}
+		</div>
+	</div>
+
+	<div class="dropdown ms-2">
+		<button
+			class="btn btn-secondary dropdown-toggle"
+			type="button"
+			data-bs-toggle="dropdown"
+			data-bs-auto-close="outside"
+			aria-expanded="false"
+		>
+			<span class="text-nowrap me-1"
+				><b>Type:</b>
+				{type.length === 0
+					? 'All'
+					: type.length === 1
+						? itemTypeFromKey(type[0]).name
+						: 'Multiple'}</span
+			>
+		</button>
+		<div class="dropdown-menu bg-white p-0">
+			<div class="d-flex">
+				<div class="p-2">
+					{#each ITEM_TYPES as t, i}
+						<div class="form-check">
+							<input
+								class="form-check-input"
+								id="type-{i}"
+								name="type"
+								type="checkbox"
+								value={t.key}
+								bind:group={type}
+								on:change={search}
+							/>
+							<label class="form-check-label text-nowrap" for="type-{i}">{t.name}</label>
+						</div>
+					{/each}
+				</div>
+				{#if type.includes('event_notification') || type.includes('event_payload')}
+					<div class="border-start m-2" style="overflow-x: hidden; max-height: 25em; width: 23em">
+						<div class="me-2 ms-2">
+							{#each EVENT_TYPES as t, index}
+								{#if t.id}
+									<div class="form-check">
+										<input
+											class="form-check-input"
+											id="eventType-{index}"
+											name="eventType"
+											type="checkbox"
+											value={t.id}
+											bind:group={eventType}
+											on:change={search}
+										/>
+										<label class="form-check-label text-nowrap" for="eventType-{index}"
+											>{t.name}</label
+										>
+									</div>
 								{:else}
-									<option class="border-bottom" class:mt-2={index > 0} disabled>{type.name}</option>
+									<div class="border-bottom" class:mt-2={index > 0}>{t.name}</div>
 								{/if}
 							{/each}
-						</select>
+						</div>
 					</div>
-				</div>
+				{/if}
+			</div>
+		</div>
+	</div>
+
+	<div class="dropdown ms-2">
+		<button
+			class="btn btn-secondary dropdown-toggle"
+			type="button"
+			data-bs-toggle="dropdown"
+			data-bs-auto-close="outside"
+			aria-expanded="false"
+		>
+			<span class="text-nowrap me-1"
+				><b>Date:</b>
+				{dateFilter}</span
+			>
+		</button>
+		<div class="dropdown-menu bg-white p-2">
+			<div class="container-fluid p-0">
 				<div class="row">
 					<div class="col mt-2">
-						<label class="form-label" for="from">Submitted From</label>
+						<label class="form-label" for="from">From</label>
 						<input
 							class="form-control form-control-sm"
 							id="from"
 							name="from"
 							type="datetime-local"
 							value={from}
+							on:change={search}
 						/>
 					</div>
 					<div class="col mt-2">
-						<label class="form-label" for="to">Submitted To</label>
+						<label class="form-label" for="to">To</label>
 						<input
 							class="form-control form-control-sm"
 							id="to"
 							name="to"
 							type="datetime-local"
 							value={to}
+							on:change={search}
 						/>
 					</div>
 				</div>
 				<div class="d-flex justify-content-end mt-2">
-					<button class="btn btn-outline-secondary btn-sm me-2" type="button" on:click={lastHour}>
+					<button class="btn btn-outline-secondary btn-sm me-2" on:click={lastHour}>
 						Last Hour
 					</button>
-					<button class="btn btn-outline-secondary btn-sm" type="button" on:click={today}
-						>Today</button
-					>
+					<button class="btn btn-outline-secondary btn-sm" on:click={today}>Today</button>
 				</div>
 			</div>
 		</div>
-		<hr class="m-0" />
-		<div class="modal-footer m-2 p-1">
-			<div class="me-auto my-auto">
-				Version:
-				<a href="https://github.com/krabicezpapundeklu/sink/releases/tag/{version}">{version}</a>
-			</div>
-			<button type="button" class="btn btn-link me-2" on:click={closeDialog}>Cancel</button>
-			<button type="submit" class="btn btn-primary" on:click={closeDialog}>Apply</button>
-		</div>
-	</dialog>
+	</div>
+	<div class="ms-auto my-auto">
+		<a href="https://github.com/krabicezpapundeklu/sink/releases/tag/{version}" target="_blank"
+			>{version}</a
+		>
+	</div>
 </form>
