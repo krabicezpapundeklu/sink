@@ -5,73 +5,23 @@
 
 	import { createEventDispatcher } from 'svelte';
 
-	import {
-		localDateToString,
-		ITEM_TYPES,
-		MILLISECONDS_IN_HOUR,
-		itemTypeFromKey
-	} from '$lib/shared';
+	import { ITEM_TYPES, itemTypeFromKey } from '$lib/shared';
 
 	export let query: string;
 	export let system: string[];
 	export let type: string[];
 	export let eventType: number[];
-	export let from: string;
-	export let to: string;
 	export let systems: string[] = [];
 
 	let form: HTMLFormElement;
-	let dateFilter = '';
 
 	const version = import.meta.env.CARGO_PKG_VERSION;
 
 	const dispatch = createEventDispatcher();
 
-	const formatDateFilter = (from: string, to: string) => {
-		if (from) {
-			const fromDate = new Date(from).toLocaleString();
-
-			if (to) {
-				const toDate = new Date(to).toLocaleString();
-				return `${fromDate} - ${toDate}`;
-			} else {
-				return `From ${fromDate}`;
-			}
-		}
-
-		if (to) {
-			const toDate = new Date(to).toLocaleString();
-			return `To ${toDate}`;
-		}
-
-		return 'Any';
-	};
-
-	const lastHour = (): void => {
-		const now = new Date();
-
-		now.setSeconds(0);
-
-		from = localDateToString(new Date(now.getTime() - MILLISECONDS_IN_HOUR));
-		to = '';
-	};
-
 	const search = () => {
 		dispatch('search', new FormData(form));
 	};
-
-	const today = (): void => {
-		let fromDate = new Date();
-
-		fromDate.setHours(0);
-		fromDate.setMinutes(0);
-		fromDate.setSeconds(0);
-
-		from = localDateToString(fromDate);
-		to = '';
-	};
-
-	$: dateFilter = formatDateFilter(from, to);
 </script>
 
 <form class="d-flex w-100" on:submit|preventDefault={search} bind:this={form}>
@@ -82,11 +32,11 @@
 		placeholder="Search"
 		type="search"
 		value={query}
-		style="width: 24em"
+		style="width: 25em"
 	/>
 	<div class="dropdown ms-2">
 		<button
-			class="btn btn-secondary dropdown-toggle"
+			class="btn btn-outline-secondary dropdown-toggle"
 			type="button"
 			data-bs-toggle="dropdown"
 			data-bs-auto-close="outside"
@@ -97,27 +47,29 @@
 				{system.length === 0 ? 'All' : system.length === 1 ? system[0] : 'Multiple'}</span
 			>
 		</button>
-		<div class="dropdown-menu bg-white p-2">
-			{#each systems as s, i}
-				<div class="form-check">
-					<input
-						class="form-check-input"
-						id="system-{i}"
-						name="system"
-						type="checkbox"
-						value={s}
-						bind:group={system}
-						on:change={search}
-					/>
-					<label class="form-check-label text-nowrap" for="system-{i}">{s}</label>
-				</div>
-			{/each}
+		<div class="bg-white border-0 dropdown-menu p-0 shadow-sm">
+			<ul class="list-group">
+				{#each systems as s, i}
+					<li class="list-group-item list-group-item-action text-nowrap p-1">
+						<input
+							class="form-check-input m-1"
+							id="system-{i}"
+							name="system"
+							type="checkbox"
+							value={s}
+							bind:group={system}
+							on:change={search}
+						/>
+						<label class="form-check-label me-1 stretched-link" for="system-{i}">{s}</label>
+					</li>
+				{/each}
+			</ul>
 		</div>
 	</div>
 
 	<div class="dropdown ms-2">
 		<button
-			class="btn btn-secondary dropdown-toggle"
+			class="btn btn-outline-secondary dropdown-toggle"
 			type="button"
 			data-bs-toggle="dropdown"
 			data-bs-auto-close="outside"
@@ -132,102 +84,68 @@
 						: 'Multiple'}</span
 			>
 		</button>
-		<div class="dropdown-menu bg-white p-0">
-			<div class="d-flex">
-				<div class="p-2">
-					{#each ITEM_TYPES as t, i}
-						<div class="form-check">
-							<input
-								class="form-check-input"
-								id="type-{i}"
-								name="type"
-								type="checkbox"
-								value={t.key}
-								bind:group={type}
-								on:change={search}
-							/>
-							<label class="form-check-label text-nowrap" for="type-{i}">{t.name}</label>
-						</div>
-					{/each}
-				</div>
-				{#if type.includes('event_notification') || type.includes('event_payload')}
-					<div class="border-start m-2" style="overflow-x: hidden; max-height: 25em; width: 23em">
-						<div class="me-2 ms-2">
-							{#each EVENT_TYPES as t, index}
-								{#if t.id}
-									<div class="form-check">
-										<input
-											class="form-check-input"
-											id="eventType-{index}"
-											name="eventType"
-											type="checkbox"
-											value={t.id}
-											bind:group={eventType}
-											on:change={search}
-										/>
-										<label class="form-check-label text-nowrap" for="eventType-{index}"
-											>{t.name}</label
-										>
-									</div>
-								{:else}
-									<div class="border-bottom" class:mt-2={index > 0}>{t.name}</div>
-								{/if}
-							{/each}
-						</div>
-					</div>
-				{/if}
-			</div>
+		<div class="bg-white border-0 dropdown-menu p-0 shadow-sm">
+			<ul class="list-group">
+				{#each ITEM_TYPES as t, i}
+					<li class="list-group-item list-group-item-action text-nowrap p-1">
+						<input
+							class="form-check-input m-1"
+							id="type-{i}"
+							name="type"
+							type="checkbox"
+							value={t.key}
+							bind:group={type}
+							on:change={search}
+						/>
+						<label class="form-check-label me-1 stretched-link" for="type-{i}">{t.name}</label>
+					</li>
+				{/each}
+			</ul>
 		</div>
 	</div>
 
-	<div class="dropdown ms-2">
-		<button
-			class="btn btn-secondary dropdown-toggle"
-			type="button"
-			data-bs-toggle="dropdown"
-			data-bs-auto-close="outside"
-			aria-expanded="false"
-		>
-			<span class="text-nowrap me-1"
-				><b>Date:</b>
-				{dateFilter}</span
+	{#if type.includes('event_notification') || type.includes('event_payload')}
+		<div class="dropdown ms-2">
+			<button
+				class="btn btn-outline-secondary dropdown-toggle"
+				type="button"
+				data-bs-toggle="dropdown"
+				data-bs-auto-close="outside"
+				aria-expanded="false"
 			>
-		</button>
-		<div class="dropdown-menu bg-white p-2">
-			<div class="container-fluid p-0">
-				<div class="row">
-					<div class="col mt-2">
-						<label class="form-label" for="from">From</label>
-						<input
-							class="form-control form-control-sm"
-							id="from"
-							name="from"
-							type="datetime-local"
-							value={from}
-							on:change={search}
-						/>
-					</div>
-					<div class="col mt-2">
-						<label class="form-label" for="to">To</label>
-						<input
-							class="form-control form-control-sm"
-							id="to"
-							name="to"
-							type="datetime-local"
-							value={to}
-							on:change={search}
-						/>
-					</div>
-				</div>
-				<div class="d-flex justify-content-end mt-2">
-					<button class="btn btn-outline-secondary btn-sm me-2" on:click={lastHour}>
-						Last Hour
-					</button>
-					<button class="btn btn-outline-secondary btn-sm" on:click={today}>Today</button>
-				</div>
+				<span class="text-nowrap me-1"
+					><b>Event Type:</b>
+					{eventType.length === 0 ? 'All' : `${eventType.length} selected`}</span
+				>
+			</button>
+			<div class="bg-white border dropdown-menu mh-30em overflow-auto p-0 shadow-sm">
+				<ul class="list-group list-group-flush overflow-hidden">
+					{#each EVENT_TYPES as t, index}
+						{#if t.id}
+							<li class="list-group-item list-group-item-action text-nowrap p-1">
+								<input
+									class="form-check-input m-1"
+									id="eventType-{index}"
+									name="eventType"
+									type="checkbox"
+									value={t.id}
+									bind:group={eventType}
+									on:change={search}
+								/>
+								<label class="form-check-label me-4 stretched-link" for="eventType-{index}"
+									>{t.name}</label
+								>
+							</li>
+						{:else}
+							<li class="list-group-item list-group-item-action disabled" class:mt-2={index > 0}>
+								{t.name}
+							</li>
+						{/if}
+					{/each}
+				</ul>
 			</div>
 		</div>
-	</div>
+	{/if}
 	<div class="ms-auto my-auto">
 		<a href="https://github.com/krabicezpapundeklu/sink/releases/tag/{version}" target="_blank"
 			>{version}</a

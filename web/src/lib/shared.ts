@@ -12,20 +12,6 @@ export { ITEM_TYPES };
 
 ITEM_TYPES.sort((x, y) => x.name.localeCompare(y.name));
 
-function dateToString(
-	year: number,
-	month: number,
-	day: number,
-	hours: number,
-	minutes: number,
-	seconds: number
-): string {
-	return (
-		`${year}-${pad(month + 1)}-${pad(day)} ${pad(hours)}:${pad(minutes)}` +
-		(seconds === 0 ? '' : `:${pad(seconds)}`)
-	);
-}
-
 export function formatBody(item: Item): string {
 	for (const header of item.headers) {
 		if (header.name === 'content-type') {
@@ -205,51 +191,4 @@ export async function loadItems(
 	}
 
 	return items;
-}
-
-export function localDateToString(date: Date): string {
-	return dateToString(
-		date.getFullYear(),
-		date.getMonth(),
-		date.getDate(),
-		date.getHours(),
-		date.getMinutes(),
-		date.getSeconds()
-	);
-}
-
-function pad(value: number): string {
-	return (value > 9 ? '' : '0') + value;
-}
-
-export function utcDateStringToLocalString(value: string | null): string {
-	if (!value) {
-		return '';
-	}
-
-	const date = new Date(utcDateStringToMs(value));
-
-	return localDateToString(date);
-}
-
-function utcDateStringToMs(value: string): number {
-	const year = +value.substring(0, 4);
-	const month = +value.substring(5, 7);
-	const day = +value.substring(8, 10);
-	const hours = +value.substring(11, 13);
-	const minutes = +value.substring(14, 16);
-	const seconds = value.length === 19 ? +value.substring(17, 19) : 0;
-
-	return Date.UTC(year, month - 1, day, hours, minutes, seconds);
-}
-
-export function utcDateToString(date: Date): string {
-	return dateToString(
-		date.getUTCFullYear(),
-		date.getUTCMonth(),
-		date.getUTCDate(),
-		date.getUTCHours(),
-		date.getUTCMinutes(),
-		date.getSeconds()
-	);
 }

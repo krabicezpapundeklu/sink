@@ -1,24 +1,20 @@
 $badge-border-radius: 0;
-$enable-dark-mode: false;
-$input-bg: white;
-$list-group-active-bg: white;
-$list-group-active-color: black;
-$nav-link-color: #0a58ca;
+$input-bg: #ffffff;
+$list-group-action-active-bg: #f5f5f5;
+$list-group-active-bg: #cfe4fa;
+$list-group-active-color: 0;
+$list-group-bg: #ffffff;
+$list-group-hover-bg: #f5f5f5;
 
 @import 'bootstrap/scss/bootstrap';
 @import 'highlight.js/scss/github.scss';
 
-::backdrop {
-	background-color: black;
-	opacity: 0.5;
-}
-
 :root {
-	--bs-body-bg: #f0f0f0;
+	--bs-body-bg: #f5f5f5;
 }
 
-hr {
-	color: rgb(128, 128, 128);
+.mh-30em {
+	max-height: 30em;
 }
 
 .mw-0 {
@@ -27,10 +23,6 @@ hr {
 
 .mw-25em {
 	min-width: 25em;
-}
-
-.table {
-	--bs-table-bg: white;
 }
 
 .w-fc {

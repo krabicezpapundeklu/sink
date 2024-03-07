@@ -7,9 +7,7 @@
 		itemTypeFromKey,
 		loadItem,
 		loadItems,
-		MILLISECONDS_IN_MINUTE,
-		utcDateStringToLocalString,
-		utcDateToString
+		MILLISECONDS_IN_MINUTE
 	} from '$lib/shared';
 
 	import { onMount } from 'svelte';
@@ -29,8 +27,6 @@
 	let system: string[];
 	let type: string[];
 	let eventType: number[];
-	let from: string;
-	let to: string;
 	let asc: boolean;
 
 	let loading = false;
@@ -80,8 +76,6 @@
 			.filter((t) => t.length)
 			.map((t) => +t);
 
-		from = utcDateStringToLocalString(params.get('from'));
-		to = utcDateStringToLocalString(params.get('to'));
 		asc = (params.get('asc') ?? 'false') === 'true';
 	};
 
@@ -98,10 +92,6 @@
 			let v = value.toString().trim();
 
 			if (v) {
-				if (key === 'from' || key === 'to') {
-					v = utcDateToString(new Date(v));
-				}
-
 				let val = params.get(key) ?? '';
 
 				if (val) {
@@ -201,11 +191,11 @@
 </svelte:head>
 
 <div class="d-flex flex-column vh-100">
-	<nav class="navbar p-2">
-		<Search {query} {system} {type} {eventType} {from} {to} {systems} on:search={search} />
+	<nav class="navbar pb-0 p-2">
+		<Search {query} {system} {type} {eventType} {systems} on:search={search} />
 	</nav>
-	<div class="border-top d-flex flex-fill overflow-hidden">
-		<div class="d-flex flex-column mw-25em">
+	<div class="d-flex flex-fill overflow-hidden">
+		<div class="bg-white border d-flex flex-column me-0 m-2 mw-25em rounded shadow-sm">
 			<div class="align-items-center border-bottom d-flex justify-content-between p-2">
 				<div>{formatNumber(totalItems)} Items</div>
 				<div class="d-flex">
@@ -222,9 +212,9 @@
 					</select>
 				</div>
 			</div>
-			<div class="me-1 overflow-auto" bind:this={itemListElement}>
+			<div class="overflow-auto" bind:this={itemListElement}>
 				{#if items.length > 0}
-					<div class="list-group list-group-flush p-2">
+					<div class="list-group list-group-flush">
 						{#each items as item (item.id)}
 							<a
 								class="list-group-item list-group-item-action"
@@ -268,14 +258,11 @@
 			</div>
 		</div>
 		{#if activeItem}
-			<div
-				class="border-start d-flex flex-column flex-fill mw-0 shadow"
-				style="background-color: #f5f5f5"
-			>
+			<div class="d-flex flex-column flex-fill mw-0">
 				<Item item={activeItem} />
 			</div>
 		{:else}
-			<div class="border-start d-flex flex-fill shadow" style="background-color: #f5f5f5">
+			<div class="d-flex flex-fill">
 				<div class="m-auto opacity-25 w-25">
 					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960"
 						><path
