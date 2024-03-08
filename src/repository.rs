@@ -190,7 +190,7 @@ impl Repository for Connection {
 
         if let Some(event_type) = &filter.event_type {
             builder.append_sql(
-                " AND EXISTS (SELECT 1 FROM item_body WHERE item_id = id AND matches(?, body))",
+                " AND EXISTS (SELECT 1 FROM item_body WHERE item_id = id AND (type NOT IN ('event_notification', 'event_payload') OR matches(?, body)))",
             );
 
             builder.append_param(format!(
