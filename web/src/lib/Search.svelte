@@ -17,11 +17,38 @@
 
 	const version = import.meta.env.CARGO_PKG_VERSION;
 
+	const getSelectedEventGroups = () => {
+		let selected = [];
+
+		for (const eventTypeGroup of EVENT_TYPES) {
+			if (isSelected(eventTypeGroup, eventType)) {
+				selected.push(eventTypeGroup.name);
+			}
+		}
+
+		return selected;
+	};
+
+	const isSelected = (
+		eventTypeGroup: { types: { id: number }[] },
+		selectedEventTypes: number[]
+	) => {
+		for (const et of eventTypeGroup.types) {
+			if (selectedEventTypes.indexOf(et.id) !== -1) {
+				return true;
+			}
+		}
+
+		return false;
+	};
+
 	const dispatch = createEventDispatcher();
 
 	const search = () => {
 		dispatch('search', new FormData(form));
 	};
+
+	const selectedEventGroups = getSelectedEventGroups();
 </script>
 
 <form class="d-flex w-100" on:submit|preventDefault={search} bind:this={form}>
@@ -118,31 +145,54 @@
 					{eventType.length === 0 ? 'All' : `${eventType.length} selected`}</span
 				>
 			</button>
-			<div class="bg-white border dropdown-menu mh-30em overflow-auto p-0 shadow-sm">
-				<ul class="list-group list-group-flush overflow-hidden">
-					{#each EVENT_TYPES as t, index}
-						{#if t.id}
-							<li class="list-group-item list-group-item-action text-nowrap p-1">
-								<input
-									class="form-check-input m-1"
-									id="eventType-{index}"
-									name="eventType"
-									type="checkbox"
-									value={t.id}
-									bind:group={eventType}
-									on:change={search}
-								/>
-								<label class="form-check-label me-4 stretched-link" for="eventType-{index}"
-									>{t.name}</label
+			<div class="dropdown-menu dropdown-menu-end mh-30em mw-25em overflow-auto p-0 shadow-sm">
+				<div class="accordion accordion-flush overflow-hidden">
+					{#each EVENT_TYPES as eventGroup}
+						{@const selected = selectedEventGroups.indexOf(eventGroup.name) !== -1}
+						<div class="accordion-item">
+							<h2 class="accordion-header">
+								<button
+									class="accordion-button bg-white"
+									type="button"
+									data-bs-toggle="collapse"
+									data-bs-target="#eventGroup-{eventGroup.name}"
+									aria-expanded={selected}
+									aria-controls="#eventGroup-{eventGroup.name}"
+									class:collapsed={!selected}
+									class:fw-bold={isSelected(eventGroup, eventType)}
 								>
-							</li>
-						{:else}
-							<li class="list-group-item list-group-item-action disabled" class:mt-2={index > 0}>
-								{t.name}
-							</li>
-						{/if}
+									{eventGroup.name}
+								</button>
+							</h2>
+							<div
+								id="eventGroup-{eventGroup.name}"
+								class="accordion-collapse collapse"
+								class:show={selected}
+							>
+								<div class="accordion-body p-0">
+									<ul class="list-group list-group-flush">
+										{#each eventGroup.types as t}
+											<li class="list-group-item list-group-item-action text-nowrap">
+												<input
+													class="form-check-input me-1"
+													id="eventType-{t.id}"
+													name="eventType"
+													type="checkbox"
+													value={t.id}
+													bind:group={eventType}
+													on:change={search}
+												/>
+												<label class="form-check-label stretched-link" for="eventType-{t.id}"
+													>{t.name} ({t.id})</label
+												>
+											</li>
+										{/each}
+									</ul>
+								</div>
+							</div>
+						</div>
 					{/each}
-				</ul>
+				</div>
 			</div>
 		</div>
 	{/if}
