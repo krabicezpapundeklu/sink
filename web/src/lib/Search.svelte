@@ -145,7 +145,7 @@
 					{eventType.length === 0 ? 'All' : `${eventType.length} selected`}</span
 				>
 			</button>
-			<div class="dropdown-menu dropdown-menu-end mh-30em mw-25em overflow-auto p-0 shadow-sm">
+			<div class="dropdown-menu mh-30em mw-25em overflow-auto p-0 shadow-sm">
 				<div class="accordion accordion-flush overflow-hidden">
 					{#each EVENT_TYPES as eventGroup}
 						{@const selected = selectedEventGroups.indexOf(eventGroup.name) !== -1}
