@@ -197,7 +197,7 @@
 		</div>
 	{/if}
 	<div class="ms-auto my-auto">
-		<a href="https://github.com/krabicezpapundeklu/sink/releases/tag/{version}" target="_blank"
+		<a class="ps-2" href="https://github.com/krabicezpapundeklu/sink/releases/tag/{version}" target="_blank"
 			>{version}</a
 		>
 	</div>
