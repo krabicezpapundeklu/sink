@@ -100,7 +100,10 @@ impl Repository for Connection {
 
     fn get_item(&self, id: i64) -> Result<Item> {
         let mut stmt = self.prepare_cached(
-            "SELECT i.id, i.submit_date, i.system, i.type, i.event_id, ib.body FROM item i JOIN item_body ib ON ib.item_id = i.id WHERE i.id = ?"
+            "
+            SELECT i.id, i.submit_date, i.system, i.type, i.event_id, i.entity_event_id, ib.body
+            FROM item i JOIN item_body ib ON ib.item_id = i.id WHERE i.id = ?
+        ",
         )?;
 
         let mut item = stmt.query_row([id], |row| {
@@ -110,12 +113,13 @@ impl Repository for Connection {
                 system: row.get(2)?,
                 r#type: row.get(3)?,
                 event_id: row.get(4)?,
+                entity_event_id: row.get(5)?,
             };
 
             Ok(Item {
                 summary,
                 headers: Vec::new(),
-                body: row.get(5)?,
+                body: row.get(6)?,
             })
         })?;
 
@@ -140,8 +144,8 @@ impl Repository for Connection {
     fn get_items(&self, filter: ItemFilter) -> Result<(Vec<ItemSummary>, i32)> {
         let mut builder = QueryBuilder::new(
             "
-                SELECT id, submit_date, system, type, event_id, total_items FROM (
-                    SELECT id, submit_date, system, type, event_id, COUNT(1) OVER () total_items FROM item i
+                SELECT id, submit_date, system, type, event_id, entity_event_id, total_items FROM (
+                    SELECT id, submit_date, system, type, event_id, entity_event_id, COUNT(1) OVER () total_items FROM item i
                     WHERE 1 = 1
             "
             .to_string(),
@@ -190,13 +194,8 @@ impl Repository for Connection {
 
         if let Some(event_type) = &filter.event_type {
             builder.append_sql(
-                " AND EXISTS (SELECT 1 FROM item_body WHERE item_id = id AND (type NOT IN ('event_notification', 'event_payload') OR matches(?, body)))",
-            );
-
-            builder.append_param(format!(
-                r#""entityEventId"\s*:\s*({})\D"#,
-                event_type.replace(',', "|")
-            ));
+                " AND (type NOT IN ('event_notification', 'event_payload') OR entity_event_id IN (",
+            ).append_list(event_type.split(',').map(ToString::to_string)).append_sql("))");
         }
 
         builder
@@ -226,10 +225,11 @@ impl Repository for Connection {
                 system: row.get(2)?,
                 r#type: row.get(3)?,
                 event_id: row.get(4)?,
+                entity_event_id: row.get(5)?,
             };
 
             items.push(item);
-            total_items = row.get(5)?;
+            total_items = row.get(6)?;
         }
 
         Ok((items, total_items))
@@ -269,10 +269,16 @@ impl Repository for Connection {
         let id;
 
         {
-            let mut stmt =
-                tx.prepare_cached("INSERT INTO item (system, type, event_id) VALUES (?, ?, ?)")?;
+            let mut stmt = tx.prepare_cached(
+                "INSERT INTO item (system, type, event_id, entity_event_id) VALUES (?, ?, ?, ?)",
+            )?;
 
-            id = stmt.insert(params![&item.system, &item.r#type, &item.event_id])?;
+            id = stmt.insert(params![
+                &item.system,
+                &item.r#type,
+                &item.event_id,
+                &item.entity_event_id
+            ])?;
 
             let mut stmt = tx.prepare_cached(
                 "INSERT INTO item_header (item_id, name, value) VALUES (?, ?, ?)",
@@ -301,26 +307,25 @@ impl Repository for Connection {
             CREATE TABLE IF NOT EXISTS item (id INTEGER PRIMARY KEY AUTOINCREMENT, submit_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, system TEXT, type TEXT) STRICT;
             CREATE TABLE IF NOT EXISTS item_body (item_id INTEGER PRIMARY KEY REFERENCES item (id) ON DELETE CASCADE, body BLOB NOT NULL) STRICT;
             CREATE TABLE IF NOT EXISTS item_header (item_id INTEGER REFERENCES item (id) ON DELETE CASCADE, name TEXT NOT NULL, value BLOB NOT NULL) STRICT;
+        ")?;
 
+        if !has_column(self, "item", "event_id")? {
+            self.execute("ALTER TABLE item ADD COLUMN event_id INTEGER", [])?;
+        }
+
+        if !has_column(self, "item", "entity_event_id")? {
+            self.execute("ALTER TABLE item ADD COLUMN entity_event_id INTEGER", [])?;
+        }
+
+        self.execute_batch(
+            "
+            CREATE INDEX IF NOT EXISTS idx_item_entity_event_id ON item (entity_event_id);
+            CREATE INDEX IF NOT EXISTS idx_item_event_id ON item (event_id);
+            CREATE INDEX IF NOT EXISTS idx_item_header_item_id ON item_header (item_id);
             CREATE INDEX IF NOT EXISTS idx_item_submit_date ON item (submit_date);
             CREATE INDEX IF NOT EXISTS idx_item_system ON item (system);
             CREATE INDEX IF NOT EXISTS idx_item_type ON item (type);
-            CREATE INDEX IF NOT EXISTS idx_item_header_item_id ON item_header (item_id);
-        ")?;
-
-        let event_id_exists: i32 = self.query_row(
-            "SELECT COUNT(1) FROM pragma_table_info('item') WHERE name = 'event_id'",
-            [],
-            |row| row.get(0),
-        )?;
-
-        if event_id_exists == 0 {
-            self.execute("ALTER TABLE item ADD COLUMN event_id INTEGER;", [])?;
-        }
-
-        self.execute(
-            "CREATE INDEX IF NOT EXISTS idx_item_event_id ON item (event_id);",
-            [],
+        ",
         )?;
 
         Ok(())
@@ -328,7 +333,7 @@ impl Repository for Connection {
 
     fn update_item(&mut self, item: &ItemSummary) -> Result<usize> {
         let mut stmt = self.prepare_cached(
-            "UPDATE item SET submit_date = ?, type = ?, system = ?, event_id = ? WHERE id = ?",
+            "UPDATE item SET submit_date = ?, type = ?, system = ?, event_id = ?, entity_event_id = ? WHERE id = ?",
         )?;
 
         stmt.execute(params![
@@ -336,10 +341,21 @@ impl Repository for Connection {
             item.r#type,
             item.system,
             item.event_id,
+            item.entity_event_id,
             item.id
         ])
         .map_err(Into::into)
     }
+}
+
+fn has_column(db: &Connection, table: &str, column: &str) -> Result<bool> {
+    let count: i32 = db.query_row(
+        "SELECT COUNT(1) FROM pragma_table_info(?) WHERE name = ?",
+        [table, column],
+        |row| row.get(0),
+    )?;
+
+    Ok(count > 0)
 }
 
 fn parse_query(query: &str) -> Vec<String> {

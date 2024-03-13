@@ -4,6 +4,7 @@
 	import {
 		BATCH_SIZE,
 		formatNumber,
+		getEntityEventType,
 		itemTypeFromKey,
 		loadItem,
 		loadItems,
@@ -238,9 +239,15 @@
 									{/if}
 									{#if item.type}
 										{@const itemType = itemTypeFromKey(item.type)}
-										<span class="badge" style="background-color: {itemType.color}"
-											>{itemType.name}</span
-										>
+										<span
+											class="badge"
+											style="background-color: {itemType.color}"
+											title={getEntityEventType(item.entityEventId)}
+											>{itemType.name}
+											{#if item.entityEventId}
+												({item.entityEventId})
+											{/if}
+										</span>
 									{/if}
 								</div>
 							</a>

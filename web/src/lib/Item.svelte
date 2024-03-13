@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatBody, formatNumber, itemTypeFromKey } from '$lib/shared';
+	import { formatBody, formatNumber, getEntityEventType, itemTypeFromKey } from '$lib/shared';
 	import { page } from '$app/stores';
 	import copy from 'copy-to-clipboard';
 	import Highlighted from './Highlighted.svelte';
@@ -50,7 +50,12 @@
 			{/if}
 			{#if item.type}
 				{@const itemType = itemTypeFromKey(item.type)}
-				<span class="badge" style="background-color: {itemType.color}">{itemType.name}</span>
+				<span class="badge" style="background-color: {itemType.color}"
+					>{itemType.name}
+					{#if item.entityEventId}
+						({getEntityEventType(item.entityEventId)})
+					{/if}
+				</span>
 			{/if}
 		</div>
 	</div>

@@ -1,3 +1,4 @@
+import EVENT_TYPES from '../../../event.types.json';
 import ITEM_TYPES from '../../../item.types.json';
 
 import type { Item, ItemSearchResult, ItemSummary, ItemType } from './model';
@@ -113,6 +114,20 @@ function formatXml(xml: string): string {
 	formatted = formatted.substring(1, formatted.length - 3);
 
 	return formatted;
+}
+
+export function getEntityEventType(id?: number): string {
+	if (id) {
+		for (const group of EVENT_TYPES) {
+			for (const type of group.types) {
+				if (type.id === id) {
+					return `${id} - ${group.name} / ${type.name}`;
+				}
+			}
+		}
+	}
+
+	return '';
 }
 
 export function itemTypeFromKey(key: string): ItemType {

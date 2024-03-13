@@ -21,6 +21,7 @@ export interface ItemSummary {
 	system?: string;
 	type?: string;
 	eventId?: number;
+	entityEventId?: number;
 }
 
 export interface ItemType {

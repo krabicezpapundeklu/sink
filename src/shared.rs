@@ -17,6 +17,7 @@ pub struct AppContext {
     pub item_type_patterns: RegexSet,
     pub system_pattern: Regex,
     pub initial_data_pattern: Regex,
+    pub entity_event_id_pattern: Regex,
 }
 
 impl AppContext {
@@ -41,6 +42,20 @@ impl AppContext {
             .get()
             .await
             .map_err(|error| anyhow!("cannot get db: {error}"))
+    }
+
+    pub fn get_entity_event_id(&self, body: &[u8]) -> Option<i64> {
+        if let Some(captures) = self.entity_event_id_pattern.captures(body) {
+            if let Some(group) = captures.get(1) {
+                let entity_event_id = String::from_utf8_lossy(group.as_bytes());
+
+                if let Ok(entity_event_id) = entity_event_id.parse::<i64>() {
+                    return Some(entity_event_id);
+                }
+            }
+        }
+
+        None
     }
 
     pub fn get_event_id(headers: &[ItemHeader]) -> Option<i64> {
@@ -180,6 +195,7 @@ impl AppContext {
             )?,
             system_pattern: Regex::new("<mgsSystem>([^<]+)")?,
             initial_data_pattern: Regex::new(r"<!--\s*%INITIAL_DATA%\s*-->")?,
+            entity_event_id_pattern: Regex::new(r#""entityEventId"\s*:\s*(\d+)"#)?,
         };
 
         app_context
@@ -194,12 +210,14 @@ impl AppContext {
         let system = self.get_system(&headers, &body);
         let item_type = self.get_item_type(&body);
         let event_id = Self::get_event_id(&headers);
+        let entity_event_id = self.get_entity_event_id(&body);
 
         self.call_db(move |db| {
             let item = NewItem {
                 system,
                 r#type: item_type,
                 event_id,
+                entity_event_id,
                 headers,
                 body: &body,
             };
@@ -315,12 +333,16 @@ pub struct ItemSummary {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub event_id: Option<i64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub entity_event_id: Option<i64>,
 }
 
 pub struct NewItem<'a> {
     pub system: Option<String>,
     pub r#type: Option<String>,
     pub event_id: Option<i64>,
+    pub entity_event_id: Option<i64>,
     pub headers: Vec<ItemHeader>,
     pub body: &'a [u8],
 }
