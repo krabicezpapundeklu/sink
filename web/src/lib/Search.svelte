@@ -78,10 +78,10 @@
 						: `${system.length} selected`}</span
 			>
 		</button>
-		<div class="bg-white border-0 dropdown-menu p-0 shadow-sm">
+		<div class="bg-white dropdown-menu p-0 shadow-sm">
 			<ul class="list-group">
 				{#each systems as s, i}
-					<li class="list-group-item list-group-item-action text-nowrap p-1">
+					<li class="border-0 list-group-item list-group-item-action text-nowrap p-1">
 						<input
 							class="form-check-input m-1"
 							id="system-{i}"
@@ -115,10 +115,10 @@
 						: `${type.length} selected`}</span
 			>
 		</button>
-		<div class="bg-white border-0 dropdown-menu p-0 shadow-sm">
+		<div class="bg-white dropdown-menu p-0 shadow-sm">
 			<ul class="list-group">
 				{#each ITEM_TYPES as t, i}
-					<li class="list-group-item list-group-item-action text-nowrap p-1">
+					<li class="border-0 list-group-item list-group-item-action text-nowrap p-1">
 						<input
 							class="form-check-input m-1"
 							id="type-{i}"
@@ -176,7 +176,9 @@
 								<div class="accordion-body p-0">
 									<ul class="list-group list-group-flush">
 										{#each eventGroup.types as t}
-											<li class="list-group-item list-group-item-action text-nowrap">
+											<li
+												class="border-bottom-0 list-group-item list-group-item-action text-nowrap"
+											>
 												<input
 													class="form-check-input me-1"
 													id="eventType-{t.id}"
