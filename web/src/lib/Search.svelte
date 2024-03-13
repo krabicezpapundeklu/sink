@@ -71,7 +71,11 @@
 		>
 			<span class="text-nowrap me-1"
 				><b>System:</b>
-				{system.length === 0 ? 'All' : system.length === 1 ? system[0] : 'Multiple'}</span
+				{system.length === 0
+					? 'All'
+					: system.length === 1
+						? system[0]
+						: `${system.length} selected`}</span
 			>
 		</button>
 		<div class="bg-white border-0 dropdown-menu p-0 shadow-sm">
@@ -108,7 +112,7 @@
 					? 'All'
 					: type.length === 1
 						? itemTypeFromKey(type[0]).name
-						: 'Multiple'}</span
+						: `${type.length} selected`}</span
 			>
 		</button>
 		<div class="bg-white border-0 dropdown-menu p-0 shadow-sm">
@@ -197,8 +201,10 @@
 		</div>
 	{/if}
 	<div class="ms-auto my-auto">
-		<a class="ps-2" href="https://github.com/krabicezpapundeklu/sink/releases/tag/{version}" target="_blank"
-			>{version}</a
+		<a
+			class="ps-2"
+			href="https://github.com/krabicezpapundeklu/sink/releases/tag/{version}"
+			target="_blank">{version}</a
 		>
 	</div>
 </form>
