@@ -25,7 +25,7 @@ $link-color: #0a58ca;
 @import 'bootstrap/scss/buttons';
 @import 'bootstrap/scss/transitions';
 @import 'bootstrap/scss/dropdown';
-//@import 'bootstrap/scss/button-group';
+@import 'bootstrap/scss/button-group';
 @import 'bootstrap/scss/nav';
 //@import 'bootstrap/scss/navbar';
 @import 'bootstrap/scss/card';
@@ -46,7 +46,7 @@ $link-color: #0a58ca;
 //@import 'bootstrap/scss/offcanvas';
 //@import 'bootstrap/scss/placeholders';
 
-//@import 'bootstrap/scss/helpers';
+@import 'bootstrap/scss/helpers';
 @import 'bootstrap/scss/utilities/api';
 
 @import 'highlight.js/scss/github.scss';
