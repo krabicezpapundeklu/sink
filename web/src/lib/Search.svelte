@@ -1,10 +1,10 @@
 <script lang="ts">
 	import EVENT_TYPES from '../../../event.types.json';
 
-	import 'bootstrap/dist/js/bootstrap';
+	import 'bootstrap/js/dist/collapse';
+	import 'bootstrap/js/dist/dropdown';
 
 	import { createEventDispatcher } from 'svelte';
-
 	import { ITEM_TYPES, itemTypeFromKey } from '$lib/shared';
 
 	export let query: string;
