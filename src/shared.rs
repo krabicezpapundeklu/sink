@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context, Error, Result};
-use axum::{async_trait, body::Bytes, extract::Query, http::Uri};
+use axum::{body::Bytes, extract::Query, http::Uri};
 use deadpool::managed::{Manager, Metrics, Object, Pool, RecycleResult};
 use regex::bytes::{Regex, RegexSet};
 use rusqlite::Connection;
@@ -236,7 +236,6 @@ pub struct DbManager {
     db: PathBuf,
 }
 
-#[async_trait]
 impl Manager for DbManager {
     type Type = Connection;
     type Error = Error;

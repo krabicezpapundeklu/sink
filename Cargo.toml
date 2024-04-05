@@ -1,20 +1,20 @@
 [package]
 name = "sink"
-version = "1.6.2"
+version = "1.6.3"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.80"
-axum = "0.7.4"
-clap = { version = "4.5.2", features = ["derive"] }
-deadpool = "0.10.0"
+anyhow = "1.0.81"
+axum = "0.7.5"
+clap = { version = "4.5.4", features = ["derive"] }
+deadpool = "0.11.0"
 libc = "0.2.153"
-regex = "1.10.3"
+regex = "1.10.4"
 rusqlite = { version = "0.31.0", features = ["bundled", "functions"] }
 rust-embed = { version = "8.3.0", features = ["mime-guess"] }
 serde = { version = "1.0.197", features = ["derive"] }
-serde_json = "1.0.114"
-tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }
+serde_json = "1.0.115"
+tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
 tower = "0.4.13"
 tower-http = { version = "0.5.2", features = ["full"] }
 tracing = "0.1.40"
