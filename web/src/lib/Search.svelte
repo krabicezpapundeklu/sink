@@ -58,21 +58,22 @@
 </script>
 
 <form class="d-flex w-100" on:submit|preventDefault={search} bind:this={form}>
+	<label class="d-none" for="query">Search</label>
 	<input
-		class="form-control"
+		class="form-control w-25em"
 		id="query"
 		name="query"
 		placeholder="Search"
 		type="search"
 		value={query}
-		style="width: 25em"
 	/>
+
 	<div class="dropdown ms-2">
 		<div class="btn-group" role="group">
 			<button
 				class="btn btn-outline-secondary"
 				type="button"
-				title="Clear filter"
+				title="Clear System Filter"
 				on:click={() => clearFilter('system')}>&#x2715;</button
 			>
 			<button
@@ -118,7 +119,7 @@
 			<button
 				class="btn btn-outline-secondary"
 				type="button"
-				title="Clear filter"
+				title="Clear Type Filter"
 				on:click={() => clearFilter('type')}>&#x2715;</button
 			>
 			<button
@@ -165,7 +166,7 @@
 				<button
 					class="btn btn-outline-secondary"
 					type="button"
-					title="Clear filter"
+					title="Clear Event Type Filter"
 					on:click={() => clearFilter('eventType')}>&#x2715;</button
 				>
 				<button
