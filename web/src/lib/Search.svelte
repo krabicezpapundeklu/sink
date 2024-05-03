@@ -17,9 +17,13 @@
 
 	const version = import.meta.env.CARGO_PKG_VERSION;
 
-	const clearFilter = (name: string) => {
+	const clearFilter = (...filters: string[]) => {
 		const data = new FormData(form);
-		data.delete(name);
+
+		for (const filter of filters) {
+			data.delete(filter);
+		}
+
 		dispatch('search', data);
 	};
 
@@ -120,7 +124,7 @@
 				class="btn btn-outline-secondary"
 				type="button"
 				title="Clear Type Filter"
-				on:click={() => clearFilter('type')}>&#x2715;</button
+				on:click={() => clearFilter('type', 'eventType')}>&#x2715;</button
 			>
 			<button
 				class="btn btn-outline-secondary dropdown-toggle"
