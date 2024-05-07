@@ -1,5 +1,3 @@
-<svelte:options runes={true} />
-
 <script lang="ts">
 	import { afterNavigate, goto } from '$app/navigation';
 
@@ -21,7 +19,7 @@
 	import Item from '$lib/Item.svelte';
 	import Search from '$lib/Search.svelte';
 
-	let {data}: {data: PageData} = $props();
+	let { data }: { data: PageData } = $props();
 
 	let itemListElement: HTMLElement;
 	let loadMoreElement: HTMLElement;

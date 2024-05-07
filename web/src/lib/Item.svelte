@@ -1,5 +1,3 @@
-<svelte:options runes={true} />
-
 <script lang="ts">
 	import { formatBody, formatNumber, getEntityEventType, itemTypeFromKey } from '$lib/shared';
 	import { page } from '$app/stores';

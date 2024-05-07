@@ -1,5 +1,3 @@
-<svelte:options runes={true} />
-
 <script lang="ts">
 	import EVENT_TYPES from '../../../event.types.json';
 
@@ -21,7 +19,7 @@
 		type: string[];
 		eventType: number[];
 		systems: string[];
-		onsearch: (data: FormData) => void
+		onsearch: (data: FormData) => void;
 	} = $props();
 
 	let form: HTMLFormElement;

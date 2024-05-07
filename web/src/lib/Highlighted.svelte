@@ -1,5 +1,3 @@
-<svelte:options runes={true} />
-
 <script context="module" lang="ts">
 	import hljs from 'highlight.js/lib/core';
 	import json from 'highlight.js/lib/languages/json';
