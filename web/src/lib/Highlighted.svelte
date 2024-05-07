@@ -1,3 +1,5 @@
+<svelte:options runes={true} />
+
 <script context="module" lang="ts">
 	import hljs from 'highlight.js/lib/core';
 	import json from 'highlight.js/lib/languages/json';
@@ -12,7 +14,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	export let body: string;
+	let { body }: { body: string } = $props();
 
 	let code: HTMLElement;
 

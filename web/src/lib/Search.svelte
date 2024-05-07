@@ -1,3 +1,5 @@
+<svelte:options runes={true} />
+
 <script lang="ts">
 	import EVENT_TYPES from '../../../event.types.json';
 
@@ -7,11 +9,19 @@
 	import { createEventDispatcher } from 'svelte';
 	import { ITEM_TYPES, itemTypeFromKey } from '$lib/shared';
 
-	export let query: string;
-	export let system: string[];
-	export let type: string[];
-	export let eventType: number[];
-	export let systems: string[] = [];
+	let {
+		query,
+		system,
+		type,
+		eventType,
+		systems = []
+	}: {
+		query: string;
+		system: string[];
+		type: string[];
+		eventType: number[];
+		systems: string[];
+	} = $props();
 
 	let form: HTMLFormElement;
 
@@ -61,7 +71,7 @@
 	const selectedEventGroups = getSelectedEventGroups();
 </script>
 
-<form class="d-flex w-100" on:submit|preventDefault={search} bind:this={form}>
+<form class="d-flex w-100" onsubmit={search} bind:this={form}>
 	<label class="d-none" for="query">Search</label>
 	<input
 		class="form-control w-25em"
@@ -78,7 +88,7 @@
 				class="btn btn-outline-secondary"
 				type="button"
 				title="Clear System Filter"
-				on:click={() => clearFilter('system')}>&#x2715;</button
+				onclick={() => clearFilter('system')}>&#x2715;</button
 			>
 			<button
 				class="btn btn-outline-secondary dropdown-toggle"
@@ -108,7 +118,7 @@
 								type="checkbox"
 								value={s}
 								bind:group={system}
-								on:change={search}
+								onchange={search}
 							/>
 							<label class="form-check-label me-1 stretched-link" for="system-{i}">{s}</label>
 						</li>
@@ -124,7 +134,7 @@
 				class="btn btn-outline-secondary"
 				type="button"
 				title="Clear Type Filter"
-				on:click={() => clearFilter('type', 'eventType')}>&#x2715;</button
+				onclick={() => clearFilter('type', 'eventType')}>&#x2715;</button
 			>
 			<button
 				class="btn btn-outline-secondary dropdown-toggle"
@@ -154,7 +164,7 @@
 								type="checkbox"
 								value={t.key}
 								bind:group={type}
-								on:change={search}
+								onchange={search}
 							/>
 							<label class="form-check-label me-1 stretched-link" for="type-{i}">{t.name}</label>
 						</li>
@@ -171,7 +181,7 @@
 					class="btn btn-outline-secondary"
 					type="button"
 					title="Clear Event Type Filter"
-					on:click={() => clearFilter('eventType')}>&#x2715;</button
+					onclick={() => clearFilter('eventType')}>&#x2715;</button
 				>
 				<button
 					class="btn btn-outline-secondary dropdown-toggle"
@@ -223,7 +233,7 @@
 														type="checkbox"
 														value={t.id}
 														bind:group={eventType}
-														on:change={search}
+														onchange={search}
 													/>
 													<label class="form-check-label stretched-link" for="eventType-{t.id}"
 														>{t.name} ({t.id})</label

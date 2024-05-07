@@ -1,5 +1,9 @@
+<svelte:options runes={true} />
+
 <script lang="ts">
 	import '../app.scss';
+
+	let { children } = $props();
 </script>
 
-<slot />
+{@render children()}

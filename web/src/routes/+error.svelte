@@ -1,3 +1,5 @@
+<svelte:options runes={true} />
+
 <script type="ts">
 	import { page } from '$app/stores';
 </script>

@@ -1,3 +1,5 @@
+<svelte:options runes={true} />
+
 <script lang="ts">
 	import { formatBody, formatNumber, getEntityEventType, itemTypeFromKey } from '$lib/shared';
 	import { page } from '$app/stores';
@@ -5,17 +7,15 @@
 	import Highlighted from './Highlighted.svelte';
 	import type { Item } from './model';
 
-	export let item: Item;
-	export let preventDefault = true;
+	let { item, preventDefault = true }: { item: Item; preventDefault?: boolean } = $props();
 
 	const tabs = ['body-preview', 'original-body', 'headers'];
 
-	let activeTab = Math.max(0, tabs.indexOf($page.url.searchParams.get('view') ?? ''));
+	let activeTab = $state(Math.max(0, tabs.indexOf($page.url.searchParams.get('view') ?? '')));
 	let base = `/item/${item.id}?view=`;
 	let tab: HTMLElement;
 
-	let formattedBody: string;
-	let formattedItemId: number;
+	let formattedBody: string = $derived(formatBody(item));
 
 	const copyTab = () => {
 		copy(tab.innerText);
@@ -28,13 +28,6 @@
 
 		activeTab = tab;
 	};
-
-	$: {
-		if (item.id !== formattedItemId) {
-			formattedBody = formatBody(item);
-			formattedItemId = item.id;
-		}
-	}
 </script>
 
 <div class="d-flex flex-column mh-100 p-2">
@@ -68,7 +61,7 @@
 						class:active={activeTab === 0}
 						data-sveltekit-preload-data="off"
 						href="{base}{tabs[0]}"
-						on:click={(e) => selectTab(e, 0)}>Body Preview</a
+						onclick={(e) => selectTab(e, 0)}>Body Preview</a
 					>
 				</li>
 				<li class="nav-item">
@@ -77,7 +70,7 @@
 						class:active={activeTab === 1}
 						data-sveltekit-preload-data="off"
 						href="{base}{tabs[1]}"
-						on:click={(e) => selectTab(e, 1)}>Original Body</a
+						onclick={(e) => selectTab(e, 1)}>Original Body</a
 					>
 				</li>
 				<li class="nav-item">
@@ -86,12 +79,12 @@
 						class:active={activeTab === 2}
 						data-sveltekit-preload-data="off"
 						href="{base}{tabs[2]}"
-						on:click={(e) => selectTab(e, 2)}>Headers</a
+						onclick={(e) => selectTab(e, 2)}>Headers</a
 					>
 				</li>
 			</ul>
 			<div class="align-self-center flex-fill">
-				<button class="btn btn-outline-secondary btn-sm float-end" on:click={copyTab}
+				<button class="btn btn-outline-secondary btn-sm float-end" onclick={copyTab}
 					>Copy to Clipboard</button
 				>
 			</div>

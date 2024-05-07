@@ -258,10 +258,10 @@
 				{/if}
 				{#if loading}
 					<div class="m-2 text-center">
-						<div class="spinner-border text-muted" role="status" />
+						<div class="spinner-border text-muted" role="status"></div>
 					</div>
 				{/if}
-				<div bind:this={loadMoreElement} />
+				<div bind:this={loadMoreElement}></div>
 			</div>
 		</div>
 		{#if activeItem}
