@@ -216,8 +216,7 @@
 								</h2>
 								<div
 									id="eventGroup-{eventGroup.name}"
-									class="accordion-collapse collapse"
-									class:show={selected}
+									class="accordion-collapse collapse {selected ? 'show' : ''}"
 								>
 									<div class="accordion-body p-0">
 										<ul class="list-group list-group-flush">
@@ -235,7 +234,7 @@
 														onchange={search}
 													/>
 													<label class="form-check-label stretched-link" for="eventType-{t.id}"
-														>{t.name} ({t.id})</label
+														>{t.id} - {t.name}</label
 													>
 												</li>
 											{/each}
