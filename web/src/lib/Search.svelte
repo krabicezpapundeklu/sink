@@ -63,14 +63,15 @@
 		return false;
 	};
 
-	const search = () => {
+	const search = (e: Event) => {
+		e.preventDefault();
 		onsearch(new FormData(form));
 	};
 
 	const selectedEventGroups = getSelectedEventGroups();
 </script>
 
-<form class="d-flex w-100" onsubmit={search} bind:this={form}>
+<form class="d-flex w-100" onsubmit={(e) => search(e)} bind:this={form}>
 	<label class="d-none" for="query">Search</label>
 	<input
 		class="form-control w-25em"

@@ -1,3 +1,5 @@
+<svelte:options runes={true} />
+
 <script lang="ts">
 	import { afterNavigate, goto } from '$app/navigation';
 
@@ -19,24 +21,24 @@
 	import Item from '$lib/Item.svelte';
 	import Search from '$lib/Search.svelte';
 
-	export let data: PageData;
+	let {data}: {data: PageData} = $props();
 
 	let itemListElement: HTMLElement;
 	let loadMoreElement: HTMLElement;
 
-	let query: string;
-	let system: string[];
-	let type: string[];
-	let eventType: number[];
-	let asc: boolean;
+	let query: string = $state('');
+	let system: string[] = $state([]);
+	let type: string[] = $state([]);
+	let eventType: number[] = $state([]);
+	let asc: boolean = $state(false);
 
-	let loading = false;
+	let loading = $state(false);
 
-	let items = data.items.slice(0, BATCH_SIZE);
-	let systems = data.systems;
-	let totalItems = data.totalItems;
-	let hasMoreItems = data.items.length > BATCH_SIZE;
-	let activeItem = data.firstItem;
+	let items = $state(data.items.slice(0, BATCH_SIZE));
+	let systems = $state(data.systems);
+	let totalItems = $state(data.totalItems);
+	let hasMoreItems = $state(data.items.length > BATCH_SIZE);
+	let activeItem = $state(data.firstItem);
 
 	const loadMore = async () => {
 		loading = true;
@@ -115,7 +117,9 @@
 		refresh(params);
 	};
 
-	const selectItem = async (itemId: number) => {
+	const selectItem = async (e: MouseEvent, itemId: number) => {
+		e.preventDefault();
+
 		if (!activeItem || activeItem.id !== itemId) {
 			activeItem = await loadItem(fetch, itemId);
 		}
@@ -205,7 +209,7 @@
 						id="asc"
 						name="asc"
 						value={asc}
-						on:change={toggleSortBy}
+						onchange={toggleSortBy}
 					>
 						<option value={false} selected={!asc}>Latest</option>
 						<option value={true} selected={asc}>Oldest</option>
@@ -221,7 +225,7 @@
 								class:active={activeItem && activeItem.id === item.id}
 								data-sveltekit-preload-data="off"
 								href="/item/{item.id}"
-								on:click|preventDefault={() => selectItem(item.id)}
+								onclick={(e) => selectItem(e, item.id)}
 							>
 								<div class="d-flex justify-content-between">
 									<span
