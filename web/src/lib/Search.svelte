@@ -6,7 +6,6 @@
 	import 'bootstrap/js/dist/collapse';
 	import 'bootstrap/js/dist/dropdown';
 
-	import { createEventDispatcher } from 'svelte';
 	import { ITEM_TYPES, itemTypeFromKey } from '$lib/shared';
 
 	let {
@@ -14,13 +13,15 @@
 		system,
 		type,
 		eventType,
-		systems = []
+		systems = [],
+		onsearch
 	}: {
 		query: string;
 		system: string[];
 		type: string[];
 		eventType: number[];
 		systems: string[];
+		onsearch: (data: FormData) => void
 	} = $props();
 
 	let form: HTMLFormElement;
@@ -34,7 +35,7 @@
 			data.delete(filter);
 		}
 
-		dispatch('search', data);
+		onsearch(data);
 	};
 
 	const getSelectedEventGroups = () => {
@@ -62,10 +63,8 @@
 		return false;
 	};
 
-	const dispatch = createEventDispatcher();
-
 	const search = () => {
-		dispatch('search', new FormData(form));
+		onsearch(new FormData(form));
 	};
 
 	const selectedEventGroups = getSelectedEventGroups();

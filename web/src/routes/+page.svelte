@@ -85,11 +85,10 @@
 		goto(`?${params}${location.hash}`, { keepFocus: true, invalidateAll: true });
 	};
 
-	const search = (e: CustomEvent) => {
-		const formData = e.detail as FormData;
+	const search = (data: FormData) => {
 		const params = new URLSearchParams();
 
-		for (const [key, value] of formData.entries()) {
+		for (const [key, value] of data.entries()) {
 			let v = value.toString().trim();
 
 			if (v) {
@@ -193,7 +192,7 @@
 
 <div class="d-flex flex-column vh-100">
 	<nav class="pb-0 p-2">
-		<Search {query} {system} {type} {eventType} {systems} on:search={search} />
+		<Search {query} {system} {type} {eventType} {systems} onsearch={search} />
 	</nav>
 	<div class="d-flex flex-fill overflow-hidden">
 		<div class="bg-white border d-flex flex-column me-0 m-2 mw-25em rounded shadow-sm">
