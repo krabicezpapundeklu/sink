@@ -12,6 +12,7 @@
 		type,
 		eventType,
 		systems = [],
+		from,
 		onsearch
 	}: {
 		query: string;
@@ -19,10 +20,13 @@
 		type: string[];
 		eventType: number[];
 		systems: string[];
+		from: string;
 		onsearch: (data: FormData) => void;
 	} = $props();
 
 	let form: HTMLFormElement;
+	let dateFilter: HTMLInputElement;
+	let selectedDate: string = $state('');
 
 	const version = import.meta.env.CARGO_PKG_VERSION;
 
@@ -63,13 +67,46 @@
 
 	const search = (e: Event) => {
 		e.preventDefault();
-		onsearch(new FormData(form));
+
+		let data = new FormData(form);
+		let date = dateFilter.valueAsDate;
+
+		if (date) {
+			const utcDate = new Date(
+				date.getUTCFullYear(),
+				date.getUTCMonth(),
+				date.getUTCDate(),
+				date.getUTCHours(),
+				date.getUTCMinutes(),
+				date.getUTCSeconds()
+			);
+
+			selectedDate = date.toLocaleDateString('en-us');
+			data.set('from', utcDate.toISOString().substring(0, 16).replace('T', ' '));
+			utcDate.setDate(utcDate.getDate() + 1);
+			data.set('to', utcDate.toISOString().substring(0, 16).replace('T', ' '));
+		} else {
+			selectedDate = '';
+		}
+
+		onsearch(data);
 	};
+
+	$effect(() => {
+		if (from) {
+			const date = new Date(from.replace(' ', 'T') + 'Z');
+			selectedDate = date.toLocaleDateString('en-us');
+			dateFilter.value = `${date.getFullYear()}-${('0' + (date.getMonth() + 1)).slice(-2)}-${('0' + date.getDate()).slice(-2)}`;
+		} else {
+			selectedDate = '';
+			dateFilter.value = '';
+		}
+	});
 
 	const selectedEventGroups = getSelectedEventGroups();
 </script>
 
-<form class="d-flex w-100" onsubmit={(e) => search(e)} bind:this={form}>
+<form class="d-flex w-100" onsubmit={search} bind:this={form}>
 	<label class="d-none" for="query">Search</label>
 	<input
 		class="form-control w-25em"
@@ -247,6 +284,29 @@
 			</div>
 		</div>
 	{/if}
+
+	<div class="ms-2">
+		<div class="btn-group" role="group">
+			<button
+				class="btn btn-outline-secondary"
+				type="button"
+				title="Clear Date Filter"
+				onclick={() => clearFilter('from', 'to')}>&#x2715;</button
+			>
+			<button
+				class="btn btn-outline-secondary dropdown-toggle"
+				type="button"
+				onclick={() => dateFilter.showPicker()}
+			>
+				<span class="text-nowrap me-1"
+					><b>Date:</b>
+					{selectedDate ? selectedDate : 'All'}
+				</span>
+			</button>
+			<input class="date-filter" type="date" bind:this={dateFilter} onchange={search} />
+		</div>
+	</div>
+
 	<div class="ms-auto my-auto">
 		<a
 			class="ps-2"

@@ -28,6 +28,7 @@
 	let system: string[] = $state([]);
 	let type: string[] = $state([]);
 	let eventType: number[] = $state([]);
+	let from: string = $state('');
 	let asc: boolean = $state(false);
 
 	let loading = $state(false);
@@ -78,6 +79,7 @@
 			.map((t) => +t);
 
 		asc = (params.get('asc') ?? 'false') === 'true';
+		from = params.get('from') ?? '';
 	};
 
 	const refresh = (params: URLSearchParams) => {
@@ -194,7 +196,7 @@
 
 <div class="d-flex flex-column vh-100">
 	<nav class="pb-0 p-2">
-		<Search {query} {system} {type} {eventType} {systems} onsearch={search} />
+		<Search {query} {system} {type} {eventType} {systems} {from} onsearch={search} />
 	</nav>
 	<div class="d-flex flex-fill overflow-hidden">
 		<div class="bg-white border d-flex flex-column me-0 m-2 mw-25em rounded shadow-sm">

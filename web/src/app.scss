@@ -59,6 +59,12 @@ $link-color: #0a58ca;
 	--bs-btn-color: #606060;
 }
 
+.date-filter {
+	margin-top: 10px;
+	position: absolute;
+	visibility: hidden;
+}
+
 .mh-30em {
 	max-height: 30em;
 }
