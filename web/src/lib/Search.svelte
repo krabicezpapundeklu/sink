@@ -30,8 +30,32 @@
 
 	const version = import.meta.env.CARGO_PKG_VERSION;
 
+	const applyDateFilter = (data: FormData) => {
+		let date = dateFilter.valueAsDate;
+
+		if (date) {
+			const utcDate = new Date(
+				date.getUTCFullYear(),
+				date.getUTCMonth(),
+				date.getUTCDate(),
+				date.getUTCHours(),
+				date.getUTCMinutes(),
+				date.getUTCSeconds()
+			);
+
+			selectedDate = date.toLocaleDateString('en-us');
+			data.set('from', utcDate.toISOString().substring(0, 16).replace('T', ' '));
+			utcDate.setDate(utcDate.getDate() + 1);
+			data.set('to', utcDate.toISOString().substring(0, 16).replace('T', ' '));
+		} else {
+			selectedDate = '';
+		}
+	};
+
 	const clearFilter = (...filters: string[]) => {
 		const data = new FormData(form);
+
+		applyDateFilter(data);
 
 		for (const filter of filters) {
 			data.delete(filter);
@@ -69,26 +93,8 @@
 		e.preventDefault();
 
 		let data = new FormData(form);
-		let date = dateFilter.valueAsDate;
 
-		if (date) {
-			const utcDate = new Date(
-				date.getUTCFullYear(),
-				date.getUTCMonth(),
-				date.getUTCDate(),
-				date.getUTCHours(),
-				date.getUTCMinutes(),
-				date.getUTCSeconds()
-			);
-
-			selectedDate = date.toLocaleDateString('en-us');
-			data.set('from', utcDate.toISOString().substring(0, 16).replace('T', ' '));
-			utcDate.setDate(utcDate.getDate() + 1);
-			data.set('to', utcDate.toISOString().substring(0, 16).replace('T', ' '));
-		} else {
-			selectedDate = '';
-		}
-
+		applyDateFilter(data);
 		onsearch(data);
 	};
 
