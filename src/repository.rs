@@ -154,9 +154,18 @@ impl Repository for Connection {
         let mut event_id = None;
 
         if let Some(query) = &filter.query {
-            builder.append_sql(" AND EXISTS (SELECT 1 FROM item_body WHERE item_id = id");
+            builder.append_sql(" AND (EXISTS (SELECT 1 FROM item_body WHERE item_id = id");
 
             let terms = parse_query(query);
+            let mut id_to_search = None;
+
+            if terms.len() == 1 {
+                if let Some(the_only_term) = terms.first() {
+                    if let Ok(id) = the_only_term.parse::<i64>() {
+                        id_to_search = Some(id);
+                    }
+                }
+            }
 
             for term in terms {
                 if term.starts_with(EVENT_ID_PREFIX) {
@@ -173,7 +182,15 @@ impl Repository for Connection {
                 builder.append_param(term);
             }
 
-            builder.append_sql(") ");
+            builder.append_sql(")");
+
+            if let Some(id) = id_to_search {
+                builder.append_sql(" OR id = ? OR event_id = ?");
+                builder.append_param(id);
+                builder.append_param(id);
+            }
+
+            builder.append_sql(")");
         }
 
         if let Some(system) = &filter.system {
