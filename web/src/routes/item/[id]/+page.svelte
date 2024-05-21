@@ -7,7 +7,7 @@
 </script>
 
 <svelte:head>
-	<title>Sink - #{formatNumber(data.id)}</title>
+	<title>Sink - #{formatNumber(data.eventId ?? data.id)}</title>
 </svelte:head>
 
 <div class="vh-100">
