@@ -1043,7 +1043,7 @@ dependencies = [
 
 [[package]]
 name = "sink"
-version = "1.6.8"
+version = "1.7.0"
 dependencies = [
  "anyhow",
  "axum",
