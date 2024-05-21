@@ -228,12 +228,7 @@
 								onclick={(e) => selectItem(e, item.id)}
 							>
 								<div class="d-flex justify-content-between">
-									<span
-										>#{formatNumber(item.id)}
-										{#if item.eventId}
-											<small title="WS_EVENT.ID">({item.eventId})</small>
-										{/if}
-									</span>
+									<span>#{formatNumber(item.eventId ?? item.id)}</span>
 									<span>{item.submitDate}</span>
 								</div>
 								<div>
