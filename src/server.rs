@@ -43,6 +43,12 @@ impl IntoResponse for AppError {
 
 #[derive(RustEmbed)]
 #[folder = "web/build"]
+#[include = "*.css"]
+#[include = "*.html"]
+#[include = "*.js"]
+#[include = "*.png"]
+#[include = "*.txt"]
+#[cfg_attr(debug_assertions, include = "*.map")]
 struct Assets;
 
 type JsonResponse<T> = Result<Json<T>, AppError>;
