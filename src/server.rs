@@ -7,6 +7,7 @@ use axum::{
     extract::{Path, Query, State},
     http::{
         header::{CACHE_CONTROL, CONTENT_TYPE},
+        uri::PathAndQuery,
         HeaderMap, StatusCode, Uri,
     },
     response::{IntoResponse, Redirect, Response},
@@ -46,6 +47,7 @@ impl IntoResponse for AppError {
 #[include = "*.css"]
 #[include = "*.html"]
 #[include = "*.js"]
+#[include = "*.json"]
 #[include = "*.png"]
 #[include = "*.txt"]
 #[cfg_attr(debug_assertions, include = "*.map")]
@@ -64,9 +66,33 @@ impl<T> ResultExt<T> for Result<T> {
 }
 
 async fn get_asset(State(app_context): State<AppContext>, uri: Uri) -> Result<Response, AppError> {
-    let path = uri.path().trim_start_matches("/sink/");
+    let original_path = uri.path();
 
-    let response = if let Some(content) = Assets::get(path).or_else(|| Assets::get("index.html")) {
+    let path = original_path
+        .trim_start_matches("/sink/")
+        .trim_start_matches('/');
+
+    let mut asset = if path == "index.html" {
+        None
+    } else {
+        Assets::get(path)
+    };
+
+    if asset.is_none() {
+        if !original_path.starts_with("/sink/") {
+            return Ok(Redirect::permanent(&format!(
+                "/sink{}",
+                uri.path_and_query()
+                    .map(PathAndQuery::as_str)
+                    .unwrap_or_default()
+            ))
+            .into_response());
+        }
+
+        asset = Assets::get("index.html");
+    }
+
+    let response = if let Some(content) = asset {
         let mime = content.metadata.mimetype();
 
         if path.starts_with("_app/immutable") {
@@ -122,10 +148,6 @@ pub async fn start(host: &str, port: u16, db: PathBuf) -> Result<()> {
     let app_context = AppContext::new(db).await?;
 
     let app = Router::new()
-        .route(
-            "/",
-            get(|| async { Redirect::permanent("/sink/") }).post(submit_item),
-        )
         .route("/sink/api/item/:id", get(get_item))
         .route("/sink/api/items", get(get_items))
         .fallback(get(get_asset).post(submit_item))
