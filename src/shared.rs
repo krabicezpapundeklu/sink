@@ -75,8 +75,8 @@ impl AppContext {
     pub async fn get_initial_data(&self, uri: &Uri) -> Result<Option<(String, String)>> {
         let path = uri.path();
 
-        if path == "/" {
-            let mut initial_uri = "/api/items?batchSize=51&loadFirstItem=true".to_string();
+        if path == "/sink/" {
+            let mut initial_uri = "/sink/api/items?batchSize=51&loadFirstItem=true".to_string();
 
             if let Some(query) = uri.query() {
                 initial_uri.push('&');
@@ -88,14 +88,14 @@ impl AppContext {
 
             Ok(Some((initial_uri, serde_json::to_string(&items)?)))
         } else {
-            let id = path.strip_prefix("/item/");
+            let id = path.strip_prefix("/sink/item/");
 
             if let Some(id) = id {
                 let id: i64 = id.parse()?;
                 let item = self.get_item(id).await?;
 
                 Ok(Some((
-                    format!("/api/item/{id}"),
+                    format!("/sink/api/item/{id}"),
                     serde_json::to_string(&item)?,
                 )))
             } else {
