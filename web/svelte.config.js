@@ -7,11 +7,13 @@ const config = {
 		runes: true
 	},
 	preprocess: vitePreprocess(),
-
 	kit: {
 		adapter: adapter({
 			fallback: 'index.html'
-		})
+		}),
+		paths: {
+			base: '/sink'
+		}
 	}
 };
 

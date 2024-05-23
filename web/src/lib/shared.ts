@@ -144,7 +144,7 @@ export async function loadItem(
 	fetch: (input: RequestInfo) => Promise<Response>,
 	itemId: number
 ): Promise<Item> {
-	const response = await fetch(`/api/item/${itemId}`);
+	const response = await fetch(`/sink/api/item/${itemId}`);
 
 	if (!response.ok) {
 		error(500, await response.text());
@@ -191,7 +191,7 @@ export async function loadItems(
 		url = '?' + url.substring(1);
 	}
 
-	const response = await fetch(`/api/items${url}`);
+	const response = await fetch(`/sink/api/items${url}`);
 
 	if (!response.ok) {
 		error(500, await response.text());

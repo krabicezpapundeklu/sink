@@ -224,7 +224,7 @@
 								class="list-group-item list-group-item-action"
 								class:active={activeItem && activeItem.id === item.id}
 								data-sveltekit-preload-data="off"
-								href="/item/{item.id}"
+								href="/sink/item/{item.id}"
 								onclick={(e) => selectItem(e, item.id)}
 							>
 								<div class="d-flex justify-content-between">

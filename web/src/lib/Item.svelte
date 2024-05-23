@@ -10,7 +10,7 @@
 	const tabs = ['body-preview', 'original-body', 'headers'];
 
 	let activeTab = $state(Math.max(0, tabs.indexOf($page.url.searchParams.get('view') ?? '')));
-	let base = `/item/${item.id}?view=`;
+	let base = `/sink/item/${item.id}?view=`;
 	let tab: HTMLElement;
 
 	let formattedBody: string = $derived(formatBody(item));

@@ -9,7 +9,7 @@ use axum::{
         header::{CACHE_CONTROL, CONTENT_TYPE},
         HeaderMap, StatusCode, Uri,
     },
-    response::{IntoResponse, Response},
+    response::{IntoResponse, Redirect, Response},
     routing::get,
     serve, Json, Router,
 };
@@ -64,7 +64,7 @@ impl<T> ResultExt<T> for Result<T> {
 }
 
 async fn get_asset(State(app_context): State<AppContext>, uri: Uri) -> Result<Response, AppError> {
-    let path = uri.path().trim_start_matches('/');
+    let path = uri.path().trim_start_matches("/sink/");
 
     let response = if let Some(content) = Assets::get(path).or_else(|| Assets::get("index.html")) {
         let mime = content.metadata.mimetype();
@@ -122,8 +122,12 @@ pub async fn start(host: &str, port: u16, db: PathBuf) -> Result<()> {
     let app_context = AppContext::new(db).await?;
 
     let app = Router::new()
-        .route("/api/item/:id", get(get_item))
-        .route("/api/items", get(get_items))
+        .route(
+            "/",
+            get(|| async { Redirect::permanent("/sink/") }).post(submit_item),
+        )
+        .route("/sink/api/item/:id", get(get_item))
+        .route("/sink/api/items", get(get_items))
         .fallback(get(get_asset).post(submit_item))
         .with_state(app_context)
         .layer(
