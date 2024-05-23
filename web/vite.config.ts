@@ -3,7 +3,16 @@ import type { UserConfig } from 'vite';
 
 const config: UserConfig = {
 	build: {
-		sourcemap: true
+		minify: 'terser',
+		sourcemap: true,
+		terserOptions: {
+			compress: {
+				drop_console: true,
+				hoist_funs: true,
+				passes: 2,
+				unsafe: true
+			}
+		}
 	},
 	envPrefix: 'CARGO_',
 	plugins: [sveltekit()],
