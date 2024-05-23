@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { afterNavigate, goto } from '$app/navigation';
+	import { base } from '$app/paths';
 
 	import {
 		BATCH_SIZE,
@@ -13,11 +14,9 @@
 
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-
-	import type { PageData } from './$types';
-
 	import Item from '$lib/Item.svelte';
 	import Search from '$lib/Search.svelte';
+	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
@@ -224,7 +223,7 @@
 								class="list-group-item list-group-item-action"
 								class:active={activeItem && activeItem.id === item.id}
 								data-sveltekit-preload-data="off"
-								href="/sink/item/{item.id}"
+								href="{base}/item/{item.id}"
 								onclick={(e) => selectItem(e, item.id)}
 							>
 								<div class="d-flex justify-content-between">

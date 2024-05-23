@@ -1,8 +1,8 @@
+import { base } from '$app/paths';
+import { error } from '@sveltejs/kit';
 import EVENT_TYPES from '../../../event.types.json';
 import ITEM_TYPES from '../../../item.types.json';
-
 import type { Item, ItemSearchResult, ItemSummary, ItemType } from './model';
-import { error } from '@sveltejs/kit';
 
 export const BATCH_SIZE = 50;
 export const MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
@@ -144,7 +144,7 @@ export async function loadItem(
 	fetch: (input: RequestInfo) => Promise<Response>,
 	itemId: number
 ): Promise<Item> {
-	const response = await fetch(`/sink/api/item/${itemId}`);
+	const response = await fetch(`${base}/api/item/${itemId}`);
 
 	if (!response.ok) {
 		error(500, await response.text());
@@ -191,7 +191,7 @@ export async function loadItems(
 		url = '?' + url.substring(1);
 	}
 
-	const response = await fetch(`/sink/api/items${url}`);
+	const response = await fetch(`${base}/api/items${url}`);
 
 	if (!response.ok) {
 		error(500, await response.text());

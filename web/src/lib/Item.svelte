@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import { formatBody, formatNumber, getEntityEventType, itemTypeFromKey } from '$lib/shared';
 	import { page } from '$app/stores';
 	import copy from 'copy-to-clipboard';
@@ -10,7 +11,7 @@
 	const tabs = ['body-preview', 'original-body', 'headers'];
 
 	let activeTab = $state(Math.max(0, tabs.indexOf($page.url.searchParams.get('view') ?? '')));
-	let base = `/sink/item/${item.id}?view=`;
+	let tabBase = `${base}/item/${item.id}?view=`;
 	let tab: HTMLElement;
 
 	let formattedBody: { body: string; language: string } = $derived(formatBody(item));
@@ -55,7 +56,7 @@
 						class="nav-link"
 						class:active={activeTab === 0}
 						data-sveltekit-preload-data="off"
-						href="{base}{tabs[0]}"
+						href="{tabBase}{tabs[0]}"
 						onclick={(e) => selectTab(e, 0)}>Body Preview</a
 					>
 				</li>
@@ -64,7 +65,7 @@
 						class="nav-link"
 						class:active={activeTab === 1}
 						data-sveltekit-preload-data="off"
-						href="{base}{tabs[1]}"
+						href="{tabBase}{tabs[1]}"
 						onclick={(e) => selectTab(e, 1)}>Original Body</a
 					>
 				</li>
@@ -73,7 +74,7 @@
 						class="nav-link"
 						class:active={activeTab === 2}
 						data-sveltekit-preload-data="off"
-						href="{base}{tabs[2]}"
+						href="{tabBase}{tabs[2]}"
 						onclick={(e) => selectTab(e, 2)}>Headers</a
 					>
 				</li>

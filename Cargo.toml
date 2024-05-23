@@ -7,6 +7,7 @@ edition = "2021"
 anyhow = "1.0.86"
 axum = "0.7.5"
 clap = { version = "4.5.4", features = ["derive"] }
+const_format = "0.2.32"
 deadpool = "0.12.1"
 libc = "0.2.155"
 regex = "1.10.4"

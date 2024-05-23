@@ -15,13 +15,14 @@ use axum::{
     serve, Json, Router,
 };
 
+use const_format::concatcp;
 use rust_embed::RustEmbed;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{compression::CompressionLayer, trace::TraceLayer};
 use tracing::{error, info};
 
-use crate::shared::{AppContext, Item, ItemFilter, ItemHeader, ItemSearchResult};
+use crate::shared::{AppContext, Item, ItemFilter, ItemHeader, ItemSearchResult, BASE};
 
 struct AppError(Error);
 
@@ -69,7 +70,7 @@ async fn get_asset(State(app_context): State<AppContext>, uri: Uri) -> Result<Re
     let original_path = uri.path();
 
     let path = original_path
-        .trim_start_matches("/sink/")
+        .trim_start_matches(concatcp!(BASE, '/'))
         .trim_start_matches('/');
 
     let mut asset = if path == "index.html" {
@@ -79,9 +80,9 @@ async fn get_asset(State(app_context): State<AppContext>, uri: Uri) -> Result<Re
     };
 
     if asset.is_none() {
-        if !original_path.starts_with("/sink/") {
+        if !original_path.starts_with(concatcp!(BASE, '/')) {
             return Ok(Redirect::permanent(&format!(
-                "/sink{}",
+                "{BASE}{}",
                 uri.path_and_query()
                     .map(PathAndQuery::as_str)
                     .unwrap_or_default()
@@ -148,8 +149,8 @@ pub async fn start(host: &str, port: u16, db: PathBuf) -> Result<()> {
     let app_context = AppContext::new(db).await?;
 
     let app = Router::new()
-        .route("/sink/api/item/:id", get(get_item))
-        .route("/sink/api/items", get(get_items))
+        .route(concatcp!(BASE, "/api/item/:id"), get(get_item))
+        .route(concatcp!(BASE, "/api/items"), get(get_items))
         .fallback(get(get_asset).post(submit_item))
         .with_state(app_context)
         .layer(

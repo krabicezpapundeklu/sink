@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::{anyhow, Context, Error, Result};
 use axum::{body::Bytes, extract::Query, http::Uri};
+use const_format::concatcp;
 use deadpool::managed::{Manager, Metrics, Object, Pool, RecycleResult};
 use regex::bytes::{Regex, RegexSet};
 use rusqlite::Connection;
@@ -9,6 +10,8 @@ use serde::{Deserialize, Serialize, Serializer};
 use tokio::task::spawn_blocking;
 
 use crate::repository::Repository;
+
+pub const BASE: &str = "/sink";
 
 #[derive(Clone)]
 pub struct AppContext {
@@ -75,8 +78,8 @@ impl AppContext {
     pub async fn get_initial_data(&self, uri: &Uri) -> Result<Option<(String, String)>> {
         let path = uri.path();
 
-        if path == "/sink/" {
-            let mut initial_uri = "/sink/api/items?batchSize=51&loadFirstItem=true".to_string();
+        if path == concatcp!(BASE, '/') {
+            let mut initial_uri = format!("{BASE}/api/items?batchSize=51&loadFirstItem=true");
 
             if let Some(query) = uri.query() {
                 initial_uri.push('&');
@@ -88,14 +91,14 @@ impl AppContext {
 
             Ok(Some((initial_uri, serde_json::to_string(&items)?)))
         } else {
-            let id = path.strip_prefix("/sink/item/");
+            let id = path.strip_prefix(concatcp!(BASE, "/item/"));
 
             if let Some(id) = id {
                 let id: i64 = id.parse()?;
                 let item = self.get_item(id).await?;
 
                 Ok(Some((
-                    format!("/sink/api/item/{id}"),
+                    format!("{BASE}/api/item/{id}"),
                     serde_json::to_string(&item)?,
                 )))
             } else {
