@@ -13,20 +13,20 @@ export { ITEM_TYPES };
 
 ITEM_TYPES.sort((x, y) => x.name.localeCompare(y.name));
 
-export function formatBody(item: Item): string {
+export function formatBody(item: Item): { body: string; language: string } {
 	for (const header of item.headers) {
 		if (header.name === 'content-type') {
 			if (header.value.indexOf('json') !== -1) {
-				return formatJson(item.body);
+				return { body: formatJson(item.body), language: 'json5' };
 			} else if (header.value.indexOf('xml') !== -1) {
-				return formatXml(item.body);
+				return { body: formatXml(item.body), language: 'markup' };
 			}
 
 			break;
 		}
 	}
 
-	return item.body;
+	return { body: item.body, language: 'plain' };
 }
 
 function formatJson(json: string): string {

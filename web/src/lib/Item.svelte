@@ -13,7 +13,7 @@
 	let base = `/sink/item/${item.id}?view=`;
 	let tab: HTMLElement;
 
-	let formattedBody: string = $derived(formatBody(item));
+	let formattedBody: { body: string; language: string } = $derived(formatBody(item));
 
 	const copyTab = () => {
 		copy(tab.innerText);
@@ -87,11 +87,11 @@
 		<div class="bg-white border mt-1 overflow-auto" bind:this={tab}>
 			{#if activeTab === 0}
 				{#key item}
-					<Highlighted body={formattedBody} />
+					<Highlighted body={formattedBody.body} language={formattedBody.language} />
 				{/key}
 			{:else if activeTab === 1}
 				{#key item}
-					<Highlighted body={item.body} />
+					<Highlighted body={item.body} language={formattedBody.language} />
 				{/key}
 			{:else if activeTab === 2}
 				<table class="m-0 table table-sm">
