@@ -1,6 +1,7 @@
-import { readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'fs';
 import { basename, dirname, join } from 'path';
+import { createHash } from 'crypto';
 import { PurgeCSS } from 'purgecss';
+import { readFileSync, readdirSync, renameSync, statSync, unlinkSync, writeFileSync } from 'fs';
 
 const walkSync = (dir, callback) => {
 	const files = readdirSync(dir);
@@ -27,8 +28,9 @@ const purgeCSSResult = await new PurgeCSS().purge({
 });
 
 for (const purge of purgeCSSResult) {
+	const hash = createHash('md5').update(purge.css).digest('hex');
 	const oldFile = purge.file;
-	const newFile = join(dirname(oldFile), new Date().getTime() + '-' + purgedFiles.length + '.css');
+	const newFile = join(dirname(oldFile), `styles-${hash}.css`);
 
 	writeFileSync(oldFile, purge.css);
 	renameSync(oldFile, newFile);
@@ -37,7 +39,9 @@ for (const purge of purgeCSSResult) {
 
 	purgedFiles.push({
 		oldFile: basename(oldFile),
-		newFile: basename(newFile)
+		newFile: basename(newFile),
+		newFileFullPath: newFile,
+		used: false
 	});
 }
 
@@ -47,7 +51,12 @@ walkSync('./build', (file) => {
 		let newData = data;
 
 		for (const purgedFile of purgedFiles) {
+			const currentData = newData;
 			newData = newData.replace(purgedFile.oldFile, purgedFile.newFile);
+
+			if (newData !== currentData) {
+				purgedFile.used = true;
+			}
 		}
 
 		if (newData != data) {
@@ -56,3 +65,11 @@ walkSync('./build', (file) => {
 		}
 	}
 });
+
+for (const purgedFile of purgedFiles) {
+	if (!purgedFile.used) {
+		const file = purgedFile.newFileFullPath;
+		console.log(`unused ${file}`);
+		unlinkSync(file);
+	}
+}
