@@ -22,6 +22,7 @@ export interface ItemSummary {
 	type?: string;
 	eventId?: number;
 	entityEventId?: number;
+	userAgent?: string;
 }
 
 export interface ItemType {

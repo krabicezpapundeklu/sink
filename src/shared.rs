@@ -172,6 +172,14 @@ impl AppContext {
         system
     }
 
+    pub fn get_user_agent(headers: &[ItemHeader]) -> Option<String> {
+        headers
+            .iter()
+            .filter(|header| header.name == "user-agent")
+            .map(|header| String::from_utf8_lossy(&header.value).into_owned())
+            .next()
+    }
+
     pub async fn new(db: PathBuf) -> Result<Self> {
         #[derive(Deserialize)]
         struct ItemType {
@@ -214,6 +222,7 @@ impl AppContext {
         let item_type = self.get_item_type(&body);
         let event_id = Self::get_event_id(&headers);
         let entity_event_id = self.get_entity_event_id(&body);
+        let user_agent = Self::get_user_agent(&headers);
 
         self.call_db(move |db| {
             let item = NewItem {
@@ -221,6 +230,7 @@ impl AppContext {
                 r#type: item_type,
                 event_id,
                 entity_event_id,
+                user_agent,
                 headers,
                 body: &body,
             };
@@ -338,6 +348,9 @@ pub struct ItemSummary {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub entity_event_id: Option<i64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_agent: Option<String>,
 }
 
 pub struct NewItem<'a> {
@@ -345,6 +358,7 @@ pub struct NewItem<'a> {
     pub r#type: Option<String>,
     pub event_id: Option<i64>,
     pub entity_event_id: Option<i64>,
+    pub user_agent: Option<String>,
     pub headers: Vec<ItemHeader>,
     pub body: &'a [u8],
 }

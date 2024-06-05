@@ -66,10 +66,12 @@ async fn fix_items(db: PathBuf, dry: bool) -> Result<()> {
         let item = app_context.get_item(id).await?;
         let old_item_summary = item.summary;
         let mut new_item_summary = old_item_summary.clone();
+
         new_item_summary.r#type = app_context.get_item_type(&item.body);
         new_item_summary.system = app_context.get_system(&item.headers, &item.body);
         new_item_summary.event_id = AppContext::get_event_id(&item.headers);
         new_item_summary.entity_event_id = app_context.get_entity_event_id(&item.body);
+        new_item_summary.user_agent = AppContext::get_user_agent(&item.headers);
 
         if new_item_summary != old_item_summary {
             println!("{old_item_summary:?} -> {new_item_summary:?}");

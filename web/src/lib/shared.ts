@@ -130,6 +130,29 @@ export function getEntityEventType(id?: number): string {
 	return '';
 }
 
+export function getUserAgent(item: ItemSummary): string {
+	const userAgent = item.userAgent;
+
+	if (userAgent) {
+		if (userAgent.startsWith('AmazonAPIGateway')) {
+			return 'API';
+		}
+
+		if (userAgent.startsWith('insomnia')) {
+			return 'Insomnia';
+		}
+
+		if (userAgent.startsWith('PostmanRuntime')) {
+			return 'Postman';
+		}
+
+		if (userAgent.startsWith('Synapse-')) {
+			return 'WSO';
+		}
+	}
+
+	return '';
+}
 export function itemTypeFromKey(key: string): ItemType {
 	for (const type of ITEM_TYPES) {
 		if (type.key === key) {

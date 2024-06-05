@@ -6,6 +6,7 @@
 		BATCH_SIZE,
 		formatNumber,
 		getEntityEventType,
+		getUserAgent,
 		itemTypeFromKey,
 		loadItem,
 		loadItems,
@@ -219,6 +220,7 @@
 				{#if items.length > 0}
 					<div class="list-group list-group-flush">
 						{#each items as item (item.id)}
+							{@const userAgent = getUserAgent(item)}
 							<a
 								class="list-group-item list-group-item-action"
 								class:active={activeItem && activeItem.id === item.id}
@@ -226,9 +228,12 @@
 								href="{base}/item/{item.id}"
 								onclick={(e) => selectItem(e, item.id)}
 							>
-								<div class="d-flex justify-content-between">
+								<div>
 									<span>#{formatNumber(item.eventId ?? item.id)}</span>
-									<span>{item.submitDate}</span>
+									{#if userAgent}
+										<span class="badge bg-secondary" title={item.userAgent}>{userAgent}</span>
+									{/if}
+									<span class="float-end">{item.submitDate}</span>
 								</div>
 								<div>
 									{#if item.system}

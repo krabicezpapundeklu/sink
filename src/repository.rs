@@ -101,7 +101,7 @@ impl Repository for Connection {
     fn get_item(&self, id: i64) -> Result<Item> {
         let mut stmt = self.prepare_cached(
             "
-            SELECT i.id, i.submit_date, i.system, i.type, i.event_id, i.entity_event_id, ib.body
+            SELECT i.id, i.submit_date, i.system, i.type, i.event_id, i.entity_event_id, i.user_agent, ib.body
             FROM item i JOIN item_body ib ON ib.item_id = i.id WHERE i.id = ?
         ",
         )?;
@@ -114,12 +114,13 @@ impl Repository for Connection {
                 r#type: row.get(3)?,
                 event_id: row.get(4)?,
                 entity_event_id: row.get(5)?,
+                user_agent: row.get(6)?,
             };
 
             Ok(Item {
                 summary,
                 headers: Vec::new(),
-                body: row.get(6)?,
+                body: row.get(7)?,
             })
         })?;
 
@@ -144,8 +145,8 @@ impl Repository for Connection {
     fn get_items(&self, filter: ItemFilter) -> Result<(Vec<ItemSummary>, i32)> {
         let mut builder = QueryBuilder::new(
             "
-                SELECT id, submit_date, system, type, event_id, entity_event_id, total_items FROM (
-                    SELECT id, submit_date, system, type, event_id, entity_event_id, COUNT(1) OVER () total_items FROM item i
+                SELECT id, submit_date, system, type, event_id, entity_event_id, user_agent, total_items FROM (
+                    SELECT id, submit_date, system, type, event_id, entity_event_id, user_agent, COUNT(1) OVER () total_items FROM item i
                     WHERE 1 = 1
             "
             .to_string(),
@@ -243,10 +244,11 @@ impl Repository for Connection {
                 r#type: row.get(3)?,
                 event_id: row.get(4)?,
                 entity_event_id: row.get(5)?,
+                user_agent: row.get(6)?,
             };
 
             items.push(item);
-            total_items = row.get(6)?;
+            total_items = row.get(7)?;
         }
 
         Ok((items, total_items))
@@ -287,14 +289,15 @@ impl Repository for Connection {
 
         {
             let mut stmt = tx.prepare_cached(
-                "INSERT INTO item (system, type, event_id, entity_event_id) VALUES (?, ?, ?, ?)",
+                "INSERT INTO item (system, type, event_id, entity_event_id, user_agent) VALUES (?, ?, ?, ?, ?)",
             )?;
 
             id = stmt.insert(params![
                 &item.system,
                 &item.r#type,
                 &item.event_id,
-                &item.entity_event_id
+                &item.entity_event_id,
+                &item.user_agent
             ])?;
 
             let mut stmt = tx.prepare_cached(
@@ -334,6 +337,10 @@ impl Repository for Connection {
             self.execute("ALTER TABLE item ADD COLUMN entity_event_id INTEGER", [])?;
         }
 
+        if !has_column(self, "item", "user_agent")? {
+            self.execute("ALTER TABLE item ADD COLUMN user_agent TEXT", [])?;
+        }
+
         self.execute_batch(
             "
             CREATE INDEX IF NOT EXISTS idx_item_entity_event_id ON item (entity_event_id);
@@ -342,6 +349,7 @@ impl Repository for Connection {
             CREATE INDEX IF NOT EXISTS idx_item_submit_date ON item (submit_date);
             CREATE INDEX IF NOT EXISTS idx_item_system ON item (system);
             CREATE INDEX IF NOT EXISTS idx_item_type ON item (type);
+            CREATE INDEX IF NOT EXISTS idx_item_user_agent ON item (user_agent);
         ",
         )?;
 
@@ -350,7 +358,7 @@ impl Repository for Connection {
 
     fn update_item(&mut self, item: &ItemSummary) -> Result<usize> {
         let mut stmt = self.prepare_cached(
-            "UPDATE item SET submit_date = ?, type = ?, system = ?, event_id = ?, entity_event_id = ? WHERE id = ?",
+            "UPDATE item SET submit_date = ?, type = ?, system = ?, event_id = ?, entity_event_id = ?, user_agent = ? WHERE id = ?",
         )?;
 
         stmt.execute(params![
@@ -359,6 +367,7 @@ impl Repository for Connection {
             item.system,
             item.event_id,
             item.entity_event_id,
+            item.user_agent,
             item.id
         ])
         .map_err(Into::into)
