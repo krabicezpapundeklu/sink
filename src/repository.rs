@@ -155,7 +155,7 @@ impl Repository for Connection {
         let mut event_id = None;
 
         if let Some(query) = &filter.query {
-            builder.append_sql(" AND (EXISTS (SELECT 1 FROM item_body WHERE item_id = id");
+            builder.append_sql(" AND ((1 = 1");
 
             let terms = parse_query(query);
             let mut id_to_search = None;
@@ -174,10 +174,25 @@ impl Repository for Connection {
                     continue;
                 }
 
+                builder.append_sql(" AND ");
+
                 if term.starts_with(REGEX_PREFIX) {
-                    builder.append_sql(" AND matches(?, body)");
+                    builder.append_sql(
+                        "EXISTS (SELECT 1 FROM item_body WHERE item_id = id AND matches(?, body))",
+                    );
                 } else {
-                    builder.append_sql(" AND body LIKE '%' || ? || '%'");
+                    if let Some(idx) = term.find(':') {
+                        let name = &term[..idx];
+                        let value = &term[idx + 1..];
+
+                        builder.append_sql("(EXISTS (SELECT 1 FROM item_header WHERE item_id = id AND name = ? AND value LIKE '%' || ? || '%') OR ");
+                        builder.append_param(name.to_owned());
+                        builder.append_param(value.to_owned());
+                    } else {
+                        builder.append_sql("(");
+                    }
+
+                    builder.append_sql("EXISTS (SELECT 1 FROM item_body WHERE item_id = id AND body LIKE '%' || ? || '%'))");
                 }
 
                 builder.append_param(term);
