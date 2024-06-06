@@ -114,25 +114,26 @@
 
 <form class="d-flex w-100" onsubmit={search} bind:this={form}>
 	<label class="d-none" for="query">Search</label>
-	<input
-		class="form-control w-25em"
-		id="query"
-		name="query"
-		placeholder="Search"
-		type="search"
-		value={query}
-	/>
-
+	<div class="input-group w-25em">
+		<input
+			class="form-control"
+			id="query"
+			name="query"
+			placeholder="Search"
+			type="text"
+			value={query}
+		/>
+		<button
+			class="btn btn-outline-secondary"
+			type="button"
+			title="Clear Search"
+			onclick={() => clearFilter('query')}>&#x2715;</button
+		>
+	</div>
 	<div class="dropdown ms-2">
 		<div class="btn-group" role="group">
 			<button
-				class="btn btn-outline-secondary"
-				type="button"
-				title="Clear System Filter"
-				onclick={() => clearFilter('system')}>&#x2715;</button
-			>
-			<button
-				class="btn btn-outline-secondary dropdown-toggle"
+				class="btn btn-outline-secondary dropdown-toggle flat-end"
 				type="button"
 				data-bs-toggle="dropdown"
 				data-bs-auto-close="outside"
@@ -148,6 +149,12 @@
 							: `${system.length} selected`}</span
 				>
 			</button>
+			<button
+				class="btn btn-outline-secondary rounded-end"
+				type="button"
+				title="Clear System Filter"
+				onclick={() => clearFilter('system')}>&#x2715;</button
+			>
 			<div class="bg-white dropdown-menu p-0 shadow-sm">
 				<ul class="list-group">
 					{#each systems as s, i}
@@ -172,13 +179,7 @@
 	<div class="dropdown ms-2">
 		<div class="btn-group" role="group">
 			<button
-				class="btn btn-outline-secondary"
-				type="button"
-				title="Clear Type Filter"
-				onclick={() => clearFilter('type', 'eventType')}>&#x2715;</button
-			>
-			<button
-				class="btn btn-outline-secondary dropdown-toggle"
+				class="btn btn-outline-secondary dropdown-toggle flat-end"
 				type="button"
 				data-bs-toggle="dropdown"
 				data-bs-auto-close="outside"
@@ -194,6 +195,12 @@
 							: `${type.length} selected`}</span
 				>
 			</button>
+			<button
+				class="btn btn-outline-secondary rounded-end"
+				type="button"
+				title="Clear Type Filter"
+				onclick={() => clearFilter('type', 'eventType')}>&#x2715;</button
+			>
 			<div class="bg-white dropdown-menu p-0 shadow-sm">
 				<ul class="list-group">
 					{#each ITEM_TYPES as t, i}
@@ -219,13 +226,7 @@
 		<div class="dropdown ms-2">
 			<div class="btn-group" role="group">
 				<button
-					class="btn btn-outline-secondary"
-					type="button"
-					title="Clear Event Type Filter"
-					onclick={() => clearFilter('eventType')}>&#x2715;</button
-				>
-				<button
-					class="btn btn-outline-secondary dropdown-toggle"
+					class="btn btn-outline-secondary dropdown-toggle flat-end"
 					type="button"
 					data-bs-toggle="dropdown"
 					data-bs-auto-close="outside"
@@ -237,6 +238,12 @@
 						{eventType.length === 0 ? 'All' : `${eventType.length} selected`}</span
 					>
 				</button>
+				<button
+					class="btn btn-outline-secondary rounded-end"
+					type="button"
+					title="Clear Event Type Filter"
+					onclick={() => clearFilter('eventType')}>&#x2715;</button
+				>
 				<div class="dropdown-menu mh-30em mw-25em overflow-auto p-0 shadow-sm">
 					<div class="accordion accordion-flush overflow-hidden">
 						{#each EVENT_TYPES as eventGroup}
@@ -294,13 +301,7 @@
 	<div class="ms-2">
 		<div class="btn-group" role="group">
 			<button
-				class="btn btn-outline-secondary"
-				type="button"
-				title="Clear Date Filter"
-				onclick={() => clearFilter('from', 'to')}>&#x2715;</button
-			>
-			<button
-				class="btn btn-outline-secondary dropdown-toggle"
+				class="btn btn-outline-secondary dropdown-toggle flat-end"
 				type="button"
 				onclick={() => dateFilter.showPicker()}
 			>
@@ -309,6 +310,12 @@
 					{selectedDate ? selectedDate : 'All'}
 				</span>
 			</button>
+			<button
+				class="btn btn-outline-secondary rounded-end"
+				type="button"
+				title="Clear Date Filter"
+				onclick={() => clearFilter('from', 'to')}>&#x2715;</button
+			>
 			<input class="date-filter" type="date" bind:this={dateFilter} onchange={search} />
 		</div>
 	</div>

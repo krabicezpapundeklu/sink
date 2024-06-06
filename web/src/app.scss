@@ -53,9 +53,11 @@ $link-color: #0a58ca;
 
 :root {
 	--bs-body-bg: #f5f5f5;
+	--bs-border-color: #d0d0d0;
 }
 
 .btn-outline-secondary {
+	--bs-btn-border-color: var(--bs-border-color);
 	--bs-btn-color: #606060;
 }
 
@@ -63,6 +65,11 @@ $link-color: #0a58ca;
 	margin-top: 10px;
 	position: absolute;
 	visibility: hidden;
+}
+
+.flat-end {
+	border-end-end-radius: 0;
+	border-start-end-radius: 0;
 }
 
 .mh-30em {
