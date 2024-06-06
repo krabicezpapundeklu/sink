@@ -342,7 +342,7 @@
 		<a
 			class="ps-2"
 			href="https://github.com/krabicezpapundeklu/sink/releases/{version
-				? `tags/${version}`
+				? `tag/${version}`
 				: 'latest'}"
 			target="_blank">{version ?? 'DEV'}</a
 		>
