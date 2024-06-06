@@ -2,7 +2,7 @@ use std::mem::take;
 
 use anyhow::Result;
 use regex::bytes::Regex;
-use rusqlite::{functions::FunctionFlags, params, params_from_iter, types::Value, Connection};
+use rusqlite::{functions::FunctionFlags, params, params_from_iter, types::Value, Connection, Row};
 
 use crate::shared::{Item, ItemFilter, ItemHeader, ItemSummary, NewItem};
 
@@ -107,18 +107,8 @@ impl Repository for Connection {
         )?;
 
         let mut item = stmt.query_row([id], |row| {
-            let summary = ItemSummary {
-                id: row.get(0)?,
-                submit_date: row.get(1)?,
-                system: row.get(2)?,
-                r#type: row.get(3)?,
-                event_id: row.get(4)?,
-                entity_event_id: row.get(5)?,
-                user_agent: row.get(6)?,
-            };
-
             Ok(Item {
-                summary,
+                summary: map_item_summary(row)?,
                 headers: Vec::new(),
                 body: row.get(7)?,
             })
@@ -152,36 +142,27 @@ impl Repository for Connection {
             .to_string(),
         );
 
-        let mut event_id = None;
-
         if let Some(query) = &filter.query {
             builder.append_sql(" AND ((1 = 1");
 
-            let terms = parse_query(query);
-            let mut id_to_search = None;
-
-            if terms.len() == 1 {
-                if let Some(the_only_term) = terms.first() {
-                    if let Ok(id) = the_only_term.parse::<i64>() {
-                        id_to_search = Some(id);
-                    }
-                }
-            }
-
-            for term in terms {
-                if term.starts_with(EVENT_ID_PREFIX) {
-                    event_id = term.strip_prefix(EVENT_ID_PREFIX).map(ToOwned::to_owned);
-                    continue;
-                }
-
+            for term in parse_query(query) {
                 builder.append_sql(" AND ");
 
-                if term.starts_with(REGEX_PREFIX) {
+                if term.starts_with(EVENT_ID_PREFIX) {
+                    builder.append_sql("event_id = ?");
+                    builder.append_param(term.strip_prefix(EVENT_ID_PREFIX).map(ToOwned::to_owned));
+                } else if term.starts_with(REGEX_PREFIX) {
                     builder.append_sql(
                         "EXISTS (SELECT 1 FROM item_body WHERE item_id = id AND matches(?, body))",
                     );
+
+                    builder.append_param(term);
                 } else {
-                    if let Some(idx) = term.find(':') {
+                    if let Ok(id) = term.parse::<i64>() {
+                        builder.append_sql("(id = ? OR event_id = ? OR ");
+                        builder.append_param(id);
+                        builder.append_param(id);
+                    } else if let Some(idx) = term.find(':') {
                         let name = &term[..idx];
                         let value = &term[idx + 1..];
 
@@ -193,20 +174,11 @@ impl Repository for Connection {
                     }
 
                     builder.append_sql("EXISTS (SELECT 1 FROM item_body WHERE item_id = id AND body LIKE '%' || ? || '%'))");
+                    builder.append_param(term);
                 }
-
-                builder.append_param(term);
             }
 
-            builder.append_sql(")");
-
-            if let Some(id) = id_to_search {
-                builder.append_sql(" OR id = ? OR event_id = ?");
-                builder.append_param(id);
-                builder.append_param(id);
-            }
-
-            builder.append_sql(")");
+            builder.append_sql("))");
         }
 
         if let Some(system) = &filter.system {
@@ -222,8 +194,6 @@ impl Repository for Connection {
                 .append_list(r#type.split(',').map(ToString::to_string))
                 .append_sql(")");
         }
-
-        builder.append_if_is_some(" AND event_id = ?", event_id);
 
         if let Some(event_type) = &filter.event_type {
             builder.append_sql(
@@ -252,17 +222,7 @@ impl Repository for Connection {
         let mut total_items = 0;
 
         while let Some(row) = rows.next()? {
-            let item = ItemSummary {
-                id: row.get(0)?,
-                submit_date: row.get(1)?,
-                system: row.get(2)?,
-                r#type: row.get(3)?,
-                event_id: row.get(4)?,
-                entity_event_id: row.get(5)?,
-                user_agent: row.get(6)?,
-            };
-
-            items.push(item);
+            items.push(map_item_summary(row)?);
             total_items = row.get(7)?;
         }
 
@@ -397,6 +357,18 @@ fn has_column(db: &Connection, table: &str, column: &str) -> Result<bool> {
     )?;
 
     Ok(count > 0)
+}
+
+fn map_item_summary(row: &Row) -> rusqlite::Result<ItemSummary> {
+    Ok(ItemSummary {
+        id: row.get(0)?,
+        submit_date: row.get(1)?,
+        system: row.get(2)?,
+        r#type: row.get(3)?,
+        event_id: row.get(4)?,
+        entity_event_id: row.get(5)?,
+        user_agent: row.get(6)?,
+    })
 }
 
 fn parse_query(query: &str) -> Vec<String> {
