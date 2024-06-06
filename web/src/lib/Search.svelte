@@ -156,22 +156,25 @@
 				onclick={() => clearFilter('system')}>&#x2715;</button
 			>
 			<div class="bg-white dropdown-menu p-0 shadow-sm">
-				<ul class="list-group">
-					{#each systems as s, i}
-						<li class="border-0 list-group-item list-group-item-action text-nowrap p-1">
-							<input
-								class="form-check-input m-1"
-								id="system-{i}"
-								name="system"
-								type="checkbox"
-								value={s}
-								bind:group={system}
-								onchange={search}
-							/>
-							<label class="form-check-label me-1 stretched-link" for="system-{i}">{s}</label>
-						</li>
-					{/each}
-				</ul>
+				<fieldset>
+					<legend class="visually-hidden">System</legend>
+					<ul class="list-group">
+						{#each systems as s, i}
+							<li class="border-0 list-group-item list-group-item-action text-nowrap p-1">
+								<input
+									class="form-check-input m-1"
+									id="system-{i}"
+									name="system"
+									type="checkbox"
+									value={s}
+									bind:group={system}
+									onchange={search}
+								/>
+								<label class="form-check-label me-1 stretched-link" for="system-{i}">{s}</label>
+							</li>
+						{/each}
+					</ul>
+				</fieldset>
 			</div>
 		</div>
 	</div>
@@ -202,22 +205,25 @@
 				onclick={() => clearFilter('type', 'eventType')}>&#x2715;</button
 			>
 			<div class="bg-white dropdown-menu p-0 shadow-sm">
-				<ul class="list-group">
-					{#each ITEM_TYPES as t, i}
-						<li class="border-0 list-group-item list-group-item-action text-nowrap p-1">
-							<input
-								class="form-check-input m-1"
-								id="type-{i}"
-								name="type"
-								type="checkbox"
-								value={t.key}
-								bind:group={type}
-								onchange={search}
-							/>
-							<label class="form-check-label me-1 stretched-link" for="type-{i}">{t.name}</label>
-						</li>
-					{/each}
-				</ul>
+				<fieldset>
+					<legend class="visually-hidden">Type</legend>
+					<ul class="list-group">
+						{#each ITEM_TYPES as t, i}
+							<li class="border-0 list-group-item list-group-item-action text-nowrap p-1">
+								<input
+									class="form-check-input m-1"
+									id="type-{i}"
+									name="type"
+									type="checkbox"
+									value={t.key}
+									bind:group={type}
+									onchange={search}
+								/>
+								<label class="form-check-label me-1 stretched-link" for="type-{i}">{t.name}</label>
+							</li>
+						{/each}
+					</ul>
+				</fieldset>
 			</div>
 		</div>
 	</div>
@@ -246,52 +252,55 @@
 				>
 				<div class="dropdown-menu mh-30em mw-25em overflow-auto p-0 shadow-sm">
 					<div class="accordion accordion-flush overflow-hidden">
-						{#each EVENT_TYPES as eventGroup}
-							{@const selected = selectedEventGroups.indexOf(eventGroup.name) !== -1}
-							<div class="accordion-item">
-								<h2 class="accordion-header">
-									<button
-										class="accordion-button bg-white"
-										type="button"
-										data-bs-toggle="collapse"
-										data-bs-target="#eventGroup-{eventGroup.name}"
-										aria-expanded={selected}
-										aria-controls="#eventGroup-{eventGroup.name}"
-										class:collapsed={!selected}
-										class:fw-bold={isSelected(eventGroup, eventType)}
+						<fieldset>
+							<legend class="visually-hidden">Event Type</legend>
+							{#each EVENT_TYPES as eventGroup}
+								{@const selected = selectedEventGroups.indexOf(eventGroup.name) !== -1}
+								<div class="accordion-item">
+									<h2 class="accordion-header">
+										<button
+											class="accordion-button bg-white"
+											type="button"
+											data-bs-toggle="collapse"
+											data-bs-target="#eventGroup-{eventGroup.name}"
+											aria-expanded={selected}
+											aria-controls="#eventGroup-{eventGroup.name}"
+											class:collapsed={!selected}
+											class:fw-bold={isSelected(eventGroup, eventType)}
+										>
+											{eventGroup.name}
+										</button>
+									</h2>
+									<div
+										id="eventGroup-{eventGroup.name}"
+										class="accordion-collapse collapse {selected ? 'show' : ''}"
 									>
-										{eventGroup.name}
-									</button>
-								</h2>
-								<div
-									id="eventGroup-{eventGroup.name}"
-									class="accordion-collapse collapse {selected ? 'show' : ''}"
-								>
-									<div class="accordion-body p-0">
-										<ul class="list-group list-group-flush">
-											{#each eventGroup.types as t}
-												<li
-													class="border-bottom-0 list-group-item list-group-item-action text-nowrap"
-												>
-													<input
-														class="form-check-input me-1"
-														id="eventType-{t.id}"
-														name="eventType"
-														type="checkbox"
-														value={t.id}
-														bind:group={eventType}
-														onchange={search}
-													/>
-													<label class="form-check-label stretched-link" for="eventType-{t.id}"
-														>{t.id} - {t.name}</label
+										<div class="accordion-body p-0">
+											<ul class="list-group list-group-flush">
+												{#each eventGroup.types as t}
+													<li
+														class="border-bottom-0 list-group-item list-group-item-action text-nowrap"
 													>
-												</li>
-											{/each}
-										</ul>
+														<input
+															class="form-check-input me-1"
+															id="eventType-{t.id}"
+															name="eventType"
+															type="checkbox"
+															value={t.id}
+															bind:group={eventType}
+															onchange={search}
+														/>
+														<label class="form-check-label stretched-link" for="eventType-{t.id}"
+															>{t.id} - {t.name}</label
+														>
+													</li>
+												{/each}
+											</ul>
+										</div>
 									</div>
 								</div>
-							</div>
-						{/each}
+							{/each}
+						</fieldset>
 					</div>
 				</div>
 			</div>
