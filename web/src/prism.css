@@ -12,7 +12,6 @@ pre[class*='language-'] {
 	background: none;
 	text-shadow: 0 1px white;
 	font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
-	font-size: 1em;
 	text-align: left;
 	white-space: pre;
 	word-spacing: normal;
@@ -76,11 +75,11 @@ pre[class*='language-'] {
 .token.prolog,
 .token.doctype,
 .token.cdata {
-	color: slategray;
+	color: green;
 }
 
 .token.punctuation {
-	color: #999;
+	color: black;
 }
 
 .token.namespace {
@@ -94,7 +93,7 @@ pre[class*='language-'] {
 .token.constant,
 .token.symbol,
 .token.deleted {
-	color: #905;
+	color: #0550ae;
 }
 
 .token.selector,
@@ -103,7 +102,7 @@ pre[class*='language-'] {
 .token.char,
 .token.builtin,
 .token.inserted {
-	color: #690;
+	color: #0a3069;
 }
 
 .token.operator,
@@ -119,7 +118,7 @@ pre[class*='language-'] {
 .token.atrule,
 .token.attr-value,
 .token.keyword {
-	color: #07a;
+	color: #0550ae;
 }
 
 .token.function,

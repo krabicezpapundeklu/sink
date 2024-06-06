@@ -316,15 +316,26 @@
 				title="Clear Date Filter"
 				onclick={() => clearFilter('from', 'to')}>&#x2715;</button
 			>
-			<input class="date-filter" type="date" bind:this={dateFilter} onchange={search} />
+			<label class="visually-hidden" for="date-filter"
+				>Date: {selectedDate ? selectedDate : 'All'}</label
+			>
+			<input
+				class="date-filter"
+				id="date-filter"
+				type="date"
+				bind:this={dateFilter}
+				onchange={search}
+			/>
 		</div>
 	</div>
 
 	<div class="ms-auto my-auto">
 		<a
 			class="ps-2"
-			href="https://github.com/krabicezpapundeklu/sink/releases/tag/{version}"
-			target="_blank">{version}</a
+			href="https://github.com/krabicezpapundeklu/sink/releases/{version
+				? `tags/${version}`
+				: 'latest'}"
+			target="_blank">{version ?? 'DEV'}</a
 		>
 	</div>
 </form>
