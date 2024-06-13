@@ -6,11 +6,11 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.86"
 axum = "0.7.5"
-clap = { version = "4.5.4", features = ["derive"] }
+clap = { version = "4.5.7", features = ["derive"] }
 const_format = "0.2.32"
 deadpool = "0.12.1"
 libc = "0.2.155"
-regex = "1.10.4"
+regex = "1.10.5"
 rusqlite = { version = "0.31.0", features = ["bundled", "functions"] }
 rust-embed = { version = "8.4.0", features = ["include-exclude", "mime-guess"] }
 serde = { version = "1.0.203", features = ["derive"] }
@@ -22,7 +22,7 @@ tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 
 [build-dependencies]
-cc = "1.0.98"
+cc = "1.0.99"
 static-files = "0.2.3"
 
 [profile.release]
