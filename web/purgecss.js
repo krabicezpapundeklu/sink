@@ -23,7 +23,6 @@ let purgedFiles = [];
 const purgeCSSResult = await new PurgeCSS().purge({
 	content: ['./build/**/*.js'],
 	css: ['./build/**/*.css'],
-	safelist: [/^hljs/],
 	variables: true
 });
 
