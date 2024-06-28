@@ -3,6 +3,7 @@ use std::mem::take;
 use anyhow::Result;
 use regex::bytes::Regex;
 use rusqlite::{functions::FunctionFlags, params, params_from_iter, types::Value, Connection, Row};
+use tracing::trace;
 
 use crate::shared::{Item, ItemFilter, ItemHeader, ItemSummary, NewItem};
 
@@ -215,8 +216,13 @@ impl Repository for Connection {
 
         builder.append_if_is_some(" LIMIT ?", filter.batch_size);
 
-        let mut stmt = self.prepare(builder.sql())?;
-        let mut rows = stmt.query(params_from_iter(builder.params()))?;
+        let sql = builder.sql();
+        let params = builder.params();
+
+        trace!(sql = %sql, params = ?params);
+
+        let mut stmt = self.prepare(sql)?;
+        let mut rows = stmt.query(params_from_iter(params))?;
 
         let mut items = Vec::new();
         let mut total_items = 0;
