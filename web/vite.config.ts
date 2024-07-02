@@ -1,3 +1,4 @@
+import { isoImport } from 'vite-plugin-iso-import';
 import { sveltekit } from '@sveltejs/kit/vite';
 import type { UserConfig } from 'vite';
 
@@ -15,7 +16,7 @@ const config: UserConfig = {
 		}
 	},
 	envPrefix: 'CARGO_',
-	plugins: [sveltekit()],
+	plugins: [isoImport(), sveltekit()],
 	server: {
 		proxy: {
 			'/sink/api': 'http://127.0.0.1:8080'

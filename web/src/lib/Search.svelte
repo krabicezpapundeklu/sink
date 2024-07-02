@@ -1,8 +1,8 @@
 <script lang="ts">
 	import EVENT_TYPES from '../../../event.types.json';
 
-	import 'bootstrap/js/dist/collapse';
-	import 'bootstrap/js/dist/dropdown';
+	import 'bootstrap/js/dist/collapse?client';
+	import 'bootstrap/js/dist/dropdown?client';
 
 	import { ITEM_TYPES, itemTypeFromKey } from '$lib/shared';
 
