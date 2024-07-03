@@ -212,8 +212,12 @@
 						value={asc}
 						onchange={toggleSortBy}
 					>
-						<option value={false} selected={!asc}>Latest</option>
-						<option value={true} selected={asc}>Oldest</option>
+						{#if building}
+							<option>#sort_by#</option>
+						{:else}
+							<option value={false} selected={!asc}>Latest</option>
+							<option value={true} selected={asc}>Oldest</option>
+						{/if}
 					</select>
 				</div>
 			</div>

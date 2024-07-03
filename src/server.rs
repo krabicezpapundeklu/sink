@@ -174,13 +174,20 @@ async fn get_index(
         initial_uri.push_str(query);
     }
 
+    let sort_by = if filter.asc.unwrap_or(false) {
+        "Oldest"
+    } else {
+        "Latest"
+    };
+
     let items = app_context.get_items(filter).await?;
 
     render_page!(
         "index.html",
         items,
         &initial_uri,
-        "#total_items#" = &items.total_items.to_formatted_string(&Locale::en)
+        "#total_items#" = &items.total_items.to_formatted_string(&Locale::en),
+        "#sort_by#" = sort_by
     )
 }
 
