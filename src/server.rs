@@ -10,12 +10,13 @@ use axum::{
         uri::PathAndQuery,
         HeaderMap, StatusCode, Uri,
     },
-    response::{IntoResponse, Redirect, Response},
+    response::{Html, IntoResponse, Redirect, Response},
     routing::get,
     serve, Json, Router,
 };
 
 use const_format::concatcp;
+use num_format::{Locale, ToFormattedString};
 use rust_embed::RustEmbed;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
@@ -139,10 +140,13 @@ async fn get_index(
     State(app_context): State<AppContext>,
     filter: Query<ItemFilter>,
     uri: Uri,
-) -> Result<Response, AppError> {
+) -> Result<Html<String>, AppError> {
     let mut filter = filter.0;
+
     filter.load_first_item = Some(true);
+
     let items = app_context.get_items(filter).await?;
+    let initial_data = serde_json::to_string(&serde_json::to_string(&items)?)?;
 
     let mut initial_uri = format!("{BASE}/api/items?batchSize=51&loadFirstItem=true");
 
@@ -151,44 +155,39 @@ async fn get_index(
         initial_uri.push_str(query);
     }
 
-    let initial_data = format!(
-        r#"<script type="application/json" data-sveltekit-fetched data-url="{initial_uri}">
-            {{"status": 200, "statusText": "OK", "headers": {{}}, "body": {}}}
-            </script>"#,
-        serde_json::to_string(&serde_json::to_string(&items)?)?
-    );
-
     let page = Assets::get("index.html").unwrap();
 
-    let body = app_context
-        .initial_data_pattern
-        .replace(&page.data, initial_data.as_bytes())
-        .to_vec();
+    let body = String::from_utf8_lossy(&page.data)
+        .replace("#initial_data_url#", &initial_uri)
+        .replace(
+            "#initial_data_body#",
+            &initial_data[1..initial_data.len() - 1],
+        )
+        .replace(
+            "#total_items#",
+            &items.total_items.to_formatted_string(&Locale::en),
+        );
 
-    Ok(([(CONTENT_TYPE, page.metadata.mimetype())], body).into_response())
+    Ok(Html(body))
 }
 
 async fn get_item(
     State(app_context): State<AppContext>,
     Path(id): Path<i64>,
-) -> Result<Response, AppError> {
+) -> Result<Html<String>, AppError> {
     let item = app_context.get_item(id).await?;
-
-    let initial_data = format!(
-        r#"<script type="application/json" data-sveltekit-fetched data-url="{BASE}/api/item/{id}">
-            {{"status": 200, "statusText": "OK", "headers": {{}}, "body": {}}}
-            </script>"#,
-        serde_json::to_string(&serde_json::to_string(&item)?)?
-    );
-
+    let initial_data = serde_json::to_string(&serde_json::to_string(&item)?)?;
     let page = Assets::get("item/0.html").unwrap();
 
-    let body = app_context
-        .initial_data_pattern
-        .replace(&page.data, initial_data.as_bytes())
-        .to_vec();
+    let body = String::from_utf8_lossy(&page.data)
+        .replace("#initial_data_url#", &format!("{BASE}/api/item/{id}"))
+        .replace(
+            "#initial_data_body#",
+            &initial_data[1..initial_data.len() - 1],
+        )
+        .replace("#id#", &id.to_formatted_string(&Locale::en));
 
-    Ok(([(CONTENT_TYPE, page.metadata.mimetype())], body).into_response())
+    Ok(Html(body))
 }
 
 pub async fn start(host: &str, port: u16, db: PathBuf) -> Result<()> {

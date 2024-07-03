@@ -34,7 +34,7 @@
 
 <div class="d-flex flex-column mh-100 p-2">
 	<div class="bg-white border p-2 rounded shadow-sm">
-		<span class="fs-3">#{formatNumber(item.eventId ?? item.id)}</span>
+		<span class="fs-3">#{building ? '#id#' : formatNumber(item.eventId ?? item.id)}</span>
 		{#if item.userAgent}
 			<span class="badge bg-secondary">{item.userAgent}</span>
 		{/if}

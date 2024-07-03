@@ -10,6 +10,7 @@ clap = { version = "4.5.7", features = ["derive"] }
 const_format = "0.2.32"
 deadpool = "0.12.1"
 libc = "0.2.155"
+num-format = "0.4.4"
 regex = "1.10.5"
 rusqlite = { version = "0.31.0", features = ["bundled", "functions"] }
 rust-embed = { version = "8.4.0", features = ["include-exclude", "mime-guess"] }

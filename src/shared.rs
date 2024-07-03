@@ -18,7 +18,6 @@ pub struct AppContext {
     pub item_types: Vec<(String, usize)>,
     pub item_type_patterns: RegexSet,
     pub system_pattern: Regex,
-    pub initial_data_pattern: Regex,
     pub entity_event_id_pattern: Regex,
 }
 
@@ -172,7 +171,6 @@ impl AppContext {
                     .flat_map(|item_type| item_type.matches.iter()),
             )?,
             system_pattern: Regex::new("<mgsSystem>([^<]+)")?,
-            initial_data_pattern: Regex::new(r"<!--\s*%INITIAL_DATA%\s*-->")?,
             entity_event_id_pattern: Regex::new(r#""entityEventId"\s*:\s*(\d+)"#)?,
         };
 

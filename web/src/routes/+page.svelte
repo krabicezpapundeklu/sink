@@ -202,7 +202,7 @@
 	<div class="d-flex flex-fill overflow-hidden">
 		<div class="bg-white border d-flex flex-column me-0 m-2 mw-25em rounded shadow-sm">
 			<div class="align-items-center border-bottom d-flex justify-content-between p-2">
-				<div>{formatNumber(totalItems)} Items</div>
+				<div>{building ? '#total_items#' : formatNumber(totalItems)} Items</div>
 				<div class="d-flex">
 					<label class="form-label m-auto me-2 text-nowrap" for="asc">Sort By</label>
 					<select
