@@ -1,5 +1,6 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::OnceLock};
 
+use aho_corasick::{AhoCorasick, MatchKind::LeftmostFirst};
 use anyhow::{Error, Result};
 
 use axum::{
@@ -140,13 +141,12 @@ async fn get_index(
     State(app_context): State<AppContext>,
     filter: Query<ItemFilter>,
     uri: Uri,
-) -> Result<Html<String>, AppError> {
+) -> Result<Html<Vec<u8>>, AppError> {
+    static AC: OnceLock<AhoCorasick> = OnceLock::new();
+
     let mut filter = filter.0;
 
     filter.load_first_item = Some(true);
-
-    let items = app_context.get_items(filter).await?;
-    let initial_data = serde_json::to_string(&serde_json::to_string(&items)?)?;
 
     let mut initial_uri = format!("{BASE}/api/items?batchSize=51&loadFirstItem=true");
 
@@ -155,18 +155,25 @@ async fn get_index(
         initial_uri.push_str(query);
     }
 
+    let items = app_context.get_items(filter).await?;
+    let initial_data = serde_json::to_string(&serde_json::to_string(&items)?)?;
+
+    let replacements = &[
+        &initial_uri,
+        &initial_data[1..initial_data.len() - 1],
+        &items.total_items.to_formatted_string(&Locale::en),
+    ];
+
     let page = Assets::get("index.html").unwrap();
 
-    let body = String::from_utf8_lossy(&page.data)
-        .replace("#initial_data_url#", &initial_uri)
-        .replace(
-            "#initial_data_body#",
-            &initial_data[1..initial_data.len() - 1],
-        )
-        .replace(
-            "#total_items#",
-            &items.total_items.to_formatted_string(&Locale::en),
-        );
+    let body = AC
+        .get_or_init(|| {
+            AhoCorasick::builder()
+                .match_kind(LeftmostFirst)
+                .build(["#initial_data_url#", "#initial_data_body#", "#total_items#"])
+                .unwrap()
+        })
+        .replace_all_bytes(&page.data, replacements);
 
     Ok(Html(body))
 }
@@ -174,18 +181,28 @@ async fn get_index(
 async fn get_item(
     State(app_context): State<AppContext>,
     Path(id): Path<i64>,
-) -> Result<Html<String>, AppError> {
+) -> Result<Html<Vec<u8>>, AppError> {
+    static AC: OnceLock<AhoCorasick> = OnceLock::new();
+
     let item = app_context.get_item(id).await?;
     let initial_data = serde_json::to_string(&serde_json::to_string(&item)?)?;
+
+    let replacements = &[
+        &format!("{BASE}/api/item/{id}"),
+        &initial_data[1..initial_data.len() - 1],
+        &id.to_formatted_string(&Locale::en),
+    ];
+
     let page = Assets::get("item/0.html").unwrap();
 
-    let body = String::from_utf8_lossy(&page.data)
-        .replace("#initial_data_url#", &format!("{BASE}/api/item/{id}"))
-        .replace(
-            "#initial_data_body#",
-            &initial_data[1..initial_data.len() - 1],
-        )
-        .replace("#id#", &id.to_formatted_string(&Locale::en));
+    let body = AC
+        .get_or_init(|| {
+            AhoCorasick::builder()
+                .match_kind(LeftmostFirst)
+                .build(["#initial_data_url#", "#initial_data_body#", "#id#"])
+                .unwrap()
+        })
+        .replace_all_bytes(&page.data, replacements);
 
     Ok(Html(body))
 }
