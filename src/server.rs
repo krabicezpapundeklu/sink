@@ -28,6 +28,27 @@ use crate::shared::{AppContext, Item, ItemFilter, ItemHeader, ItemSearchResult, 
 
 struct AppError(Error);
 
+macro_rules! render_page {
+    ($page:expr, $data:expr, $data_url:expr, $($name:literal = $value:expr),*) => {{
+        static AC: OnceLock<AhoCorasick> = OnceLock::new();
+
+        let initial_data = serde_json::to_string(&serde_json::to_string(&$data)?)?;
+        let replacements = &[$data_url, &initial_data[1..initial_data.len() - 1], $($value),*];
+        let page = Assets::get($page).unwrap();
+
+        let body = AC
+            .get_or_init(|| {
+                AhoCorasick::builder()
+                    .match_kind(LeftmostFirst)
+                    .build(["#initial_data_url#", "#initial_data_body#", $($name),*])
+                    .unwrap()
+            })
+            .replace_all_bytes(&page.data, replacements);
+
+        Ok(Html(body))
+    }};
+}
+
 impl<E> From<E> for AppError
 where
     E: Into<Error>,
@@ -142,8 +163,6 @@ async fn get_index(
     filter: Query<ItemFilter>,
     uri: Uri,
 ) -> Result<Html<Vec<u8>>, AppError> {
-    static AC: OnceLock<AhoCorasick> = OnceLock::new();
-
     let mut filter = filter.0;
 
     filter.load_first_item = Some(true);
@@ -156,55 +175,27 @@ async fn get_index(
     }
 
     let items = app_context.get_items(filter).await?;
-    let initial_data = serde_json::to_string(&serde_json::to_string(&items)?)?;
 
-    let replacements = &[
+    render_page!(
+        "index.html",
+        items,
         &initial_uri,
-        &initial_data[1..initial_data.len() - 1],
-        &items.total_items.to_formatted_string(&Locale::en),
-    ];
-
-    let page = Assets::get("index.html").unwrap();
-
-    let body = AC
-        .get_or_init(|| {
-            AhoCorasick::builder()
-                .match_kind(LeftmostFirst)
-                .build(["#initial_data_url#", "#initial_data_body#", "#total_items#"])
-                .unwrap()
-        })
-        .replace_all_bytes(&page.data, replacements);
-
-    Ok(Html(body))
+        "#total_items#" = &items.total_items.to_formatted_string(&Locale::en)
+    )
 }
 
 async fn get_item(
     State(app_context): State<AppContext>,
     Path(id): Path<i64>,
 ) -> Result<Html<Vec<u8>>, AppError> {
-    static AC: OnceLock<AhoCorasick> = OnceLock::new();
-
     let item = app_context.get_item(id).await?;
-    let initial_data = serde_json::to_string(&serde_json::to_string(&item)?)?;
 
-    let replacements = &[
+    render_page!(
+        "item/0.html",
+        item,
         &format!("{BASE}/api/item/{id}"),
-        &initial_data[1..initial_data.len() - 1],
-        &id.to_formatted_string(&Locale::en),
-    ];
-
-    let page = Assets::get("item/0.html").unwrap();
-
-    let body = AC
-        .get_or_init(|| {
-            AhoCorasick::builder()
-                .match_kind(LeftmostFirst)
-                .build(["#initial_data_url#", "#initial_data_body#", "#id#"])
-                .unwrap()
-        })
-        .replace_all_bytes(&page.data, replacements);
-
-    Ok(Html(body))
+        "#id#" = &id.to_formatted_string(&Locale::en)
+    )
 }
 
 pub async fn start(host: &str, port: u16, db: PathBuf) -> Result<()> {
