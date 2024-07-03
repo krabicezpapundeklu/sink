@@ -9,10 +9,13 @@ const config = {
 	preprocess: vitePreprocess(),
 	kit: {
 		adapter: adapter({
-			fallback: 'index.html'
+			fallback: 'fallback.html'
 		}),
 		paths: {
 			base: '/sink'
+		},
+		prerender: {
+			entries: ['/', '/item/0']
 		}
 	}
 };

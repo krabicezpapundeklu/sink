@@ -66,14 +66,34 @@ impl<T> ResultExt<T> for Result<T> {
     }
 }
 
-async fn get_asset(State(app_context): State<AppContext>, uri: Uri) -> Result<Response, AppError> {
+mod api {
+    use super::{
+        AppContext, Item, ItemFilter, ItemSearchResult, JsonResponse, Path, Query, ResultExt, State,
+    };
+
+    pub async fn get_item(
+        State(app_context): State<AppContext>,
+        Path(id): Path<i64>,
+    ) -> JsonResponse<Item> {
+        app_context.get_item(id).await.to_json_response()
+    }
+
+    pub async fn get_items(
+        State(app_context): State<AppContext>,
+        filter: Query<ItemFilter>,
+    ) -> JsonResponse<ItemSearchResult> {
+        app_context.get_items(filter.0).await.to_json_response()
+    }
+}
+
+async fn get_asset(uri: Uri) -> Result<Response, AppError> {
     let original_path = uri.path();
 
     let path = original_path
         .trim_start_matches(concatcp!(BASE, '/'))
         .trim_start_matches('/');
 
-    let mut asset = if path == "index.html" {
+    let mut asset = if path == "fallback.html" {
         None
     } else {
         Assets::get(path)
@@ -90,7 +110,7 @@ async fn get_asset(State(app_context): State<AppContext>, uri: Uri) -> Result<Re
             .into_response());
         }
 
-        asset = Assets::get("index.html");
+        asset = Assets::get("fallback.html");
     }
 
     let response = if let Some(content) = asset {
@@ -105,20 +125,6 @@ async fn get_asset(State(app_context): State<AppContext>, uri: Uri) -> Result<Re
                 content.data,
             )
                 .into_response()
-        } else if let Ok(Some((url, initial_data))) = app_context.get_initial_data(&uri).await {
-            let initial_data = format!(
-                r#"<script type="application/json" data-sveltekit-fetched data-url="{url}">
-                    {{"status": 200, "statusText": "OK", "headers": {{}}, "body": {}}}
-                    </script>"#,
-                serde_json::to_string(&initial_data)?
-            );
-
-            let body = app_context
-                .initial_data_pattern
-                .replace(&content.data, initial_data.as_bytes())
-                .to_vec();
-
-            ([(CONTENT_TYPE, mime)], body).into_response()
         } else {
             ([(CONTENT_TYPE, mime)], content.data).into_response()
         }
@@ -129,18 +135,60 @@ async fn get_asset(State(app_context): State<AppContext>, uri: Uri) -> Result<Re
     Ok(response)
 }
 
+async fn get_index(
+    State(app_context): State<AppContext>,
+    filter: Query<ItemFilter>,
+    uri: Uri,
+) -> Result<Response, AppError> {
+    let mut filter = filter.0;
+    filter.load_first_item = Some(true);
+    let items = app_context.get_items(filter).await?;
+
+    let mut initial_uri = format!("{BASE}/api/items?batchSize=51&loadFirstItem=true");
+
+    if let Some(query) = uri.query() {
+        initial_uri.push('&');
+        initial_uri.push_str(query);
+    }
+
+    let initial_data = format!(
+        r#"<script type="application/json" data-sveltekit-fetched data-url="{initial_uri}">
+            {{"status": 200, "statusText": "OK", "headers": {{}}, "body": {}}}
+            </script>"#,
+        serde_json::to_string(&serde_json::to_string(&items)?)?
+    );
+
+    let page = Assets::get("index.html").unwrap();
+
+    let body = app_context
+        .initial_data_pattern
+        .replace(&page.data, initial_data.as_bytes())
+        .to_vec();
+
+    Ok(([(CONTENT_TYPE, page.metadata.mimetype())], body).into_response())
+}
+
 async fn get_item(
     State(app_context): State<AppContext>,
     Path(id): Path<i64>,
-) -> JsonResponse<Item> {
-    app_context.get_item(id).await.to_json_response()
-}
+) -> Result<Response, AppError> {
+    let item = app_context.get_item(id).await?;
 
-async fn get_items(
-    State(app_context): State<AppContext>,
-    filter: Query<ItemFilter>,
-) -> JsonResponse<ItemSearchResult> {
-    app_context.get_items(filter.0).await.to_json_response()
+    let initial_data = format!(
+        r#"<script type="application/json" data-sveltekit-fetched data-url="{BASE}/api/item/{id}">
+            {{"status": 200, "statusText": "OK", "headers": {{}}, "body": {}}}
+            </script>"#,
+        serde_json::to_string(&serde_json::to_string(&item)?)?
+    );
+
+    let page = Assets::get("item/0.html").unwrap();
+
+    let body = app_context
+        .initial_data_pattern
+        .replace(&page.data, initial_data.as_bytes())
+        .to_vec();
+
+    Ok(([(CONTENT_TYPE, page.metadata.mimetype())], body).into_response())
 }
 
 pub async fn start(host: &str, port: u16, db: PathBuf) -> Result<()> {
@@ -149,8 +197,10 @@ pub async fn start(host: &str, port: u16, db: PathBuf) -> Result<()> {
     let app_context = AppContext::new(db).await?;
 
     let app = Router::new()
-        .route(concatcp!(BASE, "/api/item/:id"), get(get_item))
-        .route(concatcp!(BASE, "/api/items"), get(get_items))
+        .route(concatcp!(BASE, "/"), get(get_index))
+        .route(concatcp!(BASE, "/item/:id"), get(get_item))
+        .route(concatcp!(BASE, "/api/item/:id"), get(api::get_item))
+        .route(concatcp!(BASE, "/api/items"), get(api::get_items))
         .fallback(get(get_asset).post(submit_item))
         .with_state(app_context)
         .layer(

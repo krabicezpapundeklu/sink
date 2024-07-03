@@ -13,6 +13,7 @@
 		MILLISECONDS_IN_MINUTE
 	} from '$lib/shared';
 
+	import { building } from '$app/environment';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import Item from '$lib/Item.svelte';
@@ -67,7 +68,7 @@
 	};
 
 	const prefillFilters = () => {
-		const params = $page.url.searchParams;
+		const params = building ? new URLSearchParams() : $page.url.searchParams;
 
 		query = params.get('query') ?? '';
 		system = (params.get('system') ?? '').split(',').filter((s) => s.length);
@@ -255,7 +256,7 @@
 							</a>
 						{/each}
 					</div>
-				{:else if !loading}
+				{:else if !loading && !building}
 					<div class="text-center text-muted">We didn't find anything to show here.</div>
 				{/if}
 				{#if loading}
@@ -270,7 +271,7 @@
 			<div class="d-flex flex-column flex-fill mw-0">
 				<Item item={activeItem} />
 			</div>
-		{:else}
+		{:else if !building}
 			<div class="d-flex flex-fill">
 				<div class="m-auto opacity-25 w-25">
 					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960"

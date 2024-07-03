@@ -1,8 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context, Error, Result};
-use axum::{body::Bytes, extract::Query, http::Uri};
-use const_format::concatcp;
+use axum::body::Bytes;
 use deadpool::managed::{Manager, Metrics, Object, Pool, RecycleResult};
 use regex::bytes::{Regex, RegexSet};
 use rusqlite::Connection;
@@ -73,38 +72,6 @@ impl AppContext {
         }
 
         None
-    }
-
-    pub async fn get_initial_data(&self, uri: &Uri) -> Result<Option<(String, String)>> {
-        let path = uri.path();
-
-        if path == concatcp!(BASE, '/') {
-            let mut initial_uri = format!("{BASE}/api/items?batchSize=51&loadFirstItem=true");
-
-            if let Some(query) = uri.query() {
-                initial_uri.push('&');
-                initial_uri.push_str(query);
-            }
-
-            let filter: Query<ItemFilter> = Query::try_from_uri(&initial_uri.parse()?)?;
-            let items = self.get_items(filter.0).await?;
-
-            Ok(Some((initial_uri, serde_json::to_string(&items)?)))
-        } else {
-            let id = path.strip_prefix(concatcp!(BASE, "/item/"));
-
-            if let Some(id) = id {
-                let id: i64 = id.parse()?;
-                let item = self.get_item(id).await?;
-
-                Ok(Some((
-                    format!("{BASE}/api/item/{id}"),
-                    serde_json::to_string(&item)?,
-                )))
-            } else {
-                Ok(None)
-            }
-        }
     }
 
     pub async fn get_item(&self, id: i64) -> Result<Item> {

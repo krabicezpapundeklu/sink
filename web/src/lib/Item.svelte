@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { base } from '$app/paths';
+	import { building } from '$app/environment';
 	import { formatBody, formatNumber, getEntityEventType, itemTypeFromKey } from '$lib/shared';
 	import { page } from '$app/stores';
 	import copy from 'copy-to-clipboard';
@@ -10,7 +11,9 @@
 
 	const tabs = ['body-preview', 'original-body', 'headers'];
 
-	let activeTab = $state(Math.max(0, tabs.indexOf($page.url.searchParams.get('view') ?? '')));
+	let activeTab = $state(
+		building ? 0 : Math.max(0, tabs.indexOf($page.url.searchParams.get('view') ?? ''))
+	);
 	let tabBase = `${base}/item/${item.id}?view=`;
 	let tab: HTMLElement;
 
