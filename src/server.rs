@@ -196,6 +196,7 @@ async fn get_item(
     Path(id): Path<i64>,
 ) -> Result<Html<Vec<u8>>, AppError> {
     let item = app_context.get_item(id).await?;
+    let id = item.summary.event_id.unwrap_or(item.summary.id);
 
     render_page!(
         "item/0.html",
