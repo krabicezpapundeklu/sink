@@ -1,29 +1,29 @@
 [package]
 name = "sink"
-version = "1.8.3"
+version = "1.8.4"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.86"
-axum = "0.7.5"
-clap = { version = "4.5.7", features = ["derive"] }
-const_format = "0.2.32"
-deadpool = "0.12.1"
-libc = "0.2.155"
-regex = "1.10.5"
-rusqlite = { version = "0.31.0", features = ["bundled", "functions"] }
-rust-embed = { version = "8.4.0", features = ["include-exclude", "mime-guess"] }
-serde = { version = "1.0.203", features = ["derive"] }
-serde_json = "1.0.118"
-tokio = { version = "1.38.0", features = ["macros", "rt-multi-thread"] }
-tower = "0.4.13"
-tower-http = { version = "0.5.2", features = ["full"] }
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+anyhow = "1"
+axum = "0"
+clap = { version = "4", features = ["derive"] }
+const_format = "0"
+deadpool = "0"
+libc = "0"
+regex = "1"
+rusqlite = { version = "0", features = ["bundled", "functions"] }
+rust-embed = { version = "8", features = ["include-exclude", "mime-guess"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tower = "0"
+tower-http = { version = "0", features = ["full"] }
+tracing = "0"
+tracing-subscriber = { version = "0", features = ["env-filter"] }
 
 [build-dependencies]
-cc = "1.0.101"
-static-files = "0.2.3"
+cc = "1"
+static-files = "0"
 
 [profile.release]
 codegen-units = 1
