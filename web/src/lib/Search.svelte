@@ -149,12 +149,6 @@
 							: `${system.length} selected`}</span
 				>
 			</button>
-			<button
-				class="btn btn-outline-secondary rounded-end"
-				type="button"
-				title="Clear System Filter"
-				onclick={() => clearFilter('system')}>&#x2715;</button
-			>
 			<div class="bg-white dropdown-menu p-0 shadow-sm">
 				<fieldset>
 					<legend class="visually-hidden">System</legend>
@@ -176,6 +170,12 @@
 					</ul>
 				</fieldset>
 			</div>
+			<button
+				class="btn btn-outline-secondary rounded-end"
+				type="button"
+				title="Clear System Filter"
+				onclick={() => clearFilter('system')}>&#x2715;</button
+			>
 		</div>
 	</div>
 
@@ -198,12 +198,6 @@
 							: `${type.length} selected`}</span
 				>
 			</button>
-			<button
-				class="btn btn-outline-secondary rounded-end"
-				type="button"
-				title="Clear Type Filter"
-				onclick={() => clearFilter('type', 'eventType')}>&#x2715;</button
-			>
 			<div class="bg-white dropdown-menu p-0 shadow-sm">
 				<fieldset>
 					<legend class="visually-hidden">Type</legend>
@@ -225,6 +219,12 @@
 					</ul>
 				</fieldset>
 			</div>
+			<button
+				class="btn btn-outline-secondary rounded-end"
+				type="button"
+				title="Clear Type Filter"
+				onclick={() => clearFilter('type', 'eventType')}>&#x2715;</button
+			>
 		</div>
 	</div>
 
@@ -244,12 +244,6 @@
 						{eventType.length === 0 ? 'All' : `${eventType.length} selected`}</span
 					>
 				</button>
-				<button
-					class="btn btn-outline-secondary rounded-end"
-					type="button"
-					title="Clear Event Type Filter"
-					onclick={() => clearFilter('eventType')}>&#x2715;</button
-				>
 				<div class="dropdown-menu mh-30em mw-25em overflow-auto p-0 shadow-sm">
 					<div class="accordion accordion-flush overflow-hidden">
 						<fieldset>
@@ -303,6 +297,12 @@
 						</fieldset>
 					</div>
 				</div>
+				<button
+					class="btn btn-outline-secondary rounded-end"
+					type="button"
+					title="Clear Event Type Filter"
+					onclick={() => clearFilter('eventType')}>&#x2715;</button
+				>
 			</div>
 		</div>
 	{/if}
