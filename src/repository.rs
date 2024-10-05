@@ -55,7 +55,7 @@ impl QueryBuilder {
         self
     }
 
-    fn new(sql: String) -> Self {
+    const fn new(sql: String) -> Self {
         Self {
             sql,
             params: Vec::new(),
