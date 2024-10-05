@@ -8,7 +8,7 @@ use axum::{
     http::{
         header::{CACHE_CONTROL, CONTENT_TYPE},
         uri::PathAndQuery,
-        HeaderMap, StatusCode, Uri,
+        HeaderMap, HeaderName, HeaderValue, StatusCode, Uri,
     },
     response::{IntoResponse, Redirect, Response},
     routing::get,
@@ -143,6 +143,36 @@ async fn get_items(
     app_context.get_items(filter.0).await.to_json_response()
 }
 
+async fn get_raw_item(
+    State(app_context): State<AppContext>,
+    Path(id): Path<i64>,
+) -> Result<impl IntoResponse, AppError> {
+    let item = app_context.get_item(id).await?;
+    let mut headers = HeaderMap::new();
+
+    if let Some(content_type) = item
+        .headers
+        .iter()
+        .find(|header| header.name == "content-type")
+    {
+        headers.insert(
+            "content-type",
+            HeaderValue::from_bytes(&content_type.value)?,
+        );
+    }
+
+    for header in item.headers {
+        if let Some(header_name) = header.name.strip_prefix("x-response-header-") {
+            headers.insert(
+                HeaderName::from_bytes(header_name.as_bytes())?,
+                HeaderValue::from_bytes(&header.value)?,
+            );
+        }
+    }
+
+    Ok((headers, item.body))
+}
+
 pub async fn start(host: &str, port: u16, db: PathBuf) -> Result<()> {
     info!(host, port, ?db, "starting server");
 
@@ -151,6 +181,7 @@ pub async fn start(host: &str, port: u16, db: PathBuf) -> Result<()> {
     let app = Router::new()
         .route(concatcp!(BASE, "/api/item/:id"), get(get_item))
         .route(concatcp!(BASE, "/api/items"), get(get_items))
+        .route(concatcp!(BASE, "/api/raw-item/:id"), get(get_raw_item))
         .fallback(get(get_asset).post(submit_item))
         .with_state(app_context)
         .layer(
