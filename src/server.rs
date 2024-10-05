@@ -37,6 +37,10 @@ where
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
+        if self.0.downcast_ref::<rusqlite::Error>() == Some(&rusqlite::Error::QueryReturnedNoRows) {
+            return (StatusCode::NOT_FOUND, "Not found").into_response();
+        }
+
         let error = format!("{}", self.0);
         error!(error);
         (StatusCode::INTERNAL_SERVER_ERROR, error).into_response()
