@@ -185,7 +185,10 @@ pub async fn start(host: &str, port: u16, db: PathBuf) -> Result<()> {
     let app = Router::new()
         .route(concatcp!(BASE, "/api/item/:id"), get(get_item))
         .route(concatcp!(BASE, "/api/items"), get(get_items))
-        .route(concatcp!(BASE, "/api/raw-item/:id"), get(get_raw_item))
+        .route(
+            concatcp!(BASE, "/api/raw-item/:id"),
+            get(get_raw_item).post(get_raw_item),
+        )
         .fallback(get(get_asset).post(submit_item))
         .with_state(app_context)
         .layer(
