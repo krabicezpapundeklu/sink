@@ -263,7 +263,7 @@
 						<div class="spinner-border text-muted" role="status"></div>
 					</div>
 				{/if}
-				<div bind:this={loadMoreElement}></div>
+				<div class="load-more" bind:this={loadMoreElement}></div>
 			</div>
 		</div>
 		{#if activeItem}
