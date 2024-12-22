@@ -11,6 +11,9 @@ const config = {
 		adapter: adapter({
 			fallback: 'index.html'
 		}),
+		output: {
+			bundleStrategy: 'single'
+		},
 		paths: {
 			base: '/sink'
 		}
