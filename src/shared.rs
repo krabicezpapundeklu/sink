@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Context, Error, Result};
+use anyhow::{Context, Error, Result, anyhow};
 use axum::{body::Bytes, extract::Query, http::Uri};
 use const_format::concatcp;
 use deadpool::managed::{Manager, Metrics, Object, Pool, RecycleResult};
@@ -31,9 +31,7 @@ impl AppContext {
     {
         let mut db = self.get_db().await?;
 
-        spawn_blocking(move || f(&mut db))
-            .await?
-            .map_err(Into::into)
+        spawn_blocking(move || f(&mut db)).await?
     }
 
     pub async fn get_all_item_ids(&self) -> Result<Vec<i64>> {

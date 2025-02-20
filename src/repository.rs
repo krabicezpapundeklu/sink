@@ -2,7 +2,7 @@ use std::mem::take;
 
 use anyhow::Result;
 use regex::bytes::Regex;
-use rusqlite::{functions::FunctionFlags, params, params_from_iter, types::Value, Connection, Row};
+use rusqlite::{Connection, Row, functions::FunctionFlags, params, params_from_iter, types::Value};
 use tracing::trace;
 
 use crate::shared::{Item, ItemFilter, ItemHeader, ItemSummary, NewItem};

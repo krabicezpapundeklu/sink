@@ -1,6 +1,6 @@
 use std::{
     env::current_exe,
-    ffi::{c_char, CString, OsStr, OsString},
+    ffi::{CString, OsStr, OsString, c_char},
     path::PathBuf,
     process::exit,
 };
@@ -15,7 +15,7 @@ mod repository;
 mod server;
 mod shared;
 
-extern "C" {
+unsafe extern "C" {
     fn shell_main(argc: c_int, argv: *const *const c_char) -> c_int;
 }
 

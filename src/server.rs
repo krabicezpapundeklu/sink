@@ -3,16 +3,17 @@ use std::path::PathBuf;
 use anyhow::{Error, Result};
 
 use axum::{
+    Json, Router,
     body::Bytes,
     extract::{Path, Query, State},
     http::{
+        HeaderMap, HeaderName, HeaderValue, StatusCode, Uri,
         header::{CACHE_CONTROL, CONTENT_TYPE},
         uri::PathAndQuery,
-        HeaderMap, HeaderName, HeaderValue, StatusCode, Uri,
     },
     response::{IntoResponse, Redirect, Response},
     routing::get,
-    serve, Json, Router,
+    serve,
 };
 
 use const_format::concatcp;
@@ -22,7 +23,7 @@ use tower::ServiceBuilder;
 use tower_http::{compression::CompressionLayer, trace::TraceLayer};
 use tracing::{error, info};
 
-use crate::shared::{AppContext, Item, ItemFilter, ItemHeader, ItemSearchResult, BASE};
+use crate::shared::{AppContext, BASE, Item, ItemFilter, ItemHeader, ItemSearchResult};
 
 struct AppError(Error);
 
