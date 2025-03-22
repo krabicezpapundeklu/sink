@@ -1,29 +1,29 @@
 [package]
 name = "sink"
-version = "1.11.0"
+version = "2.0.0"
 edition = "2024"
 
 [dependencies]
 anyhow = "1"
 axum = "0"
 clap = { version = "4", features = ["derive"] }
-const_format = "0"
-deadpool = "0"
-libc = "0"
+futures = "0"
 regex = "1"
-rusqlite = { version = "0", features = ["bundled", "functions"] }
+rusqlite = { version = "0", features = ["functions"] }
 rust-embed = { version = "8", features = ["include-exclude", "mime-guess"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sqlx = { version = "0", features = ["macros", "runtime-tokio", "sqlite"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tower = "0"
 tower-http = { version = "0", features = ["full"] }
-tracing = "0"
-tracing-subscriber = { version = "0", features = ["env-filter"] }
 
 [build-dependencies]
-cc = "1"
 static-files = "0"
+
+[dev-dependencies]
+mockall = "0"
+rstest = "0"
 
 [profile.release]
 codegen-units = 1

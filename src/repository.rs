@@ -1,420 +1,461 @@
-use std::mem::take;
+use std::{borrow::Cow, future::Future, mem::take, path::Path};
+
+use crate::model::{Item, ItemFilter, ItemHeader, ItemSummary, NewItem};
 
 use anyhow::Result;
+use futures::stream::StreamExt;
 use regex::bytes::Regex;
-use rusqlite::{Connection, Row, functions::FunctionFlags, params, params_from_iter, types::Value};
-use tracing::trace;
+use rusqlite::{Connection, functions::FunctionFlags};
 
-use crate::shared::{Item, ItemFilter, ItemHeader, ItemSummary, NewItem};
+use sqlx::{
+    Database, Encode, QueryBuilder, Sqlite, SqliteConnection, SqlitePool, Type, migrate,
+    prelude::FromRow,
+    query, query_as, query_scalar,
+    sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
+};
 
-const EVENT_ID_PREFIX: &str = "event-id:";
-const REGEX_PREFIX: &str = "regex:";
+trait QueryBuilderExt<'a, DB: Database> {
+    fn append_if_is_some<T>(&mut self, sql: &str, value: Option<T>) -> &mut Self
+    where
+        T: 'a + Encode<'a, DB> + Type<DB>;
 
-struct QueryBuilder {
-    sql: String,
-    params: Vec<Value>,
+    fn append_in<T>(&mut self, items: impl Iterator<Item = T>) -> &mut Self
+    where
+        T: 'a + Encode<'a, DB> + Type<DB>;
 }
 
-impl QueryBuilder {
-    fn append_sql(&mut self, sql: &str) -> &mut Self {
-        self.sql.push_str(sql);
-        self
-    }
-
-    fn append_param<T>(&mut self, item: T) -> &mut Self
+impl<'a, DB: Database> QueryBuilderExt<'a, DB> for QueryBuilder<'a, DB> {
+    fn append_if_is_some<T>(&mut self, sql: &str, value: Option<T>) -> &mut Self
     where
-        T: Into<Value>,
+        T: 'a + Encode<'a, DB> + Type<DB>,
     {
-        self.params.push(item.into());
-        self
-    }
-
-    fn append_if_is_some<T>(&mut self, sql: &str, item: Option<T>) -> &mut Self
-    where
-        T: Into<Value>,
-    {
-        if let Some(item) = item {
-            self.append_sql(sql).append_param(item);
+        if let Some(value) = value {
+            self.push(sql).push_bind(value);
         }
 
         self
     }
 
-    fn append_list<T>(&mut self, items: impl Iterator<Item = T>) -> &mut Self
+    fn append_in<T>(&mut self, items: impl Iterator<Item = T>) -> &mut Self
     where
-        T: Into<Value>,
+        T: 'a + Encode<'a, DB> + Type<DB>,
     {
-        for (i, item) in items.enumerate() {
-            if i > 0 {
-                self.append_sql(", ");
+        self.push(" IN (");
+
+        let mut separated = self.separated(", ");
+
+        for item in items {
+            separated.push_bind(item);
+        }
+
+        separated.push_unseparated(")");
+
+        self
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum QueryExpression<'a> {
+    EventId(&'a str),
+    Header(&'a str, &'a str),
+    Id(&'a str),
+    Regex(&'a str),
+    Text(&'a str),
+}
+
+impl<'a> From<&'a str> for QueryExpression<'a> {
+    fn from(value: &'a str) -> Self {
+        if let Some((name, value)) = value.split_once(':') {
+            match name {
+                "body" => QueryExpression::Text(value),
+                "event-id" => QueryExpression::EventId(value),
+                "id" => QueryExpression::Id(value),
+                "regex" => QueryExpression::Regex(value),
+                _ => QueryExpression::Header(name, value),
             }
-
-            self.append_sql("?").append_param(item);
+        } else {
+            QueryExpression::Text(value)
         }
-
-        self
-    }
-
-    const fn new(sql: String) -> Self {
-        Self {
-            sql,
-            params: Vec::new(),
-        }
-    }
-
-    fn params(&self) -> &[Value] {
-        &self.params
-    }
-
-    fn sql(&self) -> &str {
-        &self.sql
     }
 }
 
-pub trait Repository {
-    fn get_all_item_ids(&self) -> Result<Vec<i64>>;
-    fn get_item(&self, id: i64) -> Result<Item>;
-    fn get_items(&self, filter: ItemFilter) -> Result<(Vec<ItemSummary>, i32)>;
-    fn get_systems(&self) -> Result<Vec<String>>;
+pub trait Repository: Clone + Send + Sync {
+    fn get_item(&self, id: i64) -> impl Future<Output = Result<Option<Item>>> + Send;
 
-    fn init(&self) -> Result<()>;
+    fn get_items(
+        &self,
+        filter: &ItemFilter,
+    ) -> impl Future<Output = Result<(Vec<ItemSummary>, i32)>> + Send;
 
-    fn insert_item(&mut self, item: &NewItem) -> Result<i64>;
-    fn update_item(&mut self, item: &ItemSummary) -> Result<usize>;
-
-    fn prepare_schema(&self) -> Result<()>;
+    fn get_systems(&self) -> impl Future<Output = Result<Vec<String>>> + Send;
+    fn insert_item(&self, item: &NewItem<'_>) -> impl Future<Output = Result<i64>> + Send;
 }
 
-impl Repository for Connection {
-    fn get_all_item_ids(&self) -> Result<Vec<i64>> {
-        let mut stmt = self.prepare_cached("SELECT id FROM item ORDER BY id")?;
+impl Repository for SqlitePool {
+    async fn get_item(&self, id: i64) -> Result<Option<Item>> {
+        let summary = query_as!(
+            ItemSummary,
+            "SELECT id, system, type, event_id, entity_event_id, user_agent, submit_date FROM item WHERE id = ?",
+            id
+        ).fetch_optional(self).await?;
 
-        let mut rows = stmt.query([])?;
-        let mut items = Vec::new();
+        let item = if let Some(summary) = summary {
+            let headers = query_as!(
+                ItemHeader,
+                "SELECT name, value FROM item_header WHERE item_id = ? ORDER BY name, value",
+                id
+            )
+            .fetch_all(self)
+            .await?;
 
-        while let Some(row) = rows.next()? {
-            items.push(row.get(0)?);
-        }
+            let body = query_scalar!("SELECT body FROM item_body WHERE item_id = ?", id)
+                .fetch_one(self)
+                .await?;
 
-        Ok(items)
-    }
-
-    fn get_item(&self, id: i64) -> Result<Item> {
-        let mut stmt = self.prepare_cached(
-            "
-            SELECT i.id, i.submit_date, i.system, i.type, i.event_id, i.entity_event_id, i.user_agent, ib.body
-            FROM item i JOIN item_body ib ON ib.item_id = i.id WHERE i.id = ?
-        ",
-        )?;
-
-        let mut item = stmt.query_row([id], |row| {
-            Ok(Item {
-                summary: map_item_summary(row)?,
-                headers: Vec::new(),
-                body: row.get(7)?,
-            })
-        })?;
-
-        let mut stmt = self.prepare_cached(
-            "SELECT name, value FROM item_header WHERE item_id = ? ORDER BY name, value",
-        )?;
-
-        let mut rows = stmt.query([id])?;
-
-        while let Some(row) = rows.next()? {
-            let header = ItemHeader {
-                name: row.get(0)?,
-                value: row.get(1)?,
+            let item = Item {
+                summary,
+                headers,
+                body,
             };
 
-            item.headers.push(header);
-        }
+            Some(item)
+        } else {
+            None
+        };
 
         Ok(item)
     }
 
-    fn get_items(&self, filter: ItemFilter) -> Result<(Vec<ItemSummary>, i32)> {
-        let mut builder = QueryBuilder::new(
-            "
-                SELECT id, submit_date, system, type, event_id, entity_event_id, user_agent, total_items FROM (
-                    SELECT id, submit_date, system, type, event_id, entity_event_id, user_agent, COUNT(1) OVER () total_items FROM item i
-                    WHERE 1 = 1
-            "
-            .to_string(),
+    async fn get_items(&self, filter: &ItemFilter) -> Result<(Vec<ItemSummary>, i32)> {
+        #[derive(FromRow)]
+        struct Row {
+            #[sqlx(flatten)]
+            item: ItemSummary,
+            total_items: i32,
+        }
+
+        let mut builder = QueryBuilder::<Sqlite>::new(
+            "SELECT * FROM (SELECT id, system, type, event_id, entity_event_id, user_agent, submit_date, COUNT(1) OVER() total_items FROM item WHERE 1 = 1",
         );
 
+        let query_tokens;
+
         if let Some(query) = &filter.query {
-            builder.append_sql(" AND ((1 = 1");
+            query_tokens = tokenize_query(query);
 
-            for term in parse_query(query) {
-                builder.append_sql(" AND ");
+            builder.push(" AND (1 = 1");
 
-                if term.starts_with(EVENT_ID_PREFIX) {
-                    builder.append_sql("event_id = ?");
-                    builder.append_param(term.strip_prefix(EVENT_ID_PREFIX).map(ToOwned::to_owned));
-                } else if term.starts_with(REGEX_PREFIX) {
-                    builder.append_sql(
-                        "EXISTS (SELECT 1 FROM item_body WHERE item_id = id AND matches(?, body))",
-                    );
+            for expression in query_tokens
+                .iter()
+                .map(|token| QueryExpression::from(token.as_ref()))
+            {
+                builder.push(" AND ");
 
-                    builder.append_param(term);
-                } else {
-                    if let Ok(id) = term.parse::<i64>() {
-                        builder.append_sql("(id = ? OR event_id = ? OR ");
-                        builder.append_param(id);
-                        builder.append_param(id);
-                    } else if let Some(idx) = term.find(':') {
-                        let name = &term[..idx];
-                        let value = &term[idx + 1..];
-
-                        builder.append_sql("(EXISTS (SELECT 1 FROM item_header WHERE item_id = id AND name = ? AND value LIKE '%' || ? || '%') OR ");
-                        builder.append_param(name.to_owned());
-                        builder.append_param(value.to_owned());
-                    } else {
-                        builder.append_sql("(");
-                    }
-
-                    builder.append_sql("EXISTS (SELECT 1 FROM item_body WHERE item_id = id AND body LIKE '%' || ? || '%'))");
-                    builder.append_param(term);
-                }
+                match expression {
+                    QueryExpression::EventId(event_id) =>
+                        builder
+                            .push("event_id = ")
+                            .push_bind(event_id),
+                    QueryExpression::Header(name, value) =>
+                        builder
+                            .push("EXISTS (SELECT 1 FROM item_header WHERE item_id = id AND name = ")
+                            .push_bind(name)
+                            .push(" AND value LIKE '%' || ")
+                            .push_bind(value)
+                            .push(" || '%')"),
+                    QueryExpression::Id(id) =>
+                        builder
+                            .push("id = ")
+                            .push_bind(id),
+                    QueryExpression::Regex(regex) =>
+                        builder
+                            .push("EXISTS (SELECT 1 FROM item_body WHERE item_id = id AND matches(")
+                            .push_bind(regex)
+                            .push(", body))"),
+                    QueryExpression::Text(text) =>
+                        builder
+                            .push("EXISTS (SELECT 1 FROM item_body WHERE item_id = id AND body LIKE '%' || ")
+                            .push_bind(text)
+                            .push(" || '%')")
+                };
             }
 
-            builder.append_sql("))");
+            builder.push(')');
         }
 
-        if let Some(system) = &filter.system {
+        if let Some(systems) = &filter.system {
             builder
-                .append_sql(" AND system IN (")
-                .append_list(system.split(',').map(ToString::to_string))
-                .append_sql(")");
+                .push(" AND system")
+                .append_in(systems.comma_separated());
         }
 
-        if let Some(r#type) = &filter.r#type {
+        if let Some(types) = &filter.r#type {
+            builder.push(" AND type").append_in(types.comma_separated());
+        }
+
+        if let Some(event_types) = &filter.event_type {
             builder
-                .append_sql(" AND type IN (")
-                .append_list(r#type.split(',').map(ToString::to_string))
-                .append_sql(")");
-        }
-
-        if let Some(event_type) = &filter.event_type {
-            builder.append_sql(
-                " AND (type NOT IN ('event_notification', 'event_payload') OR entity_event_id IN (",
-            ).append_list(event_type.split(',').map(ToString::to_string)).append_sql("))");
+                .push(
+                    " AND (type NOT IN ('event_notification', 'event_payload') OR entity_event_id",
+                )
+                .append_in(event_types.comma_separated())
+                .push(')');
         }
 
         builder
-            .append_if_is_some(" AND submit_date >= ?", filter.from)
-            .append_if_is_some(" AND submit_date <= ?", filter.to)
-            .append_sql(") WHERE 1 = 1")
-            .append_if_is_some(" AND id >= ?", filter.first_item_id)
-            .append_if_is_some(" AND id <= ?", filter.last_item_id)
-            .append_sql(" ORDER BY id");
+            .append_if_is_some(" AND submit_date >= ", filter.from.as_ref())
+            .append_if_is_some(" AND submit_date <= ", filter.to.as_ref())
+            .push(") WHERE 1 = 1")
+            .append_if_is_some(" AND id >= ", filter.first_item_id)
+            .append_if_is_some(" AND id <= ", filter.last_item_id)
+            .push(" ORDER BY id");
 
-        if !filter.asc.unwrap_or(false) {
-            builder.append_sql(" DESC");
+        if !filter.asc.unwrap_or_default() {
+            builder.push(" DESC");
         }
 
-        builder.append_if_is_some(" LIMIT ?", filter.batch_size);
+        builder.append_if_is_some(" LIMIT ", filter.batch_size);
 
-        let sql = builder.sql();
-        let params = builder.params();
-
-        trace!(sql = %sql, params = ?params);
-
-        let mut stmt = self.prepare(sql)?;
-        let mut rows = stmt.query(params_from_iter(params))?;
+        let query = builder.build_query_as::<Row>();
+        let mut rows = query.fetch(self);
 
         let mut items = Vec::new();
         let mut total_items = 0;
 
-        while let Some(row) = rows.next()? {
-            items.push(map_item_summary(row)?);
-            total_items = row.get(7)?;
+        while let Some(row) = rows.next().await {
+            let row = row?;
+            items.push(row.item);
+            total_items = row.total_items;
         }
 
         Ok((items, total_items))
     }
 
-    fn get_systems(&self) -> Result<Vec<String>> {
-        let mut stmt = self.prepare_cached(
-            "SELECT DISTINCT system FROM item WHERE system IS NOT NULL ORDER BY system",
-        )?;
-
-        let mut rows = stmt.query([])?;
-        let mut systems = Vec::new();
-
-        while let Some(row) = rows.next()? {
-            systems.push(row.get(0)?);
-        }
-
-        Ok(systems)
-    }
-
-    fn init(&self) -> Result<()> {
-        self.create_scalar_function("matches", 2, FunctionFlags::SQLITE_DETERMINISTIC, |ctx| {
-            let regex = ctx.get_or_create_aux(0, |vr| -> Result<_> {
-                let regex = vr.as_str()?;
-                Regex::new(regex.strip_prefix(REGEX_PREFIX).unwrap_or(regex)).map_err(Into::into)
-            })?;
-
-            let text = ctx.get_raw(1).as_bytes()?;
-
-            Ok(regex.is_match(text))
-        })
+    async fn get_systems(&self) -> Result<Vec<String>> {
+        query_scalar!(
+            "SELECT DISTINCT system AS 'system!' FROM item WHERE system IS NOT NULL ORDER BY system"
+        )
+        .fetch_all(self)
+        .await
         .map_err(Into::into)
     }
 
-    fn insert_item(&mut self, item: &NewItem) -> Result<i64> {
-        let tx = self.transaction()?;
-        let id;
+    async fn insert_item(&self, item: &NewItem<'_>) -> Result<i64> {
+        let mut tx = self.begin().await?;
 
-        {
-            let mut stmt = tx.prepare_cached(
-                "INSERT INTO item (system, type, event_id, entity_event_id, user_agent) VALUES (?, ?, ?, ?, ?)",
-            )?;
+        let id = query!(
+            "INSERT INTO item (system, type, event_id, entity_event_id, user_agent) VALUES (?, ?, ?, ?, ?)",
+            item.system,
+            item.r#type,
+            item.event_id,
+            item.entity_event_id,
+            item.user_agent
+        )
+        .execute(&mut *tx)
+        .await?
+        .last_insert_rowid();
 
-            id = stmt.insert(params![
-                &item.system,
-                &item.r#type,
-                &item.event_id,
-                &item.entity_event_id,
-                &item.user_agent
-            ])?;
-
-            let mut stmt = tx.prepare_cached(
+        for header in item.headers {
+            query!(
                 "INSERT INTO item_header (item_id, name, value) VALUES (?, ?, ?)",
-            )?;
-
-            for header in &item.headers {
-                stmt.execute(params![id, header.name, header.value])?;
-            }
-
-            let mut stmt =
-                tx.prepare_cached("INSERT INTO item_body (item_id, body) VALUES (?, ?)")?;
-
-            stmt.execute(params![id, item.body])?;
+                id,
+                header.name,
+                header.value
+            )
+            .execute(&mut *tx)
+            .await?;
         }
 
-        tx.commit()?;
+        query!(
+            "INSERT INTO item_body (item_id, body) VALUES (?, ?)",
+            id,
+            item.body
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
 
         Ok(id)
     }
+}
 
-    fn prepare_schema(&self) -> Result<()> {
-        self.execute_batch("
-            PRAGMA foreign_keys = ON;
-            PRAGMA journal_mode = WAL;
+trait SplitExt {
+    fn comma_separated(&self) -> impl Iterator<Item = &str>;
+}
 
-            CREATE TABLE IF NOT EXISTS item (id INTEGER PRIMARY KEY AUTOINCREMENT, submit_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, system TEXT, type TEXT) STRICT;
-            CREATE TABLE IF NOT EXISTS item_body (item_id INTEGER PRIMARY KEY REFERENCES item (id) ON DELETE CASCADE, body BLOB NOT NULL) STRICT;
-            CREATE TABLE IF NOT EXISTS item_header (item_id INTEGER REFERENCES item (id) ON DELETE CASCADE, name TEXT NOT NULL, value BLOB NOT NULL) STRICT;
-        ")?;
-
-        if !has_column(self, "item", "event_id")? {
-            self.execute("ALTER TABLE item ADD COLUMN event_id INTEGER", [])?;
-        }
-
-        if !has_column(self, "item", "entity_event_id")? {
-            self.execute("ALTER TABLE item ADD COLUMN entity_event_id INTEGER", [])?;
-        }
-
-        if !has_column(self, "item", "user_agent")? {
-            self.execute("ALTER TABLE item ADD COLUMN user_agent TEXT", [])?;
-        }
-
-        self.execute_batch(
-            "
-            CREATE INDEX IF NOT EXISTS idx_item_entity_event_id ON item (entity_event_id);
-            CREATE INDEX IF NOT EXISTS idx_item_event_id ON item (event_id);
-            CREATE INDEX IF NOT EXISTS idx_item_header_item_id ON item_header (item_id);
-            CREATE INDEX IF NOT EXISTS idx_item_submit_date ON item (submit_date);
-            CREATE INDEX IF NOT EXISTS idx_item_system ON item (system);
-            CREATE INDEX IF NOT EXISTS idx_item_type ON item (type);
-            CREATE INDEX IF NOT EXISTS idx_item_user_agent ON item (user_agent);
-        ",
-        )?;
-
-        Ok(())
-    }
-
-    fn update_item(&mut self, item: &ItemSummary) -> Result<usize> {
-        let mut stmt = self.prepare_cached(
-            "UPDATE item SET submit_date = ?, type = ?, system = ?, event_id = ?, entity_event_id = ?, user_agent = ? WHERE id = ?",
-        )?;
-
-        stmt.execute(params![
-            item.submit_date,
-            item.r#type,
-            item.system,
-            item.event_id,
-            item.entity_event_id,
-            item.user_agent,
-            item.id
-        ])
-        .map_err(Into::into)
+impl SplitExt for str {
+    fn comma_separated(&self) -> impl Iterator<Item = &Self> {
+        self.split(',').map(Self::trim)
     }
 }
 
-fn has_column(db: &Connection, table: &str, column: &str) -> Result<bool> {
-    let count: i32 = db.query_row(
-        "SELECT COUNT(1) FROM pragma_table_info(?) WHERE name = ?",
-        [table, column],
-        |row| row.get(0),
-    )?;
+pub async fn open_repository(db: impl AsRef<Path> + Send) -> Result<impl Repository> {
+    let pool = SqlitePoolOptions::new()
+        .after_connect(|connection, _| {
+            Box::pin(async move {
+                unsafe {
+                    register_match_function(connection)
+                        .await
+                        .map_err(|e| sqlx::Error::Configuration(e.into()))
+                }
+            })
+        })
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename(db)
+                .journal_mode(SqliteJournalMode::Wal)
+                .create_if_missing(true),
+        )
+        .await?;
 
-    Ok(count > 0)
+    migrate!("./migrations").run(&pool).await?;
+
+    Ok(pool)
 }
 
-fn map_item_summary(row: &Row) -> rusqlite::Result<ItemSummary> {
-    Ok(ItemSummary {
-        id: row.get(0)?,
-        submit_date: row.get(1)?,
-        system: row.get(2)?,
-        r#type: row.get(3)?,
-        event_id: row.get(4)?,
-        entity_event_id: row.get(5)?,
-        user_agent: row.get(6)?,
-    })
+pub async unsafe fn register_match_function(connection: &mut SqliteConnection) -> Result<()> {
+    unsafe {
+        let mut handle = connection.lock_handle().await?;
+        let connection = Connection::from_handle(handle.as_raw_handle().as_mut())?;
+
+        connection
+            .create_scalar_function("matches", 2, FunctionFlags::SQLITE_DETERMINISTIC, |ctx| {
+                let regex = ctx.get_or_create_aux(0, |vr| -> Result<Regex> {
+                    let regex = vr.as_str()?;
+                    Regex::new(regex).map_err(Into::into)
+                })?;
+
+                let text = ctx.get_raw(1).as_bytes()?;
+                Ok(regex.is_match(text))
+            })
+            .map_err(Into::into)
+    }
 }
 
-fn parse_query(query: &str) -> Vec<String> {
-    let mut terms = Vec::new();
-    let mut term = String::new();
+fn tokenize_query(query: &str) -> Vec<Cow<'_, str>> {
+    let mut tokens = Vec::new();
+    let mut chars = query.char_indices();
+    let mut quoted_token = String::new();
 
-    let mut escaping = false;
-    let mut in_quotes = false;
-
-    for c in query.chars() {
-        if c == '"' && !term.starts_with(EVENT_ID_PREFIX) && !term.starts_with(REGEX_PREFIX) {
-            if escaping {
-                escaping = false;
-                term.push('"');
-            } else {
-                escaping = true;
-            }
-
+    while let Some((start, c)) = chars.next() {
+        if c.is_whitespace() {
             continue;
         }
 
-        if escaping {
-            escaping = false;
-            in_quotes = !in_quotes;
-        }
+        let mut cc = c;
 
-        if !in_quotes && c.is_whitespace() {
-            if !term.is_empty() {
-                terms.push(take(&mut term));
+        loop {
+            if cc == '"' {
+                while let Some((_, c)) = chars.next() {
+                    if c == '"' {
+                        if let Some((_, '"')) = chars.clone().next() {
+                            chars.next();
+                        } else {
+                            break;
+                        }
+                    }
+
+                    quoted_token.push(c);
+                }
+
+                tokens.push(take(&mut quoted_token).into());
+                break;
             }
 
-            continue;
+            let mut end = start;
+
+            for (i, c) in chars.by_ref() {
+                if c == '"' || c.is_whitespace() {
+                    cc = c;
+                    break;
+                }
+
+                end = i;
+            }
+
+            tokens.push(Cow::from(&query[start..=end]));
+
+            if cc != '"' {
+                break;
+            }
+        }
+    }
+
+    tokens
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+    use mockall::mock;
+    use rstest::rstest;
+
+    mock! {
+        pub Repository{}
+
+        impl Clone for Repository {
+            fn clone(&self) -> Self;
         }
 
-        term.push(c);
+        impl super::Repository for Repository {
+            fn get_item(&self, id: i64) -> impl Future<Output = Result<Option<Item>>> + Send;
+
+            fn get_items(
+                &self,
+                filter: &ItemFilter,
+            ) -> impl Future<Output = Result<(Vec<ItemSummary>, i32)>> + Send;
+
+            fn get_systems(&self) -> impl Future<Output = Result<Vec<String>>> + Send;
+            fn insert_item<'a>(&self, item: &NewItem<'a>) -> impl Future<Output = Result<i64>> + Send;
+        }
     }
 
-    if !term.is_empty() {
-        terms.push(term);
+    #[test]
+    fn test_query_expressions() {
+        let tokens = tokenize_query(r#"event-id:123 id:123 regex:abc abc:def abc "abc def""#);
+
+        let mut iter = tokens
+            .iter()
+            .map(|token| QueryExpression::from(token.as_ref()));
+
+        assert_eq!(iter.next(), Some(QueryExpression::EventId("123")));
+        assert_eq!(iter.next(), Some(QueryExpression::Id("123")));
+        assert_eq!(iter.next(), Some(QueryExpression::Regex("abc")));
+        assert_eq!(iter.next(), Some(QueryExpression::Header("abc", "def")));
+        assert_eq!(iter.next(), Some(QueryExpression::Text("abc")));
+        assert_eq!(iter.next(), Some(QueryExpression::Text("abc def")));
+        assert_eq!(iter.next(), None);
     }
 
-    terms
+    #[rstest]
+    #[case("", &[])]
+    #[case(" ", &[])]
+    #[case("a", &["a"])]
+    #[case(" a ", &["a"])]
+    #[case("a b", &["a", "b"])]
+    #[case(" a b ", &["a", "b"])]
+    #[case("abc", &["abc"])]
+    #[case(" abc ", &["abc"])]
+    #[case("abc def", &["abc", "def"])]
+    #[case(" abc def ", &["abc", "def"])]
+    #[case(r#""""#, &[""])]
+    #[case(r#""a""#, &["a"])]
+    #[case(r#"""#, &[""])]
+    #[case(r#""a"#, &["a"])]
+    #[case(r#"" a ""#, &[" a "])]
+    #[case(r#""abc""#, &["abc"])]
+    #[case(r#"" abc def ""#, &[" abc def "])]
+    #[case(r#""a" "b""#, &["a", "b"])]
+    #[case(r#"a"b"c"#, &["a", "b", "c"])]
+    #[case(r#""a"b"#, &["a", "b"])]
+    #[case(r#"""a"b"#, &["", "a", "b"])]
+    #[case(r#""""a"b"#, &[r#""a"#, "b"])]
+    #[case(r#"""""a"b"#, &[r#"""#, "a", "b"])]
+    #[case(r#""""""a"b"#, &[r#"""a"#, "b"])]
+    #[case(r#""""""#, &[r#"""#])]
+    #[case(r#""regex:abc "" def""#, &[r#"regex:abc " def"#])]
+    fn test_tokenize_query(#[case] query: &str, #[case] expected_terms: &[&str]) {
+        assert_eq!(tokenize_query(query), expected_terms, "query = {query}");
+    }
 }
