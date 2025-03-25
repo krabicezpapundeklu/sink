@@ -153,7 +153,7 @@
 				<fieldset>
 					<legend class="visually-hidden">System</legend>
 					<ul class="list-group">
-						{#each systems as s, i}
+						{#each systems as s, i (s)}
 							<li class="border-0 list-group-item list-group-item-action text-nowrap p-1">
 								<input
 									class="form-check-input m-1"
@@ -202,7 +202,7 @@
 				<fieldset>
 					<legend class="visually-hidden">Type</legend>
 					<ul class="list-group">
-						{#each ITEM_TYPES as t, i}
+						{#each ITEM_TYPES as t, i (t)}
 							<li class="border-0 list-group-item list-group-item-action text-nowrap p-1">
 								<input
 									class="form-check-input m-1"
@@ -248,7 +248,7 @@
 					<div class="accordion accordion-flush overflow-hidden">
 						<fieldset>
 							<legend class="visually-hidden">Event Type</legend>
-							{#each EVENT_TYPES as eventGroup}
+							{#each EVENT_TYPES as eventGroup (eventGroup.name)}
 								{@const selected = selectedEventGroups.indexOf(eventGroup.name) !== -1}
 								<div class="accordion-item">
 									<h2 class="accordion-header">
@@ -271,7 +271,7 @@
 									>
 										<div class="accordion-body p-0">
 											<ul class="list-group list-group-flush">
-												{#each eventGroup.types as t}
+												{#each eventGroup.types as t (t.id)}
 													<li
 														class="border-bottom-0 list-group-item list-group-item-action text-nowrap"
 													>

@@ -106,7 +106,7 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each item.headers as header}
+						{#each item.headers as header (header.name)}
 							<tr>
 								<td class="bg-white border-bottom-0 border-top">{header.name}</td>
 								<td class="bg-white border-bottom-0 border-start border-top">{header.value}</td>

@@ -34,6 +34,7 @@ function formatJson(json: string): string {
 
 	try {
 		formatted = JSON.stringify(JSON.parse(json), null, 1);
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	} catch (e) {
 		formatted = json;
 	}
@@ -81,11 +82,9 @@ function formatSubmitDates(items: ItemSummary[], detail = false) {
 
 		if (!detail) {
 			if (now.getTime() - submitDate.getTime() < MILLISECONDS_IN_DAY) {
-				// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 				const sd = dayDtf!.format(submitDate);
 
 				if (sd === nowDate) {
-					// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 					dtf = todayDtf!;
 				}
 			}

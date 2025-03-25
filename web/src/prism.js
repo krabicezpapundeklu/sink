@@ -1,5 +1,5 @@
 // @ts-nocheck
-/* PrismJS 1.29.0
+/* PrismJS 1.30.0
 https://prismjs.com/download.html#themes=prism&languages=markup+json+json5 */
 /// <reference lib="WebWorker"/>
 
@@ -226,7 +226,11 @@ export var Prism = (function (_self) {
 				if (typeof document === 'undefined') {
 					return null;
 				}
-				if ('currentScript' in document && 1 < 2 /* hack to trip TS' flow analysis */) {
+				if (
+					document.currentScript &&
+					document.currentScript.tagName === 'SCRIPT' &&
+					1 < 2 /* hack to trip TS' flow analysis */
+				) {
 					return /** @type {any} */ (document.currentScript);
 				}
 
