@@ -1808,6 +1808,7 @@ dependencies = [
  "axum",
  "clap",
  "futures",
+ "memchr",
  "mockall",
  "regex",
  "rstest",

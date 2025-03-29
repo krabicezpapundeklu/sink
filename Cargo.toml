@@ -8,6 +8,7 @@ anyhow = "1"
 axum = "0"
 clap = { version = "4", features = ["derive"] }
 futures = "0"
+memchr = "2"
 regex = "1"
 rusqlite = { version = "0", features = ["functions"] }
 rust-embed = { version = "8", features = ["include-exclude", "mime-guess"] }

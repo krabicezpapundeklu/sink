@@ -16,7 +16,9 @@ use axum::{
     serve,
 };
 
+use memchr::memmem;
 use rust_embed::RustEmbed;
+use serde::Serialize;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::compression::CompressionLayer;
@@ -67,33 +69,9 @@ impl<T> ResultExt<T> for Result<T> {
 }
 
 async fn get_asset(uri: Uri) -> Result<impl IntoResponse, AppError> {
-    let original_path = uri.path();
+    let path = uri.path().trim_start_matches('/');
 
-    let path = original_path
-        .trim_start_matches("/sink/")
-        .trim_start_matches('/');
-
-    let mut asset = if path == "index.html" {
-        None
-    } else {
-        Assets::get(path)
-    };
-
-    if asset.is_none() {
-        if !original_path.starts_with("/sink/") {
-            return Ok(Redirect::permanent(&format!(
-                "/sink{}",
-                uri.path_and_query()
-                    .map(PathAndQuery::as_str)
-                    .unwrap_or_default()
-            ))
-            .into_response());
-        }
-
-        asset = Assets::get("index.html");
-    }
-
-    let response = if let Some(content) = asset {
+    let response = if let Some(content) = Assets::get(path) {
         let mime = content.metadata.mimetype();
 
         if path.starts_with("_app/immutable") {
@@ -115,6 +93,18 @@ async fn get_asset(uri: Uri) -> Result<impl IntoResponse, AppError> {
     Ok(response)
 }
 
+async fn get_index_html<S: Service>(
+    State(service): State<S>,
+    Query(mut filter): Query<ItemFilter>,
+) -> impl IntoResponse {
+    filter.batch_size = Some(51);
+    filter.load_first_item = Some(true);
+
+    let items = service.get_items(&filter).await?;
+
+    respond_with_data(items)
+}
+
 async fn get_item<S: Service>(
     State(service): State<S>,
     Path(id): Path<i64>,
@@ -122,6 +112,16 @@ async fn get_item<S: Service>(
     Ok(service.get_item(id).await?.map_or_else(
         || StatusCode::NOT_FOUND.into_response(),
         |item| Json(item).into_response(),
+    ))
+}
+
+async fn get_item_html<S: Service>(
+    State(service): State<S>,
+    Path(id): Path<i64>,
+) -> Result<impl IntoResponse, AppError> {
+    Ok(service.get_item(id).await?.map_or_else(
+        || StatusCode::NOT_FOUND.into_response(),
+        |item| respond_with_data(item).into_response(),
     ))
 }
 
@@ -158,21 +158,61 @@ async fn get_raw_item<S: Service>(
     Ok(response)
 }
 
+async fn redirect_to_base(uri: Uri) -> impl IntoResponse {
+    Redirect::permanent(&format!(
+        "/sink{}",
+        uri.path_and_query()
+            .map(PathAndQuery::as_str)
+            .unwrap_or_default()
+    ))
+}
+
+fn respond_with_data(data: impl Serialize) -> Result<impl IntoResponse, AppError> {
+    const INITIAL_DATA: &[u8] = b"'%INITIAL_DATA%'";
+
+    let response = if let Some(page) = Assets::get("index.html") {
+        let body = page.data;
+        let data = serde_json::to_string(&data)?;
+
+        let mut body_with_data = Vec::with_capacity(body.len() + data.len());
+
+        if let Some(i) = memmem::find(&body, INITIAL_DATA) {
+            body_with_data.extend_from_slice(&body[0..i]);
+            body_with_data.extend_from_slice(data.as_bytes());
+            body_with_data.extend_from_slice(&body[i + INITIAL_DATA.len()..]);
+        }
+
+        ([(CONTENT_TYPE, page.metadata.mimetype())], body_with_data).into_response()
+    } else {
+        StatusCode::NOT_FOUND.into_response()
+    };
+
+    Ok(response)
+}
+
 pub async fn start<S>(host: &str, port: u16, service: S) -> Result<()>
 where
     S: Service + 'static,
 {
-    let api_routes = Router::new()
-        .route("/item/{id}", get(get_item::<S>))
-        .route("/items", get(get_items::<S>))
-        .route(
-            "/raw-item/{id}",
-            get(get_raw_item::<S>).post(get_raw_item::<S>),
-        );
-
     let router = Router::new()
-        .nest("/sink/api", api_routes)
-        .fallback(get(get_asset).post(submit_item::<S>))
+        .nest(
+            "/sink/",
+            Router::new()
+                .route("/", get(get_index_html::<S>))
+                .route("/item/{id}", get(get_item_html::<S>))
+                .nest(
+                    "/api",
+                    Router::new()
+                        .route("/item/{id}", get(get_item::<S>))
+                        .route("/items", get(get_items::<S>))
+                        .route(
+                            "/raw-item/{id}",
+                            get(get_raw_item::<S>).post(get_raw_item::<S>),
+                        ),
+                )
+                .fallback(get(get_asset).post(submit_item::<S>)),
+        )
+        .fallback(get(redirect_to_base).post(submit_item::<S>))
         .with_state(service)
         .layer(ServiceBuilder::new().layer(CompressionLayer::new()));
 

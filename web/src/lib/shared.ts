@@ -4,6 +4,9 @@ import EVENT_TYPES from '../../../event.types.json';
 import ITEM_TYPES from '../../../item.types.json';
 import type { Item, ItemSearchResult, ItemSummary, ItemType } from './model';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare let initialData: any;
+
 export const BATCH_SIZE = 50;
 export const MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
 export const MILLISECONDS_IN_HOUR = 60 * 60 * 1000;
@@ -129,6 +132,20 @@ export function getEntityEventType(id?: number): string {
 	return '';
 }
 
+function getInitialDataOnce() {
+	let data = null;
+
+	if (initialData) {
+		if (initialData !== '%INITIAL_DATA%') {
+			data = initialData;
+		}
+
+		initialData = null;
+	}
+
+	return data;
+}
+
 export function getUserAgent(item: ItemSummary): string {
 	const userAgent = item.userAgent;
 
@@ -152,6 +169,7 @@ export function getUserAgent(item: ItemSummary): string {
 
 	return '';
 }
+
 export function itemTypeFromKey(key: string): ItemType {
 	for (const type of ITEM_TYPES) {
 		if (type.key === key) {
@@ -166,13 +184,17 @@ export async function loadItem(
 	fetch: (input: RequestInfo) => Promise<Response>,
 	itemId: number
 ): Promise<Item> {
-	const response = await fetch(`${base}/api/item/${itemId}`);
+	let item = getInitialDataOnce();
 
-	if (!response.ok) {
-		error(500, await response.text());
+	if (!item) {
+		const response = await fetch(`${base}/api/item/${itemId}`);
+
+		if (!response.ok) {
+			error(500, await response.text());
+		}
+
+		item = await response.json();
 	}
-
-	const item = await response.json();
 
 	formatSubmitDates([item], true);
 
@@ -187,39 +209,43 @@ export async function loadItems(
 	batchSize?: number,
 	loadFirstItem?: boolean
 ): Promise<ItemSearchResult> {
-	let url = '';
+	let items = getInitialDataOnce();
 
-	if (firstItemId) {
-		url += `&firstItemId=${firstItemId}`;
+	if (!items) {
+		let url = '';
+
+		if (firstItemId) {
+			url += `&firstItemId=${firstItemId}`;
+		}
+
+		if (lastItemId) {
+			url += `&lastItemId=${lastItemId}`;
+		}
+
+		if (batchSize) {
+			url += `&batchSize=${batchSize}`;
+		}
+
+		if (loadFirstItem) {
+			url += '&loadFirstItem=true';
+		}
+
+		if (params.size > 0) {
+			url += `&${params}`;
+		}
+
+		if (url.length > 0) {
+			url = '?' + url.substring(1);
+		}
+
+		const response = await fetch(`${base}/api/items${url}`);
+
+		if (!response.ok) {
+			error(500, await response.text());
+		}
+
+		items = await response.json();
 	}
-
-	if (lastItemId) {
-		url += `&lastItemId=${lastItemId}`;
-	}
-
-	if (batchSize) {
-		url += `&batchSize=${batchSize}`;
-	}
-
-	if (loadFirstItem) {
-		url += '&loadFirstItem=true';
-	}
-
-	if (params.size > 0) {
-		url += `&${params}`;
-	}
-
-	if (url.length > 0) {
-		url = '?' + url.substring(1);
-	}
-
-	const response = await fetch(`${base}/api/items${url}`);
-
-	if (!response.ok) {
-		error(500, await response.text());
-	}
-
-	const items = await response.json();
 
 	formatSubmitDates(items.items);
 
