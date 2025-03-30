@@ -68,10 +68,10 @@ impl<T> ResultExt<T> for Result<T> {
     }
 }
 
-async fn get_asset(uri: Uri) -> Result<impl IntoResponse, AppError> {
+async fn get_asset(uri: Uri) -> impl IntoResponse {
     let path = uri.path().trim_start_matches('/');
 
-    let response = if let Some(content) = Assets::get(path) {
+    if let Some(content) = Assets::get(path) {
         let mime = content.metadata.mimetype();
 
         if path.starts_with("_app/immutable") {
@@ -88,9 +88,7 @@ async fn get_asset(uri: Uri) -> Result<impl IntoResponse, AppError> {
         }
     } else {
         StatusCode::NOT_FOUND.into_response()
-    };
-
-    Ok(response)
+    }
 }
 
 async fn get_index_html<S: Service>(
