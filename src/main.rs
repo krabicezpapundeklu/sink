@@ -1,10 +1,15 @@
-use std::path::PathBuf;
+use std::{
+    io::{IsTerminal, stdout},
+    path::PathBuf,
+};
 
 use anyhow::Result;
 use clap::Parser;
 use sink::{repository::open_repository, server::start, service::new_service};
+use tracing::info;
+use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
-#[derive(Parser)]
+#[derive(Debug, Parser)]
 #[command(version)]
 struct Args {
     /// Host to listen on
@@ -22,7 +27,16 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    const VERSION: &str = env!("CARGO_PKG_VERSION");
+
     let args = Args::parse();
+
+    tracing_subscriber::registry()
+        .with(fmt::layer().with_ansi(stdout().is_terminal()))
+        .with(EnvFilter::from_default_env())
+        .init();
+
+    info!(version = VERSION, ?args, "starting");
 
     let repository = open_repository(args.db).await?;
     let service = new_service(repository)?;

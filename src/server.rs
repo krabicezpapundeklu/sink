@@ -1,13 +1,18 @@
-use std::str::FromStr;
+use std::{
+    net::SocketAddr,
+    str::FromStr,
+    sync::atomic::{AtomicUsize, Ordering},
+    time::Duration,
+};
 
 use anyhow::{Error, Result};
 
 use axum::{
     Json, Router,
-    body::Bytes,
-    extract::{Path, Query, State},
+    body::{Body, Bytes},
+    extract::{ConnectInfo, Path, Query, State},
     http::{
-        HeaderMap, HeaderName, HeaderValue, StatusCode, Uri,
+        HeaderMap, HeaderName, HeaderValue, Request, StatusCode, Uri,
         header::{CACHE_CONTROL, CONTENT_TYPE},
         uri::PathAndQuery,
     },
@@ -21,12 +26,15 @@ use rust_embed::RustEmbed;
 use serde::Serialize;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
-use tower_http::compression::CompressionLayer;
+use tower_http::{compression::CompressionLayer, trace::TraceLayer};
+use tracing::{Span, error, error_span, field, instrument, trace};
 
 use crate::{
     model::{ItemFilter, NewItemHeader},
     service::Service,
 };
+
+static REQUEST_ID: AtomicUsize = AtomicUsize::new(1);
 
 struct AppError(Error);
 
@@ -41,7 +49,9 @@ where
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("{}", self.0)).into_response()
+        let error = format!("{}", self.0);
+        error!(error);
+        (StatusCode::INTERNAL_SERVER_ERROR, error).into_response()
     }
 }
 
@@ -91,6 +101,7 @@ async fn get_asset(uri: Uri) -> impl IntoResponse {
     }
 }
 
+#[instrument(skip_all, fields(filter))]
 async fn get_index_html<S: Service>(
     State(service): State<S>,
     Query(mut filter): Query<ItemFilter>,
@@ -103,6 +114,7 @@ async fn get_index_html<S: Service>(
     respond_with_data(items)
 }
 
+#[instrument(skip_all, fields(id))]
 async fn get_item<S: Service>(
     State(service): State<S>,
     Path(id): Path<i64>,
@@ -113,6 +125,7 @@ async fn get_item<S: Service>(
     ))
 }
 
+#[instrument(skip_all, fields(id))]
 async fn get_item_html<S: Service>(
     State(service): State<S>,
     Path(id): Path<i64>,
@@ -123,6 +136,7 @@ async fn get_item_html<S: Service>(
     ))
 }
 
+#[instrument(skip_all, fields(filter))]
 async fn get_items<S: Service>(
     State(service): State<S>,
     Query(filter): Query<ItemFilter>,
@@ -130,6 +144,7 @@ async fn get_items<S: Service>(
     service.get_items(&filter).await.to_json_response()
 }
 
+#[instrument(skip_all, fields(id))]
 async fn get_raw_item<S: Service>(
     State(service): State<S>,
     Path(id): Path<i64>,
@@ -192,6 +207,11 @@ pub async fn start<S>(host: &str, port: u16, service: S) -> Result<()>
 where
     S: Service + 'static,
 {
+    let trace_layer = TraceLayer::new_for_http()
+        .make_span_with(trace_layer_make_span_with)
+        .on_request(trace_layer_on_request)
+        .on_response(trace_layer_on_response);
+
     let router = Router::new()
         .nest(
             "/sink/",
@@ -212,13 +232,23 @@ where
         )
         .fallback(get(redirect_to_base).post(submit_item::<S>))
         .with_state(service)
-        .layer(ServiceBuilder::new().layer(CompressionLayer::new()));
+        .layer(
+            ServiceBuilder::new()
+                .layer(CompressionLayer::new())
+                .layer(trace_layer),
+        );
 
     let listener = TcpListener::bind((host, port)).await?;
 
-    serve(listener, router).await.map_err(Into::into)
+    serve(
+        listener,
+        router.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .map_err(Into::into)
 }
 
+#[instrument(skip_all)]
 async fn submit_item<S: Service>(
     State(service): State<S>,
     headers: HeaderMap,
@@ -233,4 +263,34 @@ async fn submit_item<S: Service>(
         .collect();
 
     service.save_item(&headers, &body).await.to_json_response()
+}
+
+fn trace_layer_make_span_with(request: &Request<Body>) -> Span {
+    let request_id = REQUEST_ID.fetch_add(1, Ordering::SeqCst);
+
+    error_span!("request",
+        id = request_id,
+        uri = %request.uri(),
+        method = %request.method(),
+        source = request.extensions()
+            .get::<ConnectInfo<SocketAddr>>()
+            .map_or_else(|| field::display(String::from("<unknown>")), |connect_info| field::display(connect_info.ip().to_string())),
+        status = field::Empty,
+        latency = field::Empty,
+    )
+}
+
+fn trace_layer_on_request(_request: &Request<Body>, _span: &Span) {
+    trace!("got request");
+}
+
+fn trace_layer_on_response(response: &Response, latency: Duration, span: &Span) {
+    span.record(
+        "latency",
+        field::display(format!("{}ms", latency.as_millis())),
+    );
+
+    span.record("status", field::display(response.status()));
+
+    trace!("responded");
 }

@@ -18,6 +18,8 @@ sqlx = { version = "0", features = ["macros", "runtime-tokio", "sqlite"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tower = "0"
 tower-http = { version = "0", features = ["full"] }
+tracing = "0"
+tracing-subscriber = { version = "0", features = ["env-filter"] }
 
 [build-dependencies]
 static-files = "0"
