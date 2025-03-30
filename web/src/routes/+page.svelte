@@ -9,15 +9,17 @@
 		getUserAgent,
 		itemTypeFromKey,
 		loadItem,
-		loadItems,
-		MILLISECONDS_IN_MINUTE
+		loadItems
 	} from '$lib/shared';
 
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import Item from '$lib/Item.svelte';
+	import LocalDateTime from '$lib/LocalDateTime.svelte';
 	import Search from '$lib/Search.svelte';
 	import type { PageData } from './$types';
+
+	const MILLISECONDS_IN_MINUTE = 60 * 1000;
 
 	let { data }: { data: PageData } = $props();
 
@@ -233,7 +235,7 @@
 									{#if userAgent}
 										<span class="badge bg-secondary" title={item.userAgent}>{userAgent}</span>
 									{/if}
-									<span class="float-end">{item.submitDate}</span>
+									<span class="float-end"><LocalDateTime dateTime={item.submitDate} /></span>
 								</div>
 								<div>
 									{#if item.system}

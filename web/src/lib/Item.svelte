@@ -4,6 +4,7 @@
 	import { page } from '$app/stores';
 	import copy from 'copy-to-clipboard';
 	import Highlighted from './Highlighted.svelte';
+	import LocalDateTime from './LocalDateTime.svelte';
 	import type { Item } from './model';
 
 	let { item, preventDefault = true }: { item: Item; preventDefault?: boolean } = $props();
@@ -35,7 +36,7 @@
 		{#if item.userAgent}
 			<span class="badge bg-secondary">{item.userAgent}</span>
 		{/if}
-		<span class="ms-3">{item.submitDate}</span>
+		<span class="ms-3"><LocalDateTime dateTime={item.submitDate} detail={true} /></span>
 		<div>
 			{#if item.system}
 				<span class="badge bg-secondary">{item.system}</span>

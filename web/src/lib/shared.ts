@@ -8,9 +8,6 @@ import type { Item, ItemSearchResult, ItemSummary, ItemType } from './model';
 declare let initialData: any;
 
 export const BATCH_SIZE = 50;
-export const MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
-export const MILLISECONDS_IN_HOUR = 60 * 60 * 1000;
-export const MILLISECONDS_IN_MINUTE = 60 * 1000;
 
 export { ITEM_TYPES };
 
@@ -47,54 +44,6 @@ function formatJson(json: string): string {
 
 export function formatNumber(value: number): string {
 	return value.toLocaleString('en-us');
-}
-
-function formatSubmitDates(items: ItemSummary[], detail = false) {
-	const options: Intl.DateTimeFormatOptions = {};
-	const now = new Date();
-
-	let dayDtf: Intl.DateTimeFormat | undefined;
-	let todayDtf: Intl.DateTimeFormat | undefined;
-	let nowDate: string | undefined;
-
-	if (detail) {
-		options.dateStyle = 'full';
-		options.timeStyle = 'medium';
-	} else {
-		options.timeStyle = 'short';
-
-		todayDtf = new Intl.DateTimeFormat('en-us', options);
-
-		options.dateStyle = 'short';
-
-		const dayOpts: Intl.DateTimeFormatOptions = { dateStyle: 'short', timeZone: options.timeZone };
-
-		dayDtf = new Intl.DateTimeFormat('en-us', dayOpts);
-		nowDate = dayDtf.format(now);
-	}
-
-	const defaultDtf = new Intl.DateTimeFormat('en-us', options);
-
-	for (const item of items) {
-		let dtf = defaultDtf;
-
-		const isoDate =
-			item.submitDate.substring(0, 10) + 'T' + item.submitDate.substring(11) + '.000Z';
-
-		const submitDate = new Date(isoDate);
-
-		if (!detail) {
-			if (now.getTime() - submitDate.getTime() < MILLISECONDS_IN_DAY) {
-				const sd = dayDtf!.format(submitDate);
-
-				if (sd === nowDate) {
-					dtf = todayDtf!;
-				}
-			}
-		}
-
-		item.submitDate = dtf.format(submitDate);
-	}
 }
 
 function formatXml(xml: string): string {
@@ -196,8 +145,6 @@ export async function loadItem(
 		item = await response.json();
 	}
 
-	formatSubmitDates([item], true);
-
 	return item;
 }
 
@@ -245,12 +192,6 @@ export async function loadItems(
 		}
 
 		items = await response.json();
-	}
-
-	formatSubmitDates(items.items);
-
-	if (items.firstItem) {
-		formatSubmitDates([items.firstItem], true);
 	}
 
 	return items;
