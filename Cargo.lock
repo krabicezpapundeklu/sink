@@ -1851,7 +1851,7 @@ dependencies = [
 
 [[package]]
 name = "sink"
-version = "2.0.1"
+version = "2.0.2"
 dependencies = [
  "anyhow",
  "axum",
