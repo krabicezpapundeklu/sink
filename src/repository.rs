@@ -3,7 +3,6 @@ use std::{borrow::Cow, future::Future, mem::take, path::Path};
 use crate::model::{Item, ItemFilter, ItemHeader, ItemSummary, NewItem};
 
 use anyhow::Result;
-use futures::stream::StreamExt;
 use regex::bytes::Regex;
 use rusqlite::{Connection, functions::FunctionFlags};
 
@@ -217,16 +216,10 @@ impl Repository for SqlitePool {
         builder.append_if_is_some(" LIMIT ", filter.batch_size);
 
         let query = builder.build_query_as::<Row>();
-        let mut rows = query.fetch(self);
+        let rows = query.fetch_all(self).await?;
 
-        let mut items = Vec::new();
-        let mut total_items = 0;
-
-        while let Some(row) = rows.next().await {
-            let row = row?;
-            items.push(row.item);
-            total_items = row.total_items;
-        }
+        let total_items = rows.first().map(|row| row.total_items).unwrap_or_default();
+        let items = rows.into_iter().map(|row| row.item).collect();
 
         Ok((items, total_items))
     }

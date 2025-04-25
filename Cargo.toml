@@ -7,7 +7,6 @@ edition = "2024"
 anyhow = "1"
 axum = "0"
 clap = { version = "4", features = ["derive"] }
-futures = "0"
 memchr = "2"
 regex = "1"
 rusqlite = { version = "0", features = ["functions"] }
