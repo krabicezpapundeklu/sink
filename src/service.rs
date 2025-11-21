@@ -47,8 +47,10 @@ where
     async fn get_items(&self, filter: &ItemFilter) -> Result<ItemSearchResult> {
         let (items, total_items) = self.repository.get_items(filter).await?;
 
-        let first_item = if filter.load_first_item.unwrap_or_default() && !items.is_empty() {
-            self.repository.get_item(items[0].id).await?
+        let first_item = if filter.load_first_item.unwrap_or_default()
+            && let Some(first_item) = items.first()
+        {
+            self.repository.get_item(first_item.id).await?
         } else {
             None
         };
